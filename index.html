@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        try {
+          var match = document.cookie.match(/(?:^|;\s*)theme=(dark|light)/);
+          var theme;
+
+          if (match) {
+            theme = match[1];
+          } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            theme = "dark";
+          } else {
+            theme = "light";
+          }
+
+          if (theme === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } catch (e) {
+          // fail silently, worst case you get a light flash once
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React + TS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
