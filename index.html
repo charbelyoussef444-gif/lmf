@@ -9,7 +9,10 @@
 
           if (match) {
             theme = match[1];
-          } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          } else if (
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+          ) {
             theme = "dark";
           } else {
             theme = "light";
@@ -20,16 +23,34 @@
           } else {
             document.documentElement.classList.remove("dark");
           }
-        } catch (e) {
-          // fail silently, worst case you get a light flash once
-        }
+        } catch (e) {}
       })();
     </script>
+
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- ✅ Standard favicon -->
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- PNG favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+    <!-- Android / Chrome -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+
+    <!-- iOS home screen -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/site.webmanifest" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+
+    <title>LikeMinded</title>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
