@@ -1,22 +1,22 @@
+// lmf/src/pages/LoginPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Sparkles,
   ShieldCheck,
   Mail,
   Lock,
   User2,
   LogIn,
   UserPlus,
-  Moon,
-  Sun,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../auth/AuthProvider";
 import { api } from "../lib/api";
-import { useTheme } from "../theme/ThemeProvider";
+
+import AppHeader from "../components/AppHeader";
+import AppFooter from "../components/AppFooter";
 
 type CountryRow = { country: string };
 type CityRow = { id: number; city: string; admin_name?: string | null };
@@ -196,9 +196,8 @@ export default function LoginPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
 
-  // ✅ FIX 1: default redirect should be landing ("/"), not "/conversations"
+  // ✅ default redirect should be landing ("/"), not "/conversations"
   const from = (location.state as any)?.from?.pathname || "/";
 
   const initialPhase: "auth" | "onboarding" =
@@ -249,7 +248,6 @@ export default function LoginPage() {
     setError(null);
   }
 
-  // ✅ OPTIONAL BUT RECOMMENDED:
   // If a signed-in user lands on /login normally, just send them to "from".
   useEffect(() => {
     if (!user) return;
@@ -502,7 +500,7 @@ export default function LoginPage() {
         properties: { step: "onboarding_saved" },
       });
 
-      // ✅ FIX 2: go to intended destination, not always "/chatbot"
+      // go to intended destination
       navigate(from, { replace: true });
     } catch (e: any) {
       setError(e?.message || "Could not save your preferences.");
@@ -511,7 +509,7 @@ export default function LoginPage() {
     }
   }
 
-  // Signed-in compact panel (logic unchanged — except destination)
+  // Signed-in compact panel
   if (user && phase === "auth") {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
@@ -522,58 +520,8 @@ export default function LoginPage() {
         </div>
 
         <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-          {/* NAVBAR – matched to landing */}
-          <header className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 shadow-md shadow-indigo-400/30">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
-              <div className="flex flex-col leading-tight">
-                <span className="text-sm font-semibold tracking-tight">
-                  LikeMinded
-                </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Compatibility-first dating
-                </span>
-              </div>
-            </div>
-
-            <nav className="hidden items-center gap-6 text-xs font-medium text-slate-600 dark:text-slate-300 md:flex">
-              <a
-                href="/"
-                className="hover:text-indigo-600 dark:hover:text-indigo-300"
-              >
-                Home
-              </a>
-              <Link
-                to="/chatbot"
-                className="hover:text-indigo-600 dark:hover:text-indigo-300"
-              >
-                Assessment
-              </Link>
-              <Link
-                to="/conversations"
-                className="hover:text-indigo-600 dark:hover:text-indigo-300"
-              >
-                Conversations
-              </Link>
-            </nav>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleTheme}
-                aria-label="Toggle light/dark mode"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white/70 text-slate-600 shadow-sm hover:border-indigo-400 hover:text-indigo-600 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </header>
+          {/* ✅ Shared header */}
+          <AppHeader />
 
           <main className="flex flex-1 items-center justify-center py-10">
             <motion.div
@@ -604,7 +552,6 @@ export default function LoginPage() {
 
                 <div className="mt-6 grid gap-3 text-sm">
                   <button
-                    // ✅ FIX 3: use intended destination
                     onClick={() => navigate(from)}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2 font-medium text-white shadow-md hover:brightness-110"
                   >
@@ -620,6 +567,9 @@ export default function LoginPage() {
               </div>
             </motion.div>
           </main>
+
+          {/* ✅ Shared footer */}
+          <AppFooter />
         </div>
       </div>
     );
@@ -635,58 +585,8 @@ export default function LoginPage() {
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-        {/* NAVBAR – aligned with landing */}
-        <header className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 shadow-md shadow-indigo-400/30">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight">
-                LikeMinded
-              </span>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                Compatibility-first dating
-              </span>
-            </div>
-          </div>
-
-          <nav className="hidden items-center gap-6 text-xs font-medium text-slate-600 dark:text-slate-300 md:flex">
-            <a
-              href="/"
-              className="hover:text-indigo-600 dark:hover:text-indigo-300"
-            >
-              Home
-            </a>
-            <Link
-              to="/chatbot"
-              className="hover:text-indigo-600 dark:hover:text-indigo-300"
-            >
-              Assessment
-            </Link>
-            <Link
-              to="/conversations"
-              className="hover:text-indigo-600 dark:hover:text-indigo-300"
-            >
-              Conversations
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label="Toggle light/dark mode"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white/70 text-slate-600 shadow-sm hover:border-indigo-400 hover:text-indigo-600 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </header>
+        {/* ✅ Shared header */}
+        <AppHeader />
 
         <main className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-md">
@@ -972,6 +872,9 @@ export default function LoginPage() {
             </motion.div>
           </div>
         </main>
+
+        {/* ✅ Shared footer */}
+        <AppFooter />
       </div>
 
       {/* Onboarding sheet */}
@@ -1009,7 +912,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Country (dropdown with filter inside) */}
+              {/* Country */}
               <SearchableDropdown
                 label="Country"
                 value={country}
@@ -1022,7 +925,7 @@ export default function LoginPage() {
                 placeholder="Select a country"
               />
 
-              {/* City (dropdown with filter inside) */}
+              {/* City */}
               <SearchableDropdown
                 label="City"
                 value={cityId}
