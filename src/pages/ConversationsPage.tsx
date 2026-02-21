@@ -29,143 +29,11 @@ import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
 
+// ✅ use the fixed WS hook
+import { useConversationWS, type WsEvent } from "../lib/useConversationWS";
+
 const PHOTO_UNLOCK_NOTE =
   "Photos will appear only with mutual consent, and only after 24 hours of the match.";
-
-/** ---------------- WebSocket minimal client (matches backend events) ---------------- */
-
-type WsMessageData = {
-  id: string;
-  conversation_id: string;
-  sender_user_id?: string | null;
-  receiver_user_id?: string | null;
-  content_text?: string | null;
-  created_at: string; // ISO
-};
-
-type WsEvent =
-  | { type: "message-new"; data: WsMessageData }
-  | { type: "typing"; userId: string; isTyping: boolean }
-  | { type: "read"; userId: string }
-  | { type: "presence"; userId: string; state: "joined" | "left" }
-  | { type: "photos-unlocked"; conversation_id: string }
-  | { type: "pong" }
-  | { type: "ended"; conversation_id: string };
-
-function useConversationWS(opts: {
-  apiBase: string;
-  cid: string | null;
-  token: string | null;
-  onEvent?: (evt: WsEvent) => void;
-}) {
-  const { apiBase, cid, token, onEvent } = opts;
-  const [status, setStatus] = useState<
-    "disconnected" | "connecting" | "connected"
-  >("disconnected");
-  const wsRef = useRef<WebSocket | null>(null);
-  const pingRef = useRef<number | null>(null);
-
-  const onEventRef = useRef<typeof onEvent | null>(null);
-  useEffect(() => {
-    onEventRef.current = onEvent || null;
-  }, [onEvent]);
-
-  useEffect(() => {
-    if (!cid || !token) return;
-
-    let retry = 0;
-
-    const rawBase = (import.meta.env.VITE_API_BASE_URL || apiBase || "").replace(
-      /\/+$/,
-      ""
-    );
-    const wsBase = rawBase.replace(
-      /^http(s?):\/\//,
-      (_m: string, s: string) => `ws${s ? "s" : ""}://`
-    );
-    const url = `${wsBase}/ws/conversations/${cid}?token=${encodeURIComponent(
-      token
-    )}`;
-
-    function connect() {
-      setStatus("connecting");
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setStatus("connected");
-        retry = 0;
-        pingRef.current = window.setInterval(() => {
-          try {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: "ping" }));
-            }
-          } catch {
-            /* noop */
-          }
-        }, 25000);
-      };
-
-      ws.onmessage = (ev) => {
-        try {
-          const evt = JSON.parse(ev.data) as WsEvent;
-          onEventRef.current?.(evt);
-        } catch {
-          // ignore malformed frames
-        }
-      };
-
-      ws.onclose = () => {
-        setStatus("disconnected");
-        if (pingRef.current) {
-          clearInterval(pingRef.current);
-          pingRef.current = null;
-        }
-        const delay = Math.min(1000 * 2 ** retry, 15000);
-        retry += 1;
-        window.setTimeout(connect, delay);
-      };
-
-      ws.onerror = () => {
-        try {
-          ws.close();
-        } catch {}
-      };
-    }
-
-    connect();
-
-    return () => {
-      if (pingRef.current) {
-        clearInterval(pingRef.current);
-        pingRef.current = null;
-      }
-      const s = wsRef.current;
-      if (s && s.readyState === WebSocket.OPEN) s.close();
-      wsRef.current = null;
-    };
-  }, [apiBase, cid, token]);
-
-  const safeSend = (payload: unknown) => {
-    const s = wsRef.current;
-    if (!s || s.readyState !== WebSocket.OPEN) return false;
-    try {
-      s.send(JSON.stringify(payload));
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  const sendText = (text: string) => safeSend({ type: "send", text });
-  const setTyping = (isTyping: boolean) =>
-    safeSend({ type: "typing", isTyping });
-  const markRead = () => safeSend({ type: "read" });
-
-  return { status, sendText, setTyping, markRead };
-}
-
-/** ---------------- Match blocker UI ---------------- */
 
 function MatchBlockers({
   status,
@@ -298,8 +166,26 @@ function extractIntroPrompts(text?: string) {
   return prompts.slice(0, 3);
 }
 
-/** ---------------- Page ---------------- */
+/** ---------------- Helpers ---------------- */
+function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
 
+function msToClock(ms: number) {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+/** ---------------- Page ---------------- */
 export default function ConversationsPage() {
   // Widen message type locally without forcing lib/api changes.
   type ThreadMsg = Msg & { role: "me" | "them" | "system"; kind?: string };
@@ -322,6 +208,9 @@ export default function ConversationsPage() {
   const [reportReason, setReportReason] = useState<ReportReason | "">("");
   const [reportDetails, setReportDetails] = useState("");
   const [reportSaving, setReportSaving] = useState(false);
+
+  // ✅ prevents openConversation race (fast clicks)
+  const openSeq = useRef(0);
 
   useEffect(() => {
     (async () => {
@@ -419,31 +308,44 @@ export default function ConversationsPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [reportSaving]);
 
+  // ✅ WS event handler (FIXED)
   const onWsEvent = useCallback(
     (evt: WsEvent) => {
       switch (evt.type) {
         case "message-new": {
           const d = evt.data;
 
-          const role: "me" | "them" =
-            meId && d.sender_user_id === meId ? "me" : "them";
+          // ✅ if not for the currently open conversation, DO NOT push into thread
+          if (!activeId || d.conversation_id !== activeId) {
+            // optional: update previews + unread badge
+            setConvos((prev) =>
+              prev.map((c) => {
+                if (c.id !== d.conversation_id) return c;
 
-          if (role === "them") {
-            api
-              .trackEvent({
-                event_name: "message_received",
-                conversation_id: d.conversation_id,
-                message_id: d.id,
-                other_user_id: d.sender_user_id ?? undefined,
-                properties: { via: "ws" },
+                const isFromMe = !!meId && d.sender_user_id === meId;
+                const unreadInc = isFromMe ? 0 : 1;
+
+                return {
+                  ...c,
+                  lastMessage: d.content_text ?? c.lastMessage,
+                  lastAt: "now" as any, // your backend returns "now"/"5m"/etc
+                  unread: (c.unread ?? 0) + unreadInc,
+                };
               })
-              .catch(() => {});
+            );
+            return;
           }
+
+          // if meId isn't loaded yet, don't mislabel messages
+          if (!meId) return;
+
+          const role: "me" | "them" = d.sender_user_id === meId ? "me" : "them";
 
           setThread((t) => {
             const alreadyThere = t.some((msg) => msg.id === d.id);
             if (alreadyThere) return t;
 
+            // Replace temp message if it was ours
             if (role === "me") {
               const idx = [...t]
                 .reverse()
@@ -472,6 +374,19 @@ export default function ConversationsPage() {
               } as any,
             ];
           });
+
+          // keep preview updated for active convo
+          setConvos((prev) =>
+            prev.map((c) =>
+              c.id === d.conversation_id
+                ? {
+                    ...c,
+                    lastMessage: d.content_text ?? c.lastMessage,
+                    lastAt: "now" as any,
+                  }
+                : c
+            )
+          );
 
           break;
         }
@@ -514,7 +429,10 @@ export default function ConversationsPage() {
       onEvent: onWsEvent,
     });
 
+  // ✅ race-safe conversation open
   async function openConversation(id: string) {
+    const seq = ++openSeq.current;
+
     setActiveId(id);
     setMenuFor(null);
 
@@ -531,6 +449,10 @@ export default function ConversationsPage() {
       .catch(() => {});
 
     const msgs = await api.thread(id);
+
+    // ✅ if user opened a different convo while awaiting, ignore
+    if (openSeq.current !== seq) return;
+
     setThread(msgs as any);
 
     try {
@@ -538,17 +460,26 @@ export default function ConversationsPage() {
     } catch {}
     api.markRead(id).catch(() => {});
 
+    // clear unread for this convo locally
+    setConvos((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c))
+    );
+
     try {
       const st = await api.matchFeedbackStatus(id);
+      if (openSeq.current !== seq) return;
       setShowFeedbackPrompt(!!st.should_prompt);
     } catch {
+      if (openSeq.current !== seq) return;
       setShowFeedbackPrompt(false);
     }
 
     try {
       const urls = await api.conversationPhotos(id);
+      if (openSeq.current !== seq) return;
       setUnlockedPhotos(urls);
     } catch {
+      if (openSeq.current !== seq) return;
       setUnlockedPhotos(null);
     }
   }
@@ -557,7 +488,10 @@ export default function ConversationsPage() {
     if (!activeId || feedbackChoice === "") return;
     setFeedbackSaving(true);
     try {
-      const res = await api.submitMatchFeedback(activeId, feedbackChoice === "yes");
+      const res = await api.submitMatchFeedback(
+        activeId,
+        feedbackChoice === "yes"
+      );
       setShowFeedbackPrompt(false);
 
       if (res.photos_unlocked) {
@@ -572,12 +506,14 @@ export default function ConversationsPage() {
     }
   }
 
+  // ✅ send (kept your logic, now safe because sockets won’t multiply)
   async function send() {
     if (!message.trim() || !activeId || sending) return;
     setSending(true);
 
     const text = message.trim();
     const tempId = "temp-" + crypto.randomUUID();
+
     setThread((t) => [
       ...t,
       {
@@ -1383,23 +1319,4 @@ export default function ConversationsPage() {
       )}
     </div>
   );
-}
-
-/* ---------------- Helpers ---------------- */
-function useNow(intervalMs = 1000) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(t);
-  }, [intervalMs]);
-  return now;
-}
-
-function msToClock(ms: number) {
-  const total = Math.floor(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
