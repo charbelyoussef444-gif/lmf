@@ -30,7 +30,7 @@ import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
 
 // ✅ use the fixed WS hook
-import { useConversationWS, type WsEvent } from "../lib/useConversationWS";
+import { useConversationWS, type WsEvent } from "../hooks/useConversationWS";
 
 const PHOTO_UNLOCK_NOTE =
   "Photos will appear only with mutual consent, and only after 24 hours of the match.";
