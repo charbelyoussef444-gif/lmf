@@ -265,6 +265,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(`${res.status} ${res.statusText}${msg ? `: ${msg}` : ""}`);
   }
 
+  // ✅ FIX: 204 No Content must not attempt json()
+  if (res.status === 204) {
+    return null as unknown as T;
+  }
+
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json")
     ? ((await res.json()) as T)
@@ -431,9 +436,7 @@ export const api = {
     }),
 
   matchFeedbackStatus: (cid: string) =>
-    request<MatchFeedbackStatus>(
-      `/conversations/${cid}/match-feedback/status`
-    ),
+    request<MatchFeedbackStatus>(`/conversations/${cid}/match-feedback/status`),
 
   submitMatchFeedback: (cid: string, response: boolean) =>
     request<MatchFeedbackResult>(`/conversations/${cid}/match-feedback`, {
