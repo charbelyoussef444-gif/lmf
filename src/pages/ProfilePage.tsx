@@ -202,7 +202,8 @@ export default function ProfilePage() {
   const [pendingInterests, setPendingInterests] = useState<Interest[]>([]);
   const [updatingInterests, setUpdatingInterests] = useState(false);
 
-  const [photos, setPhotos] = useState<string[]>([]);
+  // backend returns 3-slot array now: ["", "", ""]
+  const [photos, setPhotos] = useState<string[]>(["", "", ""]);
   const [uploading, setUploading] = useState(false);
   const [uploadingPos, setUploadingPos] = useState<1 | 2 | 3 | null>(null);
   const [removingPos, setRemovingPos] = useState<1 | 2 | 3 | null>(null);
@@ -283,15 +284,16 @@ export default function ProfilePage() {
 
         const pp = normalizeProfile(p);
 
-        // default distance
+        // sane default if missing
         if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
 
         setProfile(pp);
 
         setInterests(ints);
-        // enforce max 5 selected on load (UI rule)
         setPendingInterests(ints.slice(0, MAX_INTERESTS));
-        setPhotos(ph);
+
+        // backend returns fixed 3 slots; still guard
+        setPhotos(Array.isArray(ph) ? (ph.length === 3 ? ph : ["", "", ""]) : ["", "", ""]);
         setAllInterests(allInts);
 
         if (kyc) {
@@ -303,6 +305,8 @@ export default function ProfilePage() {
           });
         }
       } catch (e) {
+        // api.ts already redirects to /login on errors (per your request),
+        // so just log.
         console.error(e);
       } finally {
         setLoading(false);
@@ -352,13 +356,13 @@ export default function ProfilePage() {
     try {
       await api.uploadGalleryPhoto(file, pos);
       const ph = await api.myPhotos();
-      setPhotos(ph);
+      setPhotos(ph.length === 3 ? ph : ["", "", ""]);
       flashSaved("photos");
     } catch (err) {
       console.error(err);
       alert("Failed to upload photo.");
     } finally {
-      // allow selecting SAME file again
+      // allow selecting same file again
       e.target.value = "";
       setUploading(false);
       setUploadingPos(null);
@@ -368,16 +372,9 @@ export default function ProfilePage() {
   async function removeGallery(pos: 1 | 2 | 3) {
     setRemovingPos(pos);
     try {
-      const anyApi = api as any;
-      if (typeof anyApi.deleteGalleryPhoto !== "function") {
-        alert(
-          "Backend endpoint missing: api.deleteGalleryPhoto(pos). Add it in lib/api.ts and backend."
-        );
-        return;
-      }
-      await anyApi.deleteGalleryPhoto(pos);
+      await api.deleteGalleryPhoto(pos);
       const ph = await api.myPhotos();
-      setPhotos(ph);
+      setPhotos(ph.length === 3 ? ph : ["", "", ""]);
       flashSaved("photos");
     } catch (err) {
       console.error(err);
@@ -644,8 +641,8 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Your profile details help us understand who you are and what
-                  kind of people you’re likely to click with.
+                  Your profile details help us understand who you are and what kind of people
+                  you’re likely to click with.
                 </div>
               </div>
             </div>
@@ -699,9 +696,8 @@ export default function ProfilePage() {
             {kycStatus?.status === "unverified" && (
               <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
                 <p>
-                  Upload verification images so we can confirm you’re a real
-                  person. If your status becomes{" "}
-                  <span className="font-medium">Unverified</span> again, your
+                  Upload verification images so we can confirm you’re a real person. If your
+                  status becomes <span className="font-medium">Unverified</span> again, your
                   request was denied — check the reasons and re-upload.
                 </p>
 
@@ -768,8 +764,8 @@ export default function ProfilePage() {
               )}
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              This shapes who we prioritize showing you. It guides matching but
-              doesn’t act as a hard filter.
+              This shapes who we prioritize showing you. It guides matching but doesn’t act
+              as a hard filter.
             </p>
 
             <div className="mt-4 space-y-4 text-sm text-slate-700 dark:text-slate-200">
