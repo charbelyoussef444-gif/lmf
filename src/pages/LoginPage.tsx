@@ -22,12 +22,43 @@ import AppFooter from "../components/AppFooter";
 
 type CityRow = { id: number; city: string; admin_name?: string | null };
 
-type SelectOption = { value: string; label: string };
-
-// ✅ hard-lock
 const LOCKED_COUNTRY = "Lebanon";
-// ✅ default fixed distance (50 miles ≈ 80 km)
 const DEFAULT_MAX_DISTANCE_KM = 80;
+
+// onboarding persistence
+const ONBOARDING_FLAG_KEY = "lmf_onboarding_active_v1";
+const ONBOARDING_FORM_KEY = "lmf_onboarding_form_v1";
+
+type OnboardingDraft = {
+  age: string;
+  cityId: string;
+  prefMin: string;
+  prefMax: string;
+  prefGender: "women" | "men" | "everyone" | null;
+  selfGender: "woman" | "man" | "nonbinary" | null;
+};
+
+function readDraft(): OnboardingDraft | null {
+  try {
+    const raw = sessionStorage.getItem(ONBOARDING_FORM_KEY);
+    return raw ? (JSON.parse(raw) as OnboardingDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(d: OnboardingDraft) {
+  try {
+    sessionStorage.setItem(ONBOARDING_FORM_KEY, JSON.stringify(d));
+  } catch {}
+}
+
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(ONBOARDING_FORM_KEY);
+    sessionStorage.removeItem(ONBOARDING_FLAG_KEY);
+  } catch {}
+}
 
 // Accent-insensitive, case-insensitive folding
 function foldToAsciiLike(s: string) {
@@ -37,6 +68,8 @@ function foldToAsciiLike(s: string) {
     .toLowerCase()
     .trim();
 }
+
+type SelectOption = { value: string; label: string };
 
 function SearchableDropdown({
   label,
@@ -196,10 +229,14 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ✅ default redirect should be landing ("/"), not "/conversations"
   const from = (location.state as any)?.from?.pathname || "/";
 
-  const initialPhase: "auth" | "onboarding" =
-    (location.state as any)?.onboarding === true ? "onboarding" : "auth";
+  const initialPhase: "auth" | "onboarding" = (() => {
+    const forced = (location.state as any)?.onboarding === true;
+    const persisted = sessionStorage.getItem(ONBOARDING_FLAG_KEY) === "1";
+    return forced || persisted ? "onboarding" : "auth";
+  })();
 
   const [phase, setPhase] = useState<"auth" | "onboarding">(initialPhase);
 
@@ -224,10 +261,7 @@ export default function LoginPage() {
   // Onboarding form
   const [age, setAge] = useState("");
 
-  // ✅ Lebanon-only: no countries list, no country dropdown
-  const country = LOCKED_COUNTRY;
-
-  // City dropdown (Lebanon only)
+  // ✅ Lebanon-only cities
   const [cities, setCities] = useState<CityRow[]>([]);
   const [cityId, setCityId] = useState<string>("");
 
@@ -258,13 +292,15 @@ export default function LoginPage() {
   useEffect(() => {
     if (phase !== "onboarding") return;
 
+    // persist onboarding state so refresh keeps popup
+    sessionStorage.setItem(ONBOARDING_FLAG_KEY, "1");
+
     let alive = true;
     (async () => {
       try {
         const list = (await api.getCities(LOCKED_COUNTRY)) as CityRow[];
         if (!alive) return;
         setCities(list);
-        setCityId("");
       } catch (e: any) {
         if (!alive) return;
         setCities([]);
@@ -284,6 +320,27 @@ export default function LoginPage() {
       return { value: String(c.id), label };
     });
   }, [cities]);
+
+  // ✅ Restore draft once when onboarding is active
+  useEffect(() => {
+    if (phase !== "onboarding") return;
+    const d = readDraft();
+    if (!d) return;
+
+    setAge(d.age ?? "");
+    setCityId(d.cityId ?? "");
+    setPrefMin(d.prefMin ?? "");
+    setPrefMax(d.prefMax ?? "");
+    setPrefGender(d.prefGender ?? null);
+    setSelfGender(d.selfGender ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // ✅ Auto-save draft while onboarding
+  useEffect(() => {
+    if (phase !== "onboarding") return;
+    writeDraft({ age, cityId, prefMin, prefMax, prefGender, selfGender });
+  }, [phase, age, cityId, prefMin, prefMax, prefGender, selfGender]);
 
   async function signInWithGoogle() {
     clearMsgs();
@@ -377,7 +434,6 @@ export default function LoginPage() {
           emailRedirectTo: redirectTo,
           data: {
             full_name: fullName,
-            // ✅ stamp metadata too
             country: LOCKED_COUNTRY,
           },
         },
@@ -389,6 +445,8 @@ export default function LoginPage() {
         return;
       }
 
+      // persist + open onboarding
+      sessionStorage.setItem(ONBOARDING_FLAG_KEY, "1");
       setPhase("onboarding");
     } catch (e: any) {
       setError(e?.message || "Sign up failed.");
@@ -416,8 +474,6 @@ export default function LoginPage() {
       setError("Please select your gender.");
       return;
     }
-
-    // ✅ keep it simple: require city selection since Lebanon-only
     if (!cityId) {
       setError("Please select your city.");
       return;
@@ -443,6 +499,9 @@ export default function LoginPage() {
         event_name: "signup_completed",
         properties: { step: "onboarding_saved" },
       });
+
+      // ✅ clear persistence only after success
+      clearDraft();
 
       navigate(from, { replace: true });
     } catch (e: any) {
@@ -551,6 +610,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {/* Tabs */}
               <div className="mt-5 grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
                 <button
                   type="button"
@@ -582,6 +642,7 @@ export default function LoginPage() {
                 </button>
               </div>
 
+              {/* Panels */}
               <div className="relative mt-4">
                 <div className="h-px bg-slate-100 dark:bg-slate-700" />
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -869,7 +930,6 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {/* Country badge locked */}
               <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 {LOCKED_COUNTRY} (locked)
               </span>
@@ -894,7 +954,7 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Country (locked display, not selectable) */}
+              {/* Country (locked display) */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
                   Country
@@ -904,7 +964,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* City (Lebanon only) */}
+              {/* City */}
               <SearchableDropdown
                 label="City"
                 value={cityId}
@@ -973,8 +1033,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* ✅ Removed Preferred max distance UI completely */}
-
+              {/* Gender preference */}
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
                   Gender preference
