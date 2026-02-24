@@ -930,9 +930,7 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {LOCKED_COUNTRY} (locked)
-              </span>
+              
             </div>
 
             <form
