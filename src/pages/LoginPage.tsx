@@ -9,6 +9,8 @@ import {
   LogIn,
   UserPlus,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabaseClient";
@@ -213,12 +215,15 @@ export default function LoginPage() {
   // Sign in form
   const [emailIn, setEmailIn] = useState("");
   const [passwordIn, setPasswordIn] = useState("");
+  const [showPasswordIn, setShowPasswordIn] = useState(false);
 
   // Sign up form
   const [fullName, setFullName] = useState("");
   const [emailUp, setEmailUp] = useState("");
   const [passwordUp, setPasswordUp] = useState("");
   const [confirmUp, setConfirmUp] = useState("");
+  const [showPasswordUp, setShowPasswordUp] = useState(false);
+  const [showConfirmUp, setShowConfirmUp] = useState(false);
 
   // Onboarding form
   const [age, setAge] = useState("");
@@ -682,14 +687,28 @@ export default function LoginPage() {
                         <div className="relative">
                           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                           <input
-                            type="password"
+                            type={showPasswordIn ? "text" : "password"}
                             value={passwordIn}
                             onChange={(e) => setPasswordIn(e.target.value)}
                             required
                             placeholder="••••••••"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-10 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                             minLength={6}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordIn((v) => !v)}
+                            aria-label={
+                              showPasswordIn ? "Hide password" : "Show password"
+                            }
+                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          >
+                            {showPasswordIn ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
                         </div>
 
                         <div className="mt-2 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
@@ -767,14 +786,28 @@ export default function LoginPage() {
                         <div className="relative">
                           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                           <input
-                            type="password"
+                            type={showPasswordUp ? "text" : "password"}
                             value={passwordUp}
                             onChange={(e) => setPasswordUp(e.target.value)}
                             required
                             placeholder="••••••••"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-10 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                             minLength={6}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordUp((v) => !v)}
+                            aria-label={
+                              showPasswordUp ? "Hide password" : "Show password"
+                            }
+                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          >
+                            {showPasswordUp ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
                         </div>
 
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
@@ -783,14 +816,30 @@ export default function LoginPage() {
                         <div className="relative">
                           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                           <input
-                            type="password"
+                            type={showConfirmUp ? "text" : "password"}
                             value={confirmUp}
                             onChange={(e) => setConfirmUp(e.target.value)}
                             required
                             placeholder="••••••••"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-10 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                             minLength={6}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmUp((v) => !v)}
+                            aria-label={
+                              showConfirmUp
+                                ? "Hide password"
+                                : "Show password"
+                            }
+                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          >
+                            {showConfirmUp ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
                         </div>
 
                         <button
