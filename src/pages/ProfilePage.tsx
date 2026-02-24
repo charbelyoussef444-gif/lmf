@@ -230,7 +230,7 @@ export default function ProfilePage() {
         const pp = normalizeProfile(p);
 
         // sane default if missing
-        if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 25;
+        if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
 
         setProfile(pp);
 
@@ -328,7 +328,7 @@ export default function ProfilePage() {
   async function savePreferences() {
     if (!profile) return;
 
-    const dist = profile.preferred_max_distance_km ?? 25;
+    const dist = profile.preferred_max_distance_km ?? 80;
     if (dist < 1 || dist > 500) {
       alert("Max distance must be between 1 and 500 km.");
       return;
@@ -403,8 +403,8 @@ export default function ProfilePage() {
   // NOTE: backend supports 1..500; UI is intentionally capped at 200 for sanity.
   const distanceMin = 1;
   const distanceMax = 200; // sane for most users; still validated/saved as km
-  const recommendedMinKm = 10;
-  const recommendedMaxKm = 50;
+  const recommendedMinKm = 60;
+  const recommendedMaxKm = 90;
 
   const distanceValue = Math.min(
     distanceMax,
