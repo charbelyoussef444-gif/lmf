@@ -20,14 +20,14 @@ import { api } from "../lib/api";
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
 
-type CountryRow = { country: string };
 type CityRow = { id: number; city: string; admin_name?: string | null };
 
-const KM_PER_MI = 1.609344;
+type SelectOption = { value: string; label: string };
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}
+// ✅ hard-lock
+const LOCKED_COUNTRY = "Lebanon";
+// ✅ default fixed distance (50 miles ≈ 80 km)
+const DEFAULT_MAX_DISTANCE_KM = 80;
 
 // Accent-insensitive, case-insensitive folding
 function foldToAsciiLike(s: string) {
@@ -37,8 +37,6 @@ function foldToAsciiLike(s: string) {
     .toLowerCase()
     .trim();
 }
-
-type SelectOption = { value: string; label: string };
 
 function SearchableDropdown({
   label,
@@ -132,7 +130,6 @@ function SearchableDropdown({
             transition={{ duration: 0.15 }}
             className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
           >
-            {/* "first entry" search box */}
             <div className="border-b border-slate-100 p-2 dark:border-slate-700">
               <div className="relative">
                 <input
@@ -199,7 +196,6 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ default redirect should be landing ("/"), not "/conversations"
   const from = (location.state as any)?.from?.pathname || "/";
 
   const initialPhase: "auth" | "onboarding" =
@@ -228,18 +224,15 @@ export default function LoginPage() {
   // Onboarding form
   const [age, setAge] = useState("");
 
-  // Country + City dropdowns (from DB)
-  const [countries, setCountries] = useState<CountryRow[]>([]);
-  const [country, setCountry] = useState("");
+  // ✅ Lebanon-only: no countries list, no country dropdown
+  const country = LOCKED_COUNTRY;
+
+  // City dropdown (Lebanon only)
   const [cities, setCities] = useState<CityRow[]>([]);
   const [cityId, setCityId] = useState<string>("");
 
   const [prefMin, setPrefMin] = useState("");
   const [prefMax, setPrefMax] = useState("");
-
-  // Distance preference (store as string for input)
-  const [prefDistance, setPrefDistance] = useState("");
-  const [distanceUnit, setDistanceUnit] = useState<"km" | "mi">("km");
 
   const [prefGender, setPrefGender] = useState<
     "women" | "men" | "everyone" | null
@@ -261,41 +254,14 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Load countries when onboarding opens
+  // ✅ Load cities for Lebanon when onboarding opens
   useEffect(() => {
     if (phase !== "onboarding") return;
 
     let alive = true;
     (async () => {
       try {
-        const list = (await api.getCountries()) as CountryRow[];
-        if (!alive) return;
-        setCountries(list);
-      } catch (e: any) {
-        if (!alive) return;
-        setCountries([]);
-        setError(e?.message || "Could not load countries.");
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [phase]);
-
-  // Load cities when country changes
-  useEffect(() => {
-    if (phase !== "onboarding") return;
-
-    let alive = true;
-    (async () => {
-      if (!country) {
-        setCities([]);
-        setCityId("");
-        return;
-      }
-      try {
-        const list = (await api.getCities(country)) as CityRow[];
+        const list = (await api.getCities(LOCKED_COUNTRY)) as CityRow[];
         if (!alive) return;
         setCities(list);
         setCityId("");
@@ -310,13 +276,7 @@ export default function LoginPage() {
     return () => {
       alive = false;
     };
-  }, [country, phase]);
-
-  const countryOptions = useMemo<SelectOption[]>(() => {
-    return countries
-      .map((c) => ({ value: c.country, label: c.country }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [countries]);
+  }, [phase]);
 
   const cityOptions = useMemo<SelectOption[]>(() => {
     return cities.map((c) => {
@@ -324,25 +284,6 @@ export default function LoginPage() {
       return { value: String(c.id), label };
     });
   }, [cities]);
-
-  const distanceKm = useMemo(() => {
-    const n = Number(prefDistance);
-    if (!prefDistance || Number.isNaN(n) || n <= 0) return null;
-    return distanceUnit === "km" ? n : n * KM_PER_MI;
-  }, [prefDistance, distanceUnit]);
-
-  const distanceEquivalenceText = useMemo(() => {
-    const n = Number(prefDistance);
-    if (!prefDistance || Number.isNaN(n) || n <= 0) return null;
-
-    if (distanceUnit === "km") {
-      const mi = n / KM_PER_MI;
-      return `≈ ${round1(mi)} mile`;
-    } else {
-      const km = n * KM_PER_MI;
-      return `≈ ${round1(km)} km`;
-    }
-  }, [prefDistance, distanceUnit]);
 
   async function signInWithGoogle() {
     clearMsgs();
@@ -423,7 +364,6 @@ export default function LoginPage() {
     try {
       sessionStorage.setItem("post_login_redirect", from);
 
-      // TRACK: signup_started (attempt)
       await api.trackEvent({
         event_name: "signup_started",
         properties: { method: "email" },
@@ -435,7 +375,11 @@ export default function LoginPage() {
         password: passwordUp,
         options: {
           emailRedirectTo: redirectTo,
-          data: { full_name: fullName },
+          data: {
+            full_name: fullName,
+            // ✅ stamp metadata too
+            country: LOCKED_COUNTRY,
+          },
         },
       });
       if (error) throw error;
@@ -445,7 +389,6 @@ export default function LoginPage() {
         return;
       }
 
-      // After sign up with active session, go into onboarding
       setPhase("onboarding");
     } catch (e: any) {
       setError(e?.message || "Sign up failed.");
@@ -474,38 +417,33 @@ export default function LoginPage() {
       return;
     }
 
-    if (distanceKm !== null) {
-      const kmInt = Math.round(distanceKm);
-      if (kmInt < 1 || kmInt > 500) {
-        setError("Preferred distance must be between 1 and 500 km.");
-        return;
-      }
+    // ✅ keep it simple: require city selection since Lebanon-only
+    if (!cityId) {
+      setError("Please select your city.");
+      return;
     }
 
     setBusy(true);
     try {
       const payload = {
         age: ageNum,
-        location_id: cityId ? Number(cityId) : null,
+        location_id: Number(cityId),
         gender: selfGender,
         preferred_min_age: prefMin ? Number(prefMin) : null,
         preferred_max_age: prefMax ? Number(prefMax) : null,
         preferred_gender: prefGender,
 
-        // ALWAYS send km to backend
-        preferred_max_distance_km:
-          distanceKm === null ? null : Math.round(distanceKm),
+        // ✅ fixed default, no UI
+        preferred_max_distance_km: DEFAULT_MAX_DISTANCE_KM,
       };
 
       await api.completeOnboarding(payload);
 
-      // TRACK: signup_completed (onboarding saved)
       await api.trackEvent({
         event_name: "signup_completed",
         properties: { step: "onboarding_saved" },
       });
 
-      // go to intended destination
       navigate(from, { replace: true });
     } catch (e: any) {
       setError(e?.message || "Could not save your preferences.");
@@ -518,14 +456,12 @@ export default function LoginPage() {
   if (user && phase === "auth") {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
-        {/* background glow */}
         <div className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
           <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
         </div>
 
         <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-          {/* ✅ Shared header */}
           <AppHeader />
 
           <main className="flex flex-1 items-center justify-center py-10">
@@ -573,7 +509,6 @@ export default function LoginPage() {
             </motion.div>
           </main>
 
-          {/* ✅ Shared footer */}
           <AppFooter />
         </div>
       </div>
@@ -583,14 +518,12 @@ export default function LoginPage() {
   // Auth + onboarding
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
-      {/* background glow */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-        {/* ✅ Shared header */}
         <AppHeader />
 
         <main className="flex flex-1 items-center justify-center py-10">
@@ -618,7 +551,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Tabs */}
               <div className="mt-5 grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
                 <button
                   type="button"
@@ -650,7 +582,6 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* Panels */}
               <div className="relative mt-4">
                 <div className="h-px bg-slate-100 dark:bg-slate-700" />
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -828,9 +759,7 @@ export default function LoginPage() {
                             type="button"
                             onClick={() => setShowConfirmUp((v) => !v)}
                             aria-label={
-                              showConfirmUp
-                                ? "Hide password"
-                                : "Show password"
+                              showConfirmUp ? "Hide password" : "Show password"
                             }
                             className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                           >
@@ -856,7 +785,6 @@ export default function LoginPage() {
                 </AnimatePresence>
               </div>
 
-              {/* Divider */}
               <div className="my-5 flex items-center gap-3">
                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
                 <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
@@ -865,7 +793,6 @@ export default function LoginPage() {
                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
               </div>
 
-              {/* Google button */}
               <button
                 onClick={signInWithGoogle}
                 disabled={busy}
@@ -880,7 +807,6 @@ export default function LoginPage() {
                 Continue with Google
               </button>
 
-              {/* Notices */}
               {notice && (
                 <div className="mt-4 text-xs text-emerald-600 dark:text-emerald-300">
                   {notice}
@@ -892,7 +818,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Footer hint */}
               <div className="mt-6 text-center text-xs text-slate-600 dark:text-slate-300">
                 {mode === "signin" ? (
                   <>
@@ -922,7 +847,6 @@ export default function LoginPage() {
           </div>
         </main>
 
-        {/* ✅ Shared footer */}
         <AppFooter />
       </div>
 
@@ -934,13 +858,22 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900/95"
           >
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              Set up your profile
-            </h2>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              This helps us match you with people who actually fit your pace and
-              preferences.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                  Set up your profile
+                </h2>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  This helps us match you with people who actually fit your pace
+                  and preferences.
+                </p>
+              </div>
+
+              {/* Country badge locked */}
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {LOCKED_COUNTRY} (locked)
+              </span>
+            </div>
 
             <form
               onSubmit={onCompleteOnboarding}
@@ -961,20 +894,17 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Country */}
-              <SearchableDropdown
-                label="Country"
-                value={country}
-                onChange={(v) => {
-                  setCountry(v);
-                  setCityId("");
-                  clearMsgs();
-                }}
-                options={countryOptions}
-                placeholder="Select a country"
-              />
+              {/* Country (locked display, not selectable) */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
+                  Country
+                </label>
+                <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200">
+                  {LOCKED_COUNTRY}
+                </div>
+              </div>
 
-              {/* City */}
+              {/* City (Lebanon only) */}
               <SearchableDropdown
                 label="City"
                 value={cityId}
@@ -982,9 +912,9 @@ export default function LoginPage() {
                   setCityId(v);
                   clearMsgs();
                 }}
-                disabled={!country}
                 options={cityOptions}
-                placeholder={country ? "Select a city" : "Select country first"}
+                placeholder="Select a city"
+                disabled={cities.length === 0}
               />
 
               {/* Your gender */}
@@ -1043,45 +973,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Preferred max distance */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                  Preferred max distance
-                </label>
-
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={500}
-                    value={prefDistance}
-                    onChange={(e) => setPrefDistance(e.target.value)}
-                    placeholder="25"
-                    className="w-2/3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                  />
-
-                  <select
-                    value={distanceUnit}
-                    onChange={(e) =>
-                      setDistanceUnit(e.target.value as "km" | "mi")
-                    }
-                    className="w-1/3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                  >
-                    <option value="km">km</option>
-                    <option value="mi">mile</option>
-                  </select>
-                </div>
-
-                {distanceEquivalenceText ? (
-                  <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    {distanceEquivalenceText} (saved as km)
-                  </div>
-                ) : (
-                  <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    Optional. If set, we’ll match within this radius.
-                  </div>
-                )}
-              </div>
+              {/* ✅ Removed Preferred max distance UI completely */}
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
