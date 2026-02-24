@@ -284,9 +284,7 @@ export default function LoginPage() {
     };
   }, [country, phase]);
 
-  const countryOptions = useMemo<SelectOption[]>(() => {
-    return [{ value: "Lebanon", label: "Lebanon" }];
-  }, []);
+  
 
   const cityOptions = useMemo<SelectOption[]>(() => {
     return cities.map((c) => {
