@@ -371,6 +371,7 @@ export const api = {
     }),
 
   // Photos
+  // IMPORTANT: backend should return 3-length array in slot order.
   myPhotos: () => request<string[]>("/me/photos"),
 
   uploadGalleryPhoto: (file: File, position: 1 | 2 | 3) => {
@@ -382,6 +383,10 @@ export const api = {
       { method: "POST", body: fd }
     );
   },
+
+  // ✅ NEW: delete a specific gallery slot
+  deleteGalleryPhoto: (position: 1 | 2 | 3) =>
+    request<null>(`/me/photos/gallery/${position}`, { method: "DELETE" }),
 
   uploadVerificationId: (file: File) => {
     const fd = new FormData();
