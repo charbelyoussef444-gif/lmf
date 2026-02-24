@@ -271,47 +271,27 @@ function CongratsModal({
 
 function ProgressHeader({
   phase,
-  selfTotal,
-  prefTotal,
-  selfAnswered,
-  prefAnswered,
+  bubblesCount,
 }: {
   phase: ChatPhase;
-  selfTotal: number;
-  prefTotal: number;
-  selfAnswered: number;
-  prefAnswered: number;
+  bubblesCount: number;
 }) {
-  const total = Math.max(0, selfTotal + prefTotal);
-  const bubbles = Array.from({ length: total });
-
+  const bubbles = Array.from({ length: Math.max(0, bubblesCount) });
   const isSelfActive = phase === "self";
   const isPrefActive = phase === "pref";
 
-  const bubbleClassForIndex = (i: number) => {
-    const inSelf = i < selfTotal;
-    const inPref = i >= selfTotal;
-
-    if (inSelf) {
-      const filled = i < selfAnswered;
-      if (!filled) return "bg-slate-200/80 dark:bg-slate-800/70";
-
+  const bubbleClass = (p: ChatPhase) => {
+    if (p === "self") {
       return isSelfActive
         ? "bg-gradient-to-r from-indigo-500/75 via-violet-500/75 to-rose-500/75 shadow-[0_0_0_4px_rgba(129,140,248,0.10)]"
         : "bg-slate-300/70 dark:bg-slate-700/70";
     }
-
-    if (inPref) {
-      const idx = i - selfTotal;
-      const filled = idx < prefAnswered;
-      if (!filled) return "bg-slate-200/80 dark:bg-slate-800/70";
-
+    if (p === "pref") {
       return isPrefActive
         ? "bg-gradient-to-r from-rose-500/75 via-fuchsia-500/70 to-indigo-500/70 shadow-[0_0_0_4px_rgba(244,114,182,0.10)]"
         : "bg-slate-300/70 dark:bg-slate-700/70";
     }
-
-    return "bg-slate-200/80 dark:bg-slate-700/70";
+    return "bg-slate-300/70 dark:bg-slate-700/70";
   };
 
   return (
@@ -330,19 +310,19 @@ function ProgressHeader({
           <AnimatePresence initial={false}>
             {bubbles.map((_, i) => (
               <motion.span
-                key={i}
+                key={`${phase}-${i}`}
                 initial={{ opacity: 0, scale: 0.7, y: 6 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.7, y: -6 }}
                 transition={{ duration: 0.16, ease: "easeOut" }}
-                className={["h-2.5 w-2.5 rounded-full transition", bubbleClassForIndex(i)].join(
+                className={["h-2.5 w-2.5 rounded-full transition", bubbleClass(phase)].join(
                   " "
                 )}
               />
             ))}
           </AnimatePresence>
 
-          {total <= 0 ? (
+          {bubblesCount <= 0 ? (
             <span className="text-[12px] text-slate-500 dark:text-slate-400">
               Answer the first question to start building your profile.
             </span>
@@ -434,11 +414,9 @@ export default function ChatbotPage() {
   const [phase, setPhase] = useState<ChatPhase>("self");
   const [, setServerProgress] = useState<HistoryProgress | null>(null);
 
-  // totals/answered for equal bubbles in both phases
-  const [selfTotal, setSelfTotal] = useState(0);
-  const [prefTotal, setPrefTotal] = useState(0);
-  const [selfAnswered, setSelfAnswered] = useState(0);
-  const [prefAnswered, setPrefAnswered] = useState(0);
+  // ✅ bubbles are created only when user confirms an MCQ answer (no grey placeholders)
+  const [selfBubbles, setSelfBubbles] = useState(0);
+  const [prefBubbles, setPrefBubbles] = useState(0);
 
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
@@ -464,33 +442,7 @@ export default function ChatbotPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showPhase1Congrats, setShowPhase1Congrats] = useState(false);
 
-  function mergeFromServer(progress: HistoryProgress | null | undefined) {
-    const sp = progress || {};
-    const sT = typeof sp.self_total === "number" ? sp.self_total : 0;
-    const pT = typeof sp.pref_total === "number" ? sp.pref_total : 0;
-    const sA = typeof sp.self_answered === "number" ? sp.self_answered : 0;
-    const pA = typeof sp.pref_answered === "number" ? sp.pref_answered : 0;
-
-    // Keep the biggest totals we've ever seen (prevents shrinking)
-    setSelfTotal((prev) => Math.max(prev, sT, sA));
-    setPrefTotal((prev) => Math.max(prev, pT, pA));
-
-    setSelfAnswered((prev) => Math.max(prev, sA));
-    setPrefAnswered((prev) => Math.max(prev, pA));
-  }
-
-  function bumpAnsweredForCurrentPhaseOnce() {
-    // bump answered only once per mcqId (prevents double increments)
-    // we do it by using selectedOption reset per mcqId + confirm gating.
-    if (phase === "self") setSelfAnswered((n) => n + 1);
-    else if (phase === "pref") setPrefAnswered((n) => n + 1);
-  }
-
-  function rollbackAnsweredForCurrentPhase() {
-    if (phase === "self") setSelfAnswered((n) => Math.max(0, n - 1));
-    else if (phase === "pref") setPrefAnswered((n) => Math.max(0, n - 1));
-  }
-
+  // use backend history only to restore the last message/phase; bubbles are local-only per your request
   useEffect(() => {
     let cancelled = false;
 
@@ -505,10 +457,7 @@ export default function ChatbotPage() {
           prevPhaseRef.current = newPhase;
         }
 
-        if (data?.progress) {
-          setServerProgress(data.progress);
-          mergeFromServer(data.progress);
-        }
+        if (data?.progress) setServerProgress(data.progress);
 
         const msgs: any[] = data?.messages || [];
         const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
@@ -574,7 +523,7 @@ export default function ChatbotPage() {
       return;
     }
 
-    const TOTAL_MS = 8_000; // feel snappier overall
+    const TOTAL_MS = 8_000;
     const start = Date.now();
 
     const tick = () => {
@@ -656,15 +605,14 @@ export default function ChatbotPage() {
         }
       }
 
-      if (res?.progress) {
-        setServerProgress((prev) => ({ ...(prev || {}), ...res.progress }));
-        mergeFromServer(res.progress);
-      }
+      if (res?.progress) setServerProgress((prev) => ({ ...(prev || {}), ...res.progress }));
 
       setSaveDone(true);
       setCurrentAssistantText(res?.reply || "");
     } catch {
-      rollbackAnsweredForCurrentPhase();
+      // if request fails, roll back the bubble we added on confirm
+      if (phase === "self") setSelfBubbles((n) => Math.max(0, n - 1));
+      else if (phase === "pref") setPrefBubbles((n) => Math.max(0, n - 1));
       setCurrentAssistantText("Network error — try again.");
     } finally {
       window.setTimeout(() => {
@@ -707,14 +655,14 @@ export default function ChatbotPage() {
 
     setShowConfirm(false);
 
-    // bump answered only when user confirms
-    bumpAnsweredForCurrentPhaseOnce();
+    // ✅ create a new bubble NOW (no placeholders)
+    if (phase === "self") setSelfBubbles((n) => n + 1);
+    else if (phase === "pref") setPrefBubbles((n) => n + 1);
 
     if (pendingConfirm.kind === "mcq") {
       void sendAnswer(pendingConfirm.key);
       return;
     }
-
     if (pendingConfirm.kind === "other") {
       void sendAnswer(pendingConfirm.text);
       return;
@@ -724,8 +672,6 @@ export default function ChatbotPage() {
   function cancelPending() {
     setShowConfirm(false);
     setPendingConfirm(null);
-
-    // if they cancel confirmation, reset selection (so they can pick again cleanly)
     setSelectedOption(null);
   }
 
@@ -958,28 +904,6 @@ export default function ChatbotPage() {
       <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
         Tip: choose the closest option. Don’t overthink it.
       </div>
-
-      {phase === "done" ? (
-        <div className="mt-4 rounded-3xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                Bio ready ✅
-              </div>
-              <div className="mt-1 text-[12px] text-emerald-800/80 dark:text-emerald-200/80">
-                You can start matching now.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate("/conversations")}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/85 via-emerald-500/85 to-indigo-500/85 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-400/15 hover:brightness-105"
-            >
-              Match now <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : null}
     </motion.div>
   ) : (
     <motion.div
@@ -993,48 +917,17 @@ export default function ChatbotPage() {
       <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
         {stripMcqArtifacts(currentAssistantText)}
       </div>
-
-      {phase === "done" ? (
-        <div className="mt-4 rounded-3xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-                Bio ready ✅
-              </div>
-              <div className="mt-1 text-[12px] text-emerald-800/80 dark:text-emerald-200/80">
-                You can start matching now.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate("/conversations")}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/85 via-emerald-500/85 to-indigo-500/85 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-400/15 hover:brightness-105"
-            >
-              Match now <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : null}
     </motion.div>
   );
 
-  const confirmTitle = useMemo(() => {
-    if (!pendingConfirm) return "Confirm your answer";
-    if (pendingConfirm.kind === "mcq") return "Confirm your answer";
-    return "Confirm your answer";
-  }, [pendingConfirm]);
+  const showMatchCta = phase === "done";
 
+  const confirmTitle = useMemo(() => "Confirm your answer", []);
   const confirmSubtitle = useMemo(() => {
     if (!pendingConfirm) return "";
-    if (pendingConfirm.kind === "mcq") {
-      return `You selected: ${pendingConfirm.key}) ${pendingConfirm.label}`;
-    }
+    if (pendingConfirm.kind === "mcq") return `You selected: ${pendingConfirm.key}) ${pendingConfirm.label}`;
     return `You wrote: ${pendingConfirm.text.replace(/^D\s*/, "")}`;
   }, [pendingConfirm]);
-
-  // If server never gives totals, keep UI sane: show at least answered bubbles
-  const safeSelfTotal = Math.max(selfTotal, selfAnswered);
-  const safePrefTotal = Math.max(prefTotal, prefAnswered);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
@@ -1053,10 +946,7 @@ export default function ChatbotPage() {
         onCancel={cancelPending}
       />
 
-      <CongratsModal
-        open={showPhase1Congrats}
-        onContinue={() => setShowPhase1Congrats(false)}
-      />
+      <CongratsModal open={showPhase1Congrats} onContinue={() => setShowPhase1Congrats(false)} />
 
       {!isLoadingHistory && !hasStarted && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
@@ -1098,10 +988,7 @@ export default function ChatbotPage() {
               <div className="h-full rounded-3xl border border-slate-200 bg-white/90 shadow-sm shadow-slate-200/50 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
                 <ProgressHeader
                   phase={phase}
-                  selfTotal={safeSelfTotal}
-                  prefTotal={safePrefTotal}
-                  selfAnswered={selfAnswered}
-                  prefAnswered={prefAnswered}
+                  bubblesCount={phase === "self" ? selfBubbles : phase === "pref" ? prefBubbles : selfBubbles + prefBubbles}
                 />
 
                 <div className="px-4 py-5 sm:px-5">
@@ -1119,6 +1006,33 @@ export default function ChatbotPage() {
                       </motion.div>
                     </AnimatePresence>
                   )}
+
+                  {/* ✅ Match CTA after completion */}
+                  {showMatchCta ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-5 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm shadow-slate-200/40 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/30"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                            Bio ready ✅
+                          </div>
+                          <div className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">
+                            You can start matching now.
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate("/conversations")}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500/85 via-violet-500/85 to-rose-500/85 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-400/15 hover:brightness-105"
+                        >
+                          Match now <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -1143,7 +1057,7 @@ export default function ChatbotPage() {
                 <SidebarTallCard
                   icon={<ShieldCheck className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
                   title="Progress you can trust."
-                  body="Bubbles are consistent: fixed totals per phase, filled as you answer, backed by the server."
+                  body="Bubbles appear only when you confirm an answer. No placeholders."
                 />
               </div>
             </aside>
