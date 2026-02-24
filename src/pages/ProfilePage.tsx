@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   Image as ImageIcon,
   XCircle,
+  Check,
 } from "lucide-react";
 import { api, type ProfileResponse } from "../lib/api";
 
@@ -201,6 +202,8 @@ export default function ProfilePage() {
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadingPos, setUploadingPos] = useState<1 | 2 | 3 | null>(null);
+  const [removingPos, setRemovingPos] = useState<1 | 2 | 3 | null>(null);
 
   const [savingPreferences, setSavingPreferences] = useState(false);
 
@@ -213,6 +216,61 @@ export default function ProfilePage() {
   >(null);
   const [kycBusy, setKycBusy] = useState(false);
   const kycInputRef = useRef<HTMLInputElement | null>(null);
+
+  const MAX_INTERESTS = 5;
+
+  const [prefsSaved, setPrefsSaved] = useState(false);
+  const [interestsSaved, setInterestsSaved] = useState(false);
+  const [photosSaved, setPhotosSaved] = useState(false);
+  const [kycSaved, setKycSaved] = useState(false);
+
+  const prefsSavedTimer = useRef<number | null>(null);
+  const interestsSavedTimer = useRef<number | null>(null);
+  const photosSavedTimer = useRef<number | null>(null);
+  const kycSavedTimer = useRef<number | null>(null);
+
+  function flashSaved(
+    which: "prefs" | "interests" | "photos" | "kyc",
+    ms = 2200
+  ) {
+    const clear = (ref: React.MutableRefObject<number | null>) => {
+      if (ref.current) window.clearTimeout(ref.current);
+      ref.current = window.setTimeout(() => {
+        if (which === "prefs") setPrefsSaved(false);
+        if (which === "interests") setInterestsSaved(false);
+        if (which === "photos") setPhotosSaved(false);
+        if (which === "kyc") setKycSaved(false);
+      }, ms);
+    };
+
+    if (which === "prefs") {
+      setPrefsSaved(true);
+      clear(prefsSavedTimer);
+    }
+    if (which === "interests") {
+      setInterestsSaved(true);
+      clear(interestsSavedTimer);
+    }
+    if (which === "photos") {
+      setPhotosSaved(true);
+      clear(photosSavedTimer);
+    }
+    if (which === "kyc") {
+      setKycSaved(true);
+      clear(kycSavedTimer);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (prefsSavedTimer.current) window.clearTimeout(prefsSavedTimer.current);
+      if (interestsSavedTimer.current)
+        window.clearTimeout(interestsSavedTimer.current);
+      if (photosSavedTimer.current)
+        window.clearTimeout(photosSavedTimer.current);
+      if (kycSavedTimer.current) window.clearTimeout(kycSavedTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -235,7 +293,7 @@ export default function ProfilePage() {
         setProfile(pp);
 
         setInterests(ints);
-        setPendingInterests(ints);
+        setPendingInterests(ints.slice(0, MAX_INTERESTS));
         setPhotos(ph);
         setAllInterests(allInts);
 
@@ -259,8 +317,17 @@ export default function ProfilePage() {
     setPendingInterests((prev) => {
       const exists = prev.some((i) => i.id === int.id);
       if (exists) return prev.filter((i) => i.id !== int.id);
+
+      if (prev.length >= MAX_INTERESTS) {
+        alert(`You can select up to ${MAX_INTERESTS} interests.`);
+        return prev;
+      }
       return [...prev, int];
     });
+  }
+
+  function removeSelectedInterest(id: number) {
+    setPendingInterests((prev) => prev.filter((i) => i.id !== id));
   }
 
   async function saveInterests() {
@@ -269,7 +336,8 @@ export default function ProfilePage() {
       const names = pendingInterests.map((i) => i.name);
       const updated = await api.putInterests(names);
       setInterests(updated);
-      setPendingInterests(updated);
+      setPendingInterests(updated.slice(0, MAX_INTERESTS));
+      flashSaved("interests");
     } catch (err) {
       console.error(err);
       alert("Failed to save interests.");
@@ -279,17 +347,48 @@ export default function ProfilePage() {
   }
 
   async function uploadGallery(e: ChangeEvent<HTMLInputElement>, pos: 1 | 2 | 3) {
-    if (!e.target.files?.[0]) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setUploading(true);
+    setUploadingPos(pos);
     try {
-      await api.uploadGalleryPhoto(e.target.files[0], pos);
+      await api.uploadGalleryPhoto(file, pos);
       const ph = await api.myPhotos();
       setPhotos(ph);
+      flashSaved("photos");
     } catch (err) {
       console.error(err);
       alert("Failed to upload photo.");
     } finally {
+      // critical: allow selecting the same file again
+      e.target.value = "";
       setUploading(false);
+      setUploadingPos(null);
+    }
+  }
+
+  async function removeGallery(pos: 1 | 2 | 3) {
+    setRemovingPos(pos);
+    try {
+      const anyApi = api as any;
+
+      if (typeof anyApi.deleteGalleryPhoto !== "function") {
+        alert(
+          "Backend endpoint missing: api.deleteGalleryPhoto(pos). Add it, then this button will work."
+        );
+        return;
+      }
+
+      await anyApi.deleteGalleryPhoto(pos);
+      const ph = await api.myPhotos();
+      setPhotos(ph);
+      flashSaved("photos");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to remove photo.");
+    } finally {
+      setRemovingPos(null);
     }
   }
 
@@ -301,6 +400,7 @@ export default function ProfilePage() {
       await api.meKycUpload(files);
       const kyc = await api.meKycStatus();
       setKycStatus(kyc);
+      flashSaved("kyc");
     } catch (err) {
       console.error(err);
       alert("Failed to upload verification images.");
@@ -317,6 +417,7 @@ export default function ProfilePage() {
       await api.meKycCancel();
       const kyc = await api.meKycStatus();
       setKycStatus(kyc);
+      flashSaved("kyc");
     } catch (err) {
       console.error(err);
       alert("Failed to cancel verification request.");
@@ -345,8 +446,9 @@ export default function ProfilePage() {
 
       const updated = await api.updateMatchPreferences(payload);
       const pp = normalizeProfile(updated);
-      if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 25;
+      if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
       setProfile(pp);
+      flashSaved("prefs");
     } catch (err) {
       console.error(err);
       alert("Failed to save preferences.");
@@ -408,7 +510,7 @@ export default function ProfilePage() {
 
   const distanceValue = Math.min(
     distanceMax,
-    Math.max(distanceMin, profile.preferred_max_distance_km ?? 25)
+    Math.max(distanceMin, profile.preferred_max_distance_km ?? 80)
   );
 
   const distancePct =
@@ -560,6 +662,12 @@ export default function ProfilePage() {
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Verification
               </h2>
+
+              {kycSaved && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
             </div>
 
             {kycStatus?.status === "verified" && (
@@ -581,7 +689,12 @@ export default function ProfilePage() {
                     disabled={kycBusy}
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/60"
                   >
-                    <XCircle className="h-4 w-4" /> Cancel request
+                    {kycBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}{" "}
+                    Cancel request
                   </button>
                 </div>
               </div>
@@ -615,9 +728,17 @@ export default function ProfilePage() {
                 )}
 
                 <div className="flex items-center gap-3 pt-1">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white">
-                    <ImageIcon className="h-4 w-4" />
-                    Choose images
+                  <label
+                    className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white ${
+                      kycBusy ? "opacity-70 pointer-events-none" : ""
+                    }`}
+                  >
+                    {kycBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
+                    {kycBusy ? "Uploading…" : "Choose images"}
                     <input
                       type="file"
                       multiple
@@ -643,6 +764,12 @@ export default function ProfilePage() {
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Match preferences
               </h2>
+
+              {prefsSaved && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
               This shapes who we prioritize showing you. It guides matching but
@@ -684,13 +811,14 @@ export default function ProfilePage() {
                       <button
                         key={opt.value}
                         type="button"
+                        disabled={savingPreferences}
                         onClick={() =>
                           setProfile({
                             ...profile,
                             preferred_gender: opt.value,
                           })
                         }
-                        className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition disabled:opacity-60 ${
                           active
                             ? "border-slate-900 bg-slate-900 text-slate-50 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
                             : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400"
@@ -745,13 +873,14 @@ export default function ProfilePage() {
                     min={distanceMin}
                     max={distanceMax}
                     value={distanceValue}
+                    disabled={savingPreferences}
                     onChange={(e) =>
                       setProfile({
                         ...profile,
                         preferred_max_distance_km: Number(e.target.value),
                       })
                     }
-                    className="distance-range w-full"
+                    className="distance-range w-full disabled:opacity-70"
                     style={{ ["--pct" as any]: `${distancePct}%` }}
                     aria-label="Maximum distance in kilometers"
                   />
@@ -776,8 +905,12 @@ export default function ProfilePage() {
                 disabled={savingPreferences}
                 className="mt-2 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
               >
-                {savingPreferences && <Loader2 className="h-4 w-4 animate-spin" />}
-                Save preferences
+                {savingPreferences ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : prefsSaved ? (
+                  <Check className="h-4 w-4" />
+                ) : null}
+                {savingPreferences ? "Saving…" : prefsSaved ? "Saved" : "Save preferences"}
               </button>
             </div>
           </section>
@@ -788,10 +921,21 @@ export default function ProfilePage() {
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Interests
               </h2>
+
+              <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+                  {pendingInterests.length}/{MAX_INTERESTS}
+                </span>
+                {interestsSaved && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                    <Check className="h-3.5 w-3.5" /> Saved
+                  </span>
+                )}
+              </span>
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Pick everything that feels like you. Your selections are only saved
-              when you click “Save interests”.
+              Pick everything that feels like you. You can select up to {MAX_INTERESTS}.
+              Your selections are only saved when you click “Save interests”.
             </p>
 
             <div className="mt-4">
@@ -815,6 +959,16 @@ export default function ProfilePage() {
                         · {i.category}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedInterest(i.id)}
+                      aria-label={`Remove ${i.name}`}
+                      className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                      disabled={updatingInterests}
+                      title="Remove"
+                    >
+                      <XCircle className="h-4 w-4 opacity-70" />
+                    </button>
                   </span>
                 ))}
               </div>
@@ -855,16 +1009,19 @@ export default function ProfilePage() {
                       <div className="flex flex-wrap gap-2">
                         {items.map((int) => {
                           const active = selectedInterestIds.has(int.id);
+                          const atLimit = !active && pendingInterests.length >= MAX_INTERESTS;
                           return (
                             <button
                               key={int.id}
                               type="button"
                               onClick={() => toggleInterest(int)}
-                              className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                              disabled={updatingInterests || atLimit}
+                              className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition disabled:opacity-50 ${
                                 active
                                   ? "border-slate-900 bg-slate-900 text-slate-50 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
                                   : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400"
                               }`}
+                              title={atLimit ? `Limit: ${MAX_INTERESTS}` : undefined}
                             >
                               {int.name}
                             </button>
@@ -882,8 +1039,12 @@ export default function ProfilePage() {
                   disabled={updatingInterests}
                   className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                 >
-                  {updatingInterests && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Save interests
+                  {updatingInterests ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : interestsSaved ? (
+                    <Check className="h-4 w-4" />
+                  ) : null}
+                  {updatingInterests ? "Saving…" : interestsSaved ? "Saved" : "Save interests"}
                 </button>
                 {updatingInterests && (
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -900,6 +1061,12 @@ export default function ProfilePage() {
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Gallery photos
               </h2>
+
+              {photosSaved && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
               Upload up to three photos that feel like you. You can update them
@@ -907,34 +1074,71 @@ export default function ProfilePage() {
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {[1, 2, 3].map((pos) => (
-                <div
-                  key={pos}
-                  className="relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
-                >
-                  {photos[pos - 1] ? (
-                    <img
-                      src={photos[pos - 1]}
-                      alt={`gallery-${pos}`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-slate-400">
-                      Empty slot {pos}
-                    </span>
-                  )}
-                  <label className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 opacity-0 text-xs font-medium text-white backdrop-blur-[1px] transition hover:opacity-100">
-                    <Upload className="mr-1 h-4 w-4" /> Upload
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => uploadGallery(e, pos as 1 | 2 | 3)}
-                    />
-                  </label>
-                </div>
-              ))}
+              {[1, 2, 3].map((pos) => {
+                const hasPhoto = !!photos[pos - 1];
+                const busy = uploadingPos === pos || removingPos === pos;
+                return (
+                  <div
+                    key={pos}
+                    className="relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    {hasPhoto ? (
+                      <img
+                        src={photos[pos - 1]}
+                        alt={`gallery-${pos}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        Empty slot {pos}
+                      </span>
+                    )}
+
+                    {/* Remove (X) */}
+                    {hasPhoto && (
+                      <button
+                        type="button"
+                        onClick={() => removeGallery(pos as 1 | 2 | 3)}
+                        disabled={busy}
+                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
+                        aria-label={`Remove photo ${pos}`}
+                        title="Remove"
+                      >
+                        {removingPos === pos ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="h-5 w-5" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Upload overlay */}
+                    <label
+                      className={`absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 text-xs font-medium text-white backdrop-blur-[1px] transition ${
+                        busy ? "opacity-100" : "opacity-0 hover:opacity-100"
+                      } ${busy ? "pointer-events-none" : ""}`}
+                    >
+                      {uploadingPos === pos ? (
+                        <>
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Uploading…
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-1 h-4 w-4" /> Upload
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => uploadGallery(e, pos as 1 | 2 | 3)}
+                      />
+                    </label>
+                  </div>
+                );
+              })}
             </div>
+
             {uploading && (
               <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
