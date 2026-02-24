@@ -1,4 +1,3 @@
-// api.ts
 import { supabase } from "./supabaseClient";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -7,7 +6,7 @@ const API = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 export type ChatbotResponse = {
   reply: string;
   phase?: "self" | "pref" | "done";
-  updated_traits?: Record<string, number>; // keys are trait_id as strings, e.g. "5"
+  updated_traits?: Record<string, number>;
   attributes?: Record<string, number>;
   progress?: {
     self_filled?: number;
@@ -17,7 +16,6 @@ export type ChatbotResponse = {
   };
 };
 
-/** Chatbot history type (matches /chatbot/history) */
 export type ChatbotHistoryResponse = {
   messages: Array<{
     role: "assistant" | "user";
@@ -33,7 +31,6 @@ export type ChatbotHistoryResponse = {
   };
 };
 
-/** Personality traits from DB + per-user score */
 export type Trait = {
   id: number;
   name: string;
@@ -41,13 +38,11 @@ export type Trait = {
   score?: number | null;
 };
 
-/** Assessment start response */
 export type AssessmentStartResponse = {
   ok: boolean;
   attempt_id: string;
 };
 
-/* ---------- Types ---------- */
 export type Conversation = {
   id: string;
   partnerName: string;
@@ -66,7 +61,6 @@ export type Msg = {
   ts: number;
 };
 
-/** Match API response types */
 export type MatchIneligible = {
   status: "ineligible";
   user_id: string;
@@ -104,7 +98,6 @@ export type MatchStatus = {
 
 export type MatchResponse = MatchIneligible | MatchNoMatch | MatchSuccess;
 
-/** NEW: Match feedback (24h prompt) */
 export type MatchFeedbackStatus = {
   conversation_id: string;
   is_24h_passed: boolean;
@@ -120,14 +113,12 @@ export type MatchFeedbackResult = {
   photos_unlocked: boolean;
 };
 
-/** Profile returned by /me, /me/weights, /me/preferences */
 export type ProfileResponse = {
   id: string;
   full_name: string;
   gender?: string | null;
   age?: number | null;
 
-  // UPDATED: location now comes from locations table
   location_id?: number | null;
   location_label?: string | null;
 
@@ -141,13 +132,11 @@ export type ProfileResponse = {
   preferred_max_age?: number | null;
   preferred_gender?: "women" | "men" | "everyone" | null;
 
-  // NEW
   preferred_max_distance_km?: number | null;
 
   last_login_at?: string | null;
 };
 
-/** Analytics tracking types */
 export type TrackEventIn = {
   event_name:
     | "signup_started"
@@ -209,7 +198,6 @@ export type AdminUserEventRow = {
   properties: Record<string, any>;
 };
 
-/* ---------- NEW: Reporting types ---------- */
 export type ReportReason =
   | "spam"
   | "harassment"
@@ -229,17 +217,39 @@ export type ReportCreateOut = {
   id: string;
 };
 
-/* ---------- NEW: Landing stats ---------- */
 export type WaitlistCountResponse = { count: number };
 
-/* ---------- NEW: Locations ---------- */
 export type CountryRow = { country: string };
 export type CityRow = { id: number; city: string; admin_name?: string | null };
+
+/* ---------- Error shape so UI can redirect cleanly ---------- */
+export type ApiError = Error & {
+  status?: number;
+  detail?: string;
+  body?: any;
+};
 
 /* ---------- Core fetch with Supabase bearer ---------- */
 async function getToken() {
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token ?? null;
+}
+
+function redirectToLoginOnce() {
+  // avoid infinite redirect loops if you're already on /login
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith("/login")) return;
+  window.location.replace("/login");
+}
+
+async function parseErrorBody(res: Response) {
+  const ct = res.headers.get("content-type") || "";
+  try {
+    if (ct.includes("application/json")) return await res.json();
+    return await res.text();
+  } catch {
+    return null;
+  }
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -248,26 +258,38 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const isFormData =
     typeof FormData !== "undefined" && init.body instanceof FormData;
+
   if (!isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
+
+  // If token is null, backend will respond 401; that's fine.
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${API}${path}`, { ...init, headers });
 
-  if (res.status === 401) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(`Unauthorized${msg ? `: ${msg}` : ""}`);
-  }
+  if (res.status === 204) return null as unknown as T;
 
   if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}${msg ? `: ${msg}` : ""}`);
-  }
+    const body = await parseErrorBody(res);
+    const detail =
+      typeof body === "string"
+        ? body
+        : body?.detail || body?.message || JSON.stringify(body);
 
-  // ✅ FIX: 204 No Content must not attempt json()
-  if (res.status === 204) {
-    return null as unknown as T;
+    const err: ApiError = new Error(
+      `${res.status} ${res.statusText}${detail ? `: ${detail}` : ""}`
+    ) as ApiError;
+    err.status = res.status;
+    err.detail = typeof detail === "string" ? detail : undefined;
+    err.body = body;
+
+    // Auto-redirect on auth failures
+    if (res.status === 401 || res.status === 403) {
+      redirectToLoginOnce();
+    }
+
+    throw err;
   }
 
   const ct = res.headers.get("content-type") || "";
@@ -303,18 +325,13 @@ function shouldPingOncePerTab(): boolean {
 /* ---------- single in-flight guard for chatbot ---------- */
 let chatbotMessageInFlight: Promise<ChatbotResponse> | null = null;
 
-/* ---------- API surface (matches your FastAPI backend) ---------- */
+/* ---------- API surface ---------- */
 export const api = {
-  // Health
   health: () => request<{ ok: boolean }>("/healthz"),
-
-  // ✅ Landing: public stats (no auth)
   waitlistCount: () => request<WaitlistCountResponse>("/waitlist-count"),
 
-  // Profile / weights / interests
   me: () => request<ProfileResponse>("/me"),
 
-  // Locations for dropdowns
   getCountries: () => request<CountryRow[]>("/me/locations/countries"),
   getCities: (country: string) => {
     const qs = new URLSearchParams({ country }).toString();
@@ -358,7 +375,6 @@ export const api = {
       body: JSON.stringify({ personality_weight, interests_weight }),
     }),
 
-  // NOTE: preferred_max_distance_km stays REQUIRED here.
   updateMatchPreferences: (payload: {
     preferred_min_age: number | null;
     preferred_max_age: number | null;
@@ -370,8 +386,6 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  // Photos
-  // IMPORTANT: backend should return 3-length array in slot order.
   myPhotos: () => request<string[]>("/me/photos"),
 
   uploadGalleryPhoto: (file: File, position: 1 | 2 | 3) => {
@@ -384,7 +398,6 @@ export const api = {
     );
   },
 
-  // ✅ NEW: delete a specific gallery slot
   deleteGalleryPhoto: (position: 1 | 2 | 3) =>
     request<null>(`/me/photos/gallery/${position}`, { method: "DELETE" }),
 
@@ -400,7 +413,6 @@ export const api = {
   conversationPhotos: (cid: string) =>
     request<string[]>(`/conversations/${cid}/photos`),
 
-  // KYC
   meKycStatus: () =>
     request<{
       status: "unverified" | "pending" | "verified";
@@ -419,7 +431,6 @@ export const api = {
   meKycCancel: () =>
     request<{ ok: boolean }>("/me/kyc/cancel", { method: "DELETE" }),
 
-  // Conversations & messages
   conversations: () => request<Conversation[]>("/conversations"),
   thread: (cid: string) => request<Msg[]>(`/conversations/${cid}/messages`),
 
@@ -449,11 +460,9 @@ export const api = {
       body: JSON.stringify({ response }),
     }),
 
-  // Matching
   matchStatus: () => request<MatchStatus>("/matching/status"),
   match: () => request<MatchResponse>("/matching/generate", { method: "POST" }),
 
-  // Chatbot
   chatbotMessage: (message: string) => {
     if (chatbotMessageInFlight) return chatbotMessageInFlight;
 
@@ -495,7 +504,6 @@ export const api = {
     }
   },
 
-  /* ---------- Admin ---------- */
   adminListPendingKyc: () =>
     request<
       Array<{
@@ -590,7 +598,6 @@ export const api = {
     );
   },
 
-  // Onboarding now uses location_id + distance km
   completeOnboarding: (payload: {
     age: number;
     location_id: number | null;
