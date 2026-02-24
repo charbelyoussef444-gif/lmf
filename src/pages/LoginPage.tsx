@@ -1,947 +1,805 @@
-// lmf/src/pages/LoginPage.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+// src/pages/ProfilePage.tsx
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
+  Loader2,
+  Sparkles,
   ShieldCheck,
-  Mail,
-  Lock,
-  User2,
-  LogIn,
-  UserPlus,
-  X,
-  Eye,
-  EyeOff,
+  SlidersHorizontal,
+  Upload,
+  Heart,
+  ListChecks,
+  ShieldAlert,
+  Image as ImageIcon,
+  XCircle,
+  Check,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import { supabase } from "../lib/supabaseClient";
-import { useAuth } from "../auth/AuthProvider";
-import { api } from "../lib/api";
+import { api, type ProfileResponse } from "../lib/api";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
 
-type CityRow = { id: number; city: string; admin_name?: string | null };
+type GenderPreference = "women" | "men" | "everyone";
 
-// Accent-insensitive, case-insensitive folding
-function foldToAsciiLike(s: string) {
-  return s
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
-}
+type Profile = {
+  id: string;
+  full_name: string;
+  gender?: string | null;
+  age?: number | null;
 
-type SelectOption = { value: string; label: string };
+  // this page displays a single string
+  location?: string | null;
 
-function SearchableDropdown({
-  label,
-  value,
+  personality_weight: number;
+  interests_weight: number;
+  verified: boolean;
+  is_admin?: boolean;
+  admin?: boolean;
+
+  preferred_min_age?: number | null;
+  preferred_max_age?: number | null;
+  preferred_gender?: GenderPreference | null;
+
+  preferred_max_distance_km?: number | null;
+};
+
+type Interest = { id: number; name: string; category?: string | null };
+
+type AgeRangeSliderProps = {
+  min: number;
+  max: number;
+  valueMin: number;
+  valueMax: number;
+  onChange: (minVal: number, maxVal: number) => void;
+};
+
+function AgeRangeSlider({
+  min,
+  max,
+  valueMin,
+  valueMax,
   onChange,
-  options,
-  placeholder = "Select...",
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: SelectOption[];
-  placeholder?: string;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+}: AgeRangeSliderProps) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState<"min" | "max" | null>(null);
 
-  const selectedLabel = useMemo(() => {
-    if (!value) return "";
-    return options.find((o) => o.value === value)?.label ?? "";
-  }, [options, value]);
+  const clamp = (val: number) => Math.min(Math.max(val, min), max);
+  const valueToPercent = (val: number) => ((val - min) / (max - min)) * 100;
 
-  const filtered = useMemo(() => {
-    const key = foldToAsciiLike(q);
-    if (!key) return options;
-    return options.filter((o) => foldToAsciiLike(o.label).includes(key));
-  }, [options, q]);
+  const handlePointerMove = (clientX: number) => {
+    if (!dragging || !trackRef.current) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    if (rect.width === 0) return;
+
+    const ratio = (clientX - rect.left) / rect.width;
+    let raw = min + ratio * (max - min);
+    let rounded = Math.round(raw);
+    rounded = clamp(rounded);
+
+    if (dragging === "min") {
+      const newMin = Math.min(rounded, valueMax - 1); // always < max
+      onChange(newMin, valueMax);
+    } else {
+      const newMax = Math.max(rounded, valueMin + 1); // always > min
+      onChange(valueMin, newMax);
+    }
+  };
 
   useEffect(() => {
-    if (!open) return;
+    if (!dragging) return;
 
-    const onDown = (e: MouseEvent) => {
-      const el = rootRef.current;
-      if (!el) return;
-      if (e.target instanceof Node && !el.contains(e.target)) setOpen(false);
-    };
+    const onMouseMove = (e: MouseEvent) => handlePointerMove(e.clientX);
+    const onTouchMove = (e: TouchEvent) =>
+      handlePointerMove(e.touches[0]?.clientX ?? 0);
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
+    const stop = () => setDragging(null);
 
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", stop);
+    window.addEventListener("touchcancel", stop);
+
     return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", stop);
+      window.removeEventListener("touchcancel", stop);
     };
-  }, [open]);
+  }, [dragging, valueMin, valueMax, min, max]);
 
-  useEffect(() => {
-    if (!open) return;
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [open]);
-
-  // When selection changes, reset query (prevents stale filter)
-  useEffect(() => {
-    setQ("");
-  }, [value]);
+  const minPercent = valueToPercent(valueMin);
+  const maxPercent = valueToPercent(valueMax);
 
   return (
-    <div className="relative" ref={rootRef}>
-      <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-        {label}
-      </label>
-
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          if (disabled) return;
-          setOpen((v) => !v);
-        }}
-        className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-      >
-        <span className={value ? "" : "text-slate-400 dark:text-slate-500"}>
-          {value ? selectedLabel : placeholder}
-        </span>
-        <span className="ml-2 text-slate-400 dark:text-slate-500">▾</span>
-      </button>
-
-      <AnimatePresence>
-        {open && !disabled && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+    <div className="mt-2 select-none">
+      <div ref={trackRef} className="relative mt-2 h-16">
+        <div className="pointer-events-none absolute left-0 right-0 top-2">
+          <div
+            className="absolute -translate-x-1/2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-50 shadow-sm dark:bg-slate-100 dark:text-slate-900"
+            style={{ left: `${minPercent}%` }}
           >
-            {/* "first entry" search box */}
-            <div className="border-b border-slate-100 p-2 dark:border-slate-700">
-              <div className="relative">
-                <input
-                  ref={inputRef}
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Type to filter…"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                />
+            {valueMin}
+          </div>
+          <div
+            className="absolute -translate-x-1/2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-medium text-slate-50 shadow-sm dark:bg-slate-100 dark:text-slate-900"
+            style={{ left: `${maxPercent}%` }}
+          >
+            {valueMax}
+          </div>
+        </div>
 
-                {q && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQ("");
-                      requestAnimationFrame(() => inputRef.current?.focus());
-                    }}
-                    aria-label="Clear filter"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
+        <div className="absolute left-0 right-0 top-[70%] h-1 -translate-y-1/2 rounded-full bg-slate-200 dark:bg-slate-800" />
 
-            <div className="max-h-56 overflow-auto p-1">
-              {filtered.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
-                  No matches.
-                </div>
-              ) : (
-                filtered.map((opt) => {
-                  const active = opt.value === value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        onChange(opt.value);
-                        setOpen(false);
-                      }}
-                      className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${
-                        active
-                          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200"
-                          : "text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-800/60"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <div
+          className="absolute top-[70%] h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500"
+          style={{
+            left: `${minPercent}%`,
+            right: `${100 - maxPercent}%`,
+          }}
+        />
+
+        <button
+          type="button"
+          onMouseDown={() => setDragging("min")}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            setDragging("min");
+          }}
+          className="absolute top-[70%] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-slate-900 shadow-sm ring-2 ring-indigo-200 transition hover:scale-105 dark:bg-slate-100 dark:border-slate-900 dark:ring-indigo-900/50"
+          style={{ left: `${minPercent}%` }}
+          aria-label="Minimum age"
+        />
+
+        <button
+          type="button"
+          onMouseDown={() => setDragging("max")}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            setDragging("max");
+          }}
+          className="absolute top-[70%] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-slate-900 shadow-sm ring-2 ring-rose-200 transition hover:scale-105 dark:bg-slate-100 dark:border-slate-900 dark:ring-rose-900/50"
+          style={{ left: `${maxPercent}%` }}
+          aria-label="Maximum age"
+        />
+      </div>
     </div>
   );
 }
 
-export default function LoginPage() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+function normalizeProfile(p: ProfileResponse): Profile {
+  return {
+    id: p.id,
+    full_name: p.full_name,
+    gender: p.gender ?? null,
+    age: p.age ?? null,
+    location: (p.location_label ?? null) as string | null,
+    personality_weight: p.personality_weight,
+    interests_weight: p.interests_weight,
+    verified: p.verified,
+    is_admin: p.is_admin,
+    admin: p.admin,
+    preferred_min_age: p.preferred_min_age ?? null,
+    preferred_max_age: p.preferred_max_age ?? null,
+    preferred_gender: (p.preferred_gender ?? null) as GenderPreference | null,
+    preferred_max_distance_km: p.preferred_max_distance_km ?? null,
+  };
+}
 
-  // ✅ default redirect should be landing ("/"), not "/conversations"
-  const from = (location.state as any)?.from?.pathname || "/";
+function kmToMiles(km: number): number {
+  return km * 0.621371;
+}
 
-  const initialPhase: "auth" | "onboarding" =
-    (location.state as any)?.onboarding === true ? "onboarding" : "auth";
+export default function ProfilePage() {
+  const MAX_INTERESTS = 5;
 
-  const [phase, setPhase] = useState<"auth" | "onboarding">(initialPhase);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [interests, setInterests] = useState<Interest[]>([]);
+  void interests;
+  const [allInterests, setAllInterests] = useState<Interest[]>([]);
+  const [pendingInterests, setPendingInterests] = useState<Interest[]>([]);
+  const [updatingInterests, setUpdatingInterests] = useState(false);
 
-  // Sign in form
-  const [emailIn, setEmailIn] = useState("");
-  const [passwordIn, setPasswordIn] = useState("");
-  const [showPasswordIn, setShowPasswordIn] = useState(false);
+  // backend returns 3-slot array now: ["", "", ""]
+  const [photos, setPhotos] = useState<string[]>(["", "", ""]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadingPos, setUploadingPos] = useState<1 | 2 | 3 | null>(null);
+  const [removingPos, setRemovingPos] = useState<1 | 2 | 3 | null>(null);
 
-  // Sign up form
-  const [fullName, setFullName] = useState("");
-  const [emailUp, setEmailUp] = useState("");
-  const [passwordUp, setPasswordUp] = useState("");
-  const [confirmUp, setConfirmUp] = useState("");
-  const [showPasswordUp, setShowPasswordUp] = useState(false);
-  const [showConfirmUp, setShowConfirmUp] = useState(false);
+  const [savingPreferences, setSavingPreferences] = useState(false);
 
-  // Onboarding form
-  const [age, setAge] = useState("");
-
-  // Country + City dropdowns (locked to Lebanon)
-  const [country, setCountry] = useState("Lebanon");
-  const [cities, setCities] = useState<CityRow[]>([]);
-  const [cityId, setCityId] = useState<string>("");
-
-  const [prefMin, setPrefMin] = useState("");
-  const [prefMax, setPrefMax] = useState("");
-
-  const [prefGender, setPrefGender] = useState<
-    "women" | "men" | "everyone" | null
+  const [kycStatus, setKycStatus] = useState<
+    | {
+        status: "unverified" | "pending" | "verified";
+        reasons: { reason: string; created_at: string }[];
+      }
+    | null
   >(null);
-  const [selfGender, setSelfGender] = useState<
-    "woman" | "man" | "nonbinary" | null
-  >(null);
+  const [kycBusy, setKycBusy] = useState(false);
+  const kycInputRef = useRef<HTMLInputElement | null>(null);
 
-  function clearMsgs() {
-    setNotice(null);
-    setError(null);
+  // saved indicators
+  const [prefsSaved, setPrefsSaved] = useState(false);
+  const [interestsSaved, setInterestsSaved] = useState(false);
+  const [photosSaved, setPhotosSaved] = useState(false);
+  const [kycSaved, setKycSaved] = useState(false);
+
+  const prefsSavedTimer = useRef<number | null>(null);
+  const interestsSavedTimer = useRef<number | null>(null);
+  const photosSavedTimer = useRef<number | null>(null);
+  const kycSavedTimer = useRef<number | null>(null);
+
+  function flashSaved(which: "prefs" | "interests" | "photos" | "kyc", ms = 2200) {
+    const clear = (ref: React.MutableRefObject<number | null>) => {
+      if (ref.current) window.clearTimeout(ref.current);
+      ref.current = window.setTimeout(() => {
+        if (which === "prefs") setPrefsSaved(false);
+        if (which === "interests") setInterestsSaved(false);
+        if (which === "photos") setPhotosSaved(false);
+        if (which === "kyc") setKycSaved(false);
+      }, ms);
+    };
+
+    if (which === "prefs") {
+      setPrefsSaved(true);
+      clear(prefsSavedTimer);
+    }
+    if (which === "interests") {
+      setInterestsSaved(true);
+      clear(interestsSavedTimer);
+    }
+    if (which === "photos") {
+      setPhotosSaved(true);
+      clear(photosSavedTimer);
+    }
+    if (which === "kyc") {
+      setKycSaved(true);
+      clear(kycSavedTimer);
+    }
   }
 
-  // If a signed-in user lands on /login normally, just send them to "from".
   useEffect(() => {
-    if (!user) return;
-    if (phase !== "auth") return;
-    navigate(from, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    return () => {
+      if (prefsSavedTimer.current) window.clearTimeout(prefsSavedTimer.current);
+      if (interestsSavedTimer.current) window.clearTimeout(interestsSavedTimer.current);
+      if (photosSavedTimer.current) window.clearTimeout(photosSavedTimer.current);
+      if (kycSavedTimer.current) window.clearTimeout(kycSavedTimer.current);
+    };
+  }, []);
 
-  // Enforce Lebanon when onboarding opens
   useEffect(() => {
-    if (phase !== "onboarding") return;
-    setCountry("Lebanon");
-  }, [phase]);
-
-  // Load cities when country changes
-  useEffect(() => {
-    if (phase !== "onboarding") return;
-
-    let alive = true;
     (async () => {
-      if (!country) {
-        setCities([]);
-        setCityId("");
-        return;
-      }
       try {
-        const list = (await api.getCities(country)) as CityRow[];
-        if (!alive) return;
-        setCities(list);
-        setCityId("");
-      } catch (e: any) {
-        if (!alive) return;
-        setCities([]);
-        setCityId("");
-        setError(e?.message || "Could not load cities.");
+        const [p, ints, ph, kyc, allInts] = await Promise.all([
+          api.me(),
+          api.myInterests(),
+          api.myPhotos(),
+          api.meKycStatus().catch(() => null),
+          api.allInterests
+            ? api.allInterests().catch(() => [] as Interest[])
+            : Promise.resolve([] as Interest[]),
+        ]);
+
+        const pp = normalizeProfile(p);
+
+        // sane default if missing
+        if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
+
+        setProfile(pp);
+
+        setInterests(ints);
+        setPendingInterests(ints.slice(0, MAX_INTERESTS));
+
+        // backend returns fixed 3 slots; still guard
+        setPhotos(Array.isArray(ph) ? (ph.length === 3 ? ph : ["", "", ""]) : ["", "", ""]);
+        setAllInterests(allInts);
+
+        if (kyc) {
+          setKycStatus(kyc);
+        } else {
+          setKycStatus({
+            status: p.verified ? "verified" : "unverified",
+            reasons: [],
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
     })();
+  }, []);
 
-    return () => {
-      alive = false;
-    };
-  }, [country, phase]);
+  function toggleInterest(int: Interest) {
+    setPendingInterests((prev) => {
+      const exists = prev.some((i) => i.id === int.id);
+      if (exists) return prev.filter((i) => i.id !== int.id);
 
-  
-
-  const cityOptions = useMemo<SelectOption[]>(() => {
-    return cities.map((c) => {
-      const label = `${c.city}${c.admin_name ? `, ${c.admin_name}` : ""}`;
-      return { value: String(c.id), label };
-    });
-  }, [cities]);
-
-  async function signInWithGoogle() {
-    clearMsgs();
-    setBusy(true);
-    try {
-      sessionStorage.setItem("post_login_redirect", from);
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) throw error;
-    } catch (e: any) {
-      setError(e?.message || "Google sign-in failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSignIn(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    clearMsgs();
-    setBusy(true);
-    try {
-      sessionStorage.setItem("post_login_redirect", from);
-      const { error } = await supabase.auth.signInWithPassword({
-        email: emailIn,
-        password: passwordIn,
-      });
-      if (error) throw error;
-      navigate(from, { replace: true });
-    } catch (e: any) {
-      setError(e?.message || "Authentication failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onForgotPassword() {
-    clearMsgs();
-    if (!emailIn) {
-      setError("Enter your email above, then click Forgot password.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.resetPasswordForEmail(emailIn, {
-        redirectTo,
-      });
-      if (error) throw error;
-      setNotice("Password reset link sent. Check your email.");
-    } catch (e: any) {
-      setError(e?.message || "Could not send reset link.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSignUp(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    clearMsgs();
-
-    if (!fullName.trim()) {
-      setError("Please enter your full name.");
-      return;
-    }
-    if (passwordUp.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-    if (passwordUp !== confirmUp) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    setBusy(true);
-    try {
-      sessionStorage.setItem("post_login_redirect", from);
-
-      // TRACK: signup_started (attempt)
-      await api.trackEvent({
-        event_name: "signup_started",
-        properties: { method: "email" },
-      });
-
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { data, error } = await supabase.auth.signUp({
-        email: emailUp,
-        password: passwordUp,
-        options: {
-          emailRedirectTo: redirectTo,
-          data: { full_name: fullName },
-        },
-      });
-      if (error) throw error;
-
-      if (!data.user || !data.session) {
-        setNotice("Account created! Check your email to confirm your address.");
-        return;
+      if (prev.length >= MAX_INTERESTS) {
+        alert(`You can select up to ${MAX_INTERESTS} interests.`);
+        return prev;
       }
+      return [...prev, int];
+    });
+  }
 
-      // After sign up with active session, go into onboarding
-      setPhase("onboarding");
-    } catch (e: any) {
-      setError(e?.message || "Sign up failed.");
+  function removeSelectedInterest(id: number) {
+    setPendingInterests((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  async function saveInterests() {
+    setUpdatingInterests(true);
+    try {
+      const names = pendingInterests.map((i) => i.name);
+      const updated = await api.putInterests(names);
+      setInterests(updated);
+      setPendingInterests(updated.slice(0, MAX_INTERESTS));
+      flashSaved("interests");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save interests.");
     } finally {
-      setBusy(false);
+      setUpdatingInterests(false);
     }
   }
 
-  async function onCompleteOnboarding(
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> {
-    e.preventDefault();
-    clearMsgs();
+  async function uploadGallery(e: ChangeEvent<HTMLInputElement>, pos: 1 | 2 | 3) {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const ageNum = Number(age);
-    if (!age || Number.isNaN(ageNum)) {
-      setError("Please enter your age.");
-      return;
+    setUploading(true);
+    setUploadingPos(pos);
+    try {
+      await api.uploadGalleryPhoto(file, pos);
+      const ph = await api.myPhotos();
+      setPhotos(ph.length === 3 ? ph : ["", "", ""]);
+      flashSaved("photos");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload photo.");
+    } finally {
+      // allow selecting same file again
+      e.target.value = "";
+      setUploading(false);
+      setUploadingPos(null);
     }
-    if (ageNum < 18 || ageNum > 99) {
-      setError("Age must be between 18 and 99.");
-      return;
+  }
+
+  async function removeGallery(pos: 1 | 2 | 3) {
+    setRemovingPos(pos);
+    try {
+      await api.deleteGalleryPhoto(pos);
+      const ph = await api.myPhotos();
+      setPhotos(ph.length === 3 ? ph : ["", "", ""]);
+      flashSaved("photos");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to remove photo.");
+    } finally {
+      setRemovingPos(null);
     }
-    if (!selfGender) {
-      setError("Please select your gender.");
+  }
+
+  async function onUploadKycFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setKycBusy(true);
+    try {
+      await api.meKycUpload(files);
+      const kyc = await api.meKycStatus();
+      setKycStatus(kyc);
+      flashSaved("kyc");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload verification images.");
+    } finally {
+      if (kycInputRef.current) kycInputRef.current.value = "";
+      setKycBusy(false);
+    }
+  }
+
+  async function cancelKyc() {
+    if (!confirm("Cancel your pending verification request?")) return;
+    setKycBusy(true);
+    try {
+      await api.meKycCancel();
+      const kyc = await api.meKycStatus();
+      setKycStatus(kyc);
+      flashSaved("kyc");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to cancel verification request.");
+    } finally {
+      setKycBusy(false);
+    }
+  }
+
+  async function savePreferences() {
+    if (!profile) return;
+
+    const dist = profile.preferred_max_distance_km ?? 80;
+    if (dist < 1 || dist > 500) {
+      alert("Max distance must be between 1 and 500 km.");
       return;
     }
 
-    setBusy(true);
+    setSavingPreferences(true);
     try {
       const payload = {
-        age: ageNum,
-        location_id: cityId ? Number(cityId) : null,
-        gender: selfGender,
-        preferred_min_age: prefMin ? Number(prefMin) : null,
-        preferred_max_age: prefMax ? Number(prefMax) : null,
-        preferred_gender: prefGender,
-
-        // Default: 50 miles ≈ 80 km
-        preferred_max_distance_km: 80,
+        preferred_min_age: profile.preferred_min_age ?? null,
+        preferred_max_age: profile.preferred_max_age ?? null,
+        preferred_gender: profile.preferred_gender ?? null,
+        preferred_max_distance_km: dist, // REQUIRED
       };
 
-      await api.completeOnboarding(payload);
-
-      // TRACK: signup_completed (onboarding saved)
-      await api.trackEvent({
-        event_name: "signup_completed",
-        properties: { step: "onboarding_saved" },
-      });
-
-      // go to intended destination
-      navigate(from, { replace: true });
-    } catch (e: any) {
-      setError(e?.message || "Could not save your preferences.");
+      const updated = await api.updateMatchPreferences(payload);
+      const pp = normalizeProfile(updated);
+      if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
+      setProfile(pp);
+      flashSaved("prefs");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save preferences.");
     } finally {
-      setBusy(false);
+      setSavingPreferences(false);
     }
   }
 
-  // Signed-in compact panel
-  if (user && phase === "auth") {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
-        {/* background glow */}
-        <div className="pointer-events-none fixed inset-0 -z-10">
-          <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-500 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-400 grid place-items-center transition-colors duration-300">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
 
-        <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-          <AppHeader />
-
-          <main className="flex flex-1 items-center justify-center py-10">
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full max-w-md"
-            >
-              <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40">
-                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-300">
-                  <ShieldCheck className="h-5 w-5" />
-                  <h1 className="text-sm font-semibold">You’re signed in</h1>
-                </div>
-
-                <div className="mt-4 space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                  <div>
-                    <span className="font-medium text-slate-800 dark:text-slate-100">
-                      Name:
-                    </span>{" "}
-                    {user.name || "—"}
-                  </div>
-                  <div>
-                    <span className="font-medium text-slate-800 dark:text-slate-100">
-                      Email:
-                    </span>{" "}
-                    {user.email || "—"}
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-3 text-sm">
-                  <button
-                    onClick={() => navigate(from)}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2 font-medium text-white shadow-md hover:brightness-110"
-                  >
-                    <LogIn className="h-4 w-4" /> Continue
-                  </button>
-                  <button
-                    onClick={signOut}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white/70 px-4 py-2 font-medium text-slate-800 hover:border-indigo-400 hover:text-indigo-700 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:border-rose-400 dark:hover:text-rose-200"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </main>
-
-          <AppFooter />
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300 grid place-items-center">
+        <div className="rounded-3xl border border-slate-200 bg-white/80 px-6 py-4 text-sm text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200">
+          Profile not found.
         </div>
       </div>
     );
   }
 
-  // Auth + onboarding
+  const selectedInterestIds = new Set(pendingInterests.map((i) => i.id));
+
+  const interestsByCategory: Record<string, Interest[]> = allInterests.reduce(
+    (acc, int) => {
+      const key = int.category?.trim() || "Other";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(int);
+      return acc;
+    },
+    {} as Record<string, Interest[]>
+  );
+
+  const sortedCategories = Object.keys(interestsByCategory).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  const minLimit = 18;
+  const maxLimit = 99;
+
+  let ageMin = profile.preferred_min_age ?? minLimit;
+  let ageMax = profile.preferred_max_age ?? Math.min(maxLimit, ageMin + 10);
+
+  if (ageMin < minLimit) ageMin = minLimit;
+  if (ageMin > maxLimit - 1) ageMin = maxLimit - 1;
+  if (ageMax <= ageMin) ageMax = Math.min(maxLimit, ageMin + 1);
+
+  // Distance slider: "sane" UI range + recommended band
+  // NOTE: backend supports 1..500; UI is intentionally capped at 200 for sanity.
+  const distanceMin = 1;
+  const distanceMax = 200; // sane for most users; still validated/saved as km
+  const recommendedMinKm = 60;
+  const recommendedMaxKm = 90;
+
+  const distanceValue = Math.min(
+    distanceMax,
+    Math.max(distanceMin, profile.preferred_max_distance_km ?? 80)
+  );
+
+  const distancePct =
+    ((distanceValue - distanceMin) / (distanceMax - distanceMin)) * 100;
+
+  const recLeftPct =
+    ((recommendedMinKm - distanceMin) / (distanceMax - distanceMin)) * 100;
+  const recRightPct =
+    ((recommendedMaxKm - distanceMin) / (distanceMax - distanceMin)) * 100;
+
+  const milesValue = kmToMiles(distanceValue);
+  const recMinMi = kmToMiles(recommendedMinKm);
+  const recMaxMi = kmToMiles(recommendedMaxKm);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
-      {/* background glow */}
+    <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
+      <style>{`
+        input.distance-range[type="range"]{
+          -webkit-appearance:none;
+          appearance:none;
+          height:4px;
+          border-radius:9999px;
+          background-color: rgb(226 232 240);
+          background-image: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%);
+          background-repeat: no-repeat;
+          background-size: var(--pct) 100%;
+          outline:none;
+        }
+        .dark input.distance-range[type="range"]{
+          background-color: rgb(30 41 59);
+        }
+        input.distance-range[type="range"]::-webkit-slider-thumb{
+          -webkit-appearance:none;
+          appearance:none;
+          width:16px;
+          height:16px;
+          border-radius:9999px;
+          background:#0f172a;
+          border:2px solid #ffffff;
+          box-shadow:0 1px 2px rgba(0,0,0,0.25);
+          cursor:pointer;
+        }
+        input.distance-range[type="range"]::-moz-range-track{
+          height:4px;
+          border-radius:9999px;
+          background:transparent;
+        }
+        input.distance-range[type="range"]::-moz-range-thumb{
+          width:16px;
+          height:16px;
+          border-radius:9999px;
+          background:#0f172a;
+          border:2px solid #ffffff;
+          box-shadow:0 1px 2px rgba(0,0,0,0.25);
+          cursor:pointer;
+        }
+        .dark input.distance-range[type="range"]::-webkit-slider-thumb{
+          background:#f8fafc;
+          border-color:#0f172a;
+        }
+        .dark input.distance-range[type="range"]::-moz-range-thumb{
+          background:#f8fafc;
+          border-color:#0f172a;
+        }
+      `}</style>
+
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 sm:px-6 lg:px-8">
         <AppHeader />
 
-        <main className="flex flex-1 items-center justify-center py-10">
-          <div className="w-full max-w-md">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40"
-            >
-              <div className="flex items-start justify-between gap-3">
+        <main className="flex-1 py-8 space-y-8">
+          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                Profile
+              </h2>
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
+                <span>Core details for matching</span>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 text-sm text-slate-700 dark:text-slate-200 sm:grid-cols-2">
+              <div className="space-y-1">
                 <div>
-                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-indigo-500 dark:text-indigo-300">
-                    Sign in to continue
+                  <span className="font-medium text-slate-900 dark:text-slate-50">
+                    Name:
+                  </span>{" "}
+                  {profile.full_name}
+                </div>
+                {profile.age ? (
+                  <div>
+                    <span className="font-medium text-slate-900 dark:text-slate-50">
+                      Age:
+                    </span>{" "}
+                    {profile.age}
                   </div>
-                  <h1 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50">
-                    Welcome back to LikeMinded
-                  </h1>
-                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    Use your email or Google. We’ll only use this to manage your
-                    account and matches.
-                  </p>
-                </div>
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500">
-                  <ShieldCheck className="h-4 w-4 text-white" />
-                </div>
+                ) : null}
+                {profile.gender ? (
+                  <div>
+                    <span className="font-medium text-slate-900 dark:text-slate-50">
+                      Gender:
+                    </span>{" "}
+                    {profile.gender}
+                  </div>
+                ) : null}
+                {profile.location ? (
+                  <div>
+                    <span className="font-medium text-slate-900 dark:text-slate-50">
+                      Location:
+                    </span>{" "}
+                    {profile.location}
+                  </div>
+                ) : null}
               </div>
-
-              {/* Tabs */}
-              <div className="mt-5 grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("signin");
-                    clearMsgs();
-                  }}
-                  className={`rounded-xl py-1.5 transition ${
-                    mode === "signin"
-                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-50"
-                      : "hover:text-indigo-600 dark:hover:text-indigo-300"
-                  }`}
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("signup");
-                    clearMsgs();
-                  }}
-                  className={`rounded-xl py-1.5 transition ${
-                    mode === "signup"
-                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-50"
-                      : "hover:text-indigo-600 dark:hover:text-indigo-300"
-                  }`}
-                >
-                  Create account
-                </button>
-              </div>
-
-              {/* Panels */}
-              <div className="relative mt-4">
-                <div className="h-px bg-slate-100 dark:bg-slate-700" />
-                <AnimatePresence mode="popLayout" initial={false}>
-                  {mode === "signin" ? (
-                    <motion.div
-                      key="signin-panel"
-                      initial={{ x: 24, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: -24, opacity: 0 }}
-                      transition={{ duration: 0.22 }}
-                    >
-                      <form
-                        onSubmit={onSignIn}
-                        className="space-y-3 pt-4 text-sm"
-                      >
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
-                          Email address
-                        </label>
-                        <div className="relative">
-                          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="email"
-                            value={emailIn}
-                            onChange={(e) => setEmailIn(e.target.value)}
-                            required
-                            placeholder="you@example.com"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                          />
-                        </div>
-
-                        <label className="mt-3 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                          Password
-                        </label>
-                        <div className="relative">
-                          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type={showPasswordIn ? "text" : "password"}
-                            value={passwordIn}
-                            onChange={(e) => setPasswordIn(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-10 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                            minLength={6}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswordIn((v) => !v)}
-                            aria-label={
-                              showPasswordIn ? "Hide password" : "Show password"
-                            }
-                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                          >
-                            {showPasswordIn ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="mt-2 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
-                          <label className="inline-flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-500 focus:ring-indigo-400 dark:border-slate-600"
-                              defaultChecked
-                            />
-                            Remember for 30 days
-                          </label>
-                          <button
-                            type="button"
-                            onClick={onForgotPassword}
-                            className="font-medium text-indigo-600 hover:underline dark:text-indigo-300"
-                          >
-                            Forgot password
-                          </button>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={busy}
-                          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:brightness-110 disabled:opacity-60"
-                        >
-                          <LogIn className="h-4 w-4" />
-                          Sign in
-                        </button>
-                      </form>
-                    </motion.div>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  {profile.verified ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                    </span>
                   ) : (
-                    <motion.div
-                      key="signup-panel"
-                      initial={{ x: -24, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: 24, opacity: 0 }}
-                      transition={{ duration: 0.22 }}
-                    >
-                      {/* (signup panel unchanged from above in your file; keep as-is) */}
-                      <form
-                        onSubmit={onSignUp}
-                        className="space-y-3 pt-4 text-sm"
-                      >
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
-                          Full name
-                        </label>
-                        <div className="relative">
-                          <User2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            required
-                            placeholder="Alex Johnson"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                          />
-                        </div>
-
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
-                          Email address
-                        </label>
-                        <div className="relative">
-                          <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type="email"
-                            value={emailUp}
-                            onChange={(e) => setEmailUp(e.target.value)}
-                            required
-                            placeholder="you@example.com"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-9 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                          />
-                        </div>
-
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
-                          Password
-                        </label>
-                        <div className="relative">
-                          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type={showPasswordUp ? "text" : "password"}
-                            value={passwordUp}
-                            onChange={(e) => setPasswordUp(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-10 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                            minLength={6}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPasswordUp((v) => !v)}
-                            aria-label={
-                              showPasswordUp ? "Hide password" : "Show password"
-                            }
-                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                          >
-                            {showPasswordUp ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
-                          Confirm password
-                        </label>
-                        <div className="relative">
-                          <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <input
-                            type={showConfirmUp ? "text" : "password"}
-                            value={confirmUp}
-                            onChange={(e) => setConfirmUp(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            className="w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-10 py-2 text-sm text-slate-900 shadow-sm outline-none ring-0 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                            minLength={6}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmUp((v) => !v)}
-                            aria-label={
-                              showConfirmUp ? "Hide password" : "Show password"
-                            }
-                            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                          >
-                            {showConfirmUp ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={busy}
-                          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          Create account
-                        </button>
-                      </form>
-                    </motion.div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      Not verified yet
+                    </span>
                   )}
-                </AnimatePresence>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Your profile details help us understand who you are and what
+                  kind of people you’re likely to click with.
+                </div>
               </div>
+            </div>
+          </section>
 
-              {/* Divider */}
-              <div className="my-5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                  or
+          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-rose-500 dark:text-rose-300" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                Verification
+              </h2>
+
+              {kycSaved && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
+            </div>
+
+            {kycStatus?.status === "verified" && (
+              <p className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                <ShieldCheck className="h-4 w-4" />
+                Your account is verified.
+              </p>
+            )}
+
+            {kycStatus?.status === "pending" && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Your verification is pending review.</span>
                 </div>
-                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
+                <div className="mt-3">
+                  <button
+                    onClick={cancelKyc}
+                    disabled={kycBusy}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/60"
+                  >
+                    {kycBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}{" "}
+                    Cancel request
+                  </button>
+                </div>
               </div>
+            )}
 
-              {/* Google button */}
-              <button
-                onClick={signInWithGoogle}
-                disabled={busy}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
-                title="Sign in with Google"
-              >
-                <img
-                  src="https://www.svgrepo.com/show/475656/google-color.svg"
-                  alt=""
-                  className="h-4 w-4 rounded-[2px] bg-white"
-                />
-                Continue with Google
-              </button>
+            {kycStatus?.status === "unverified" && (
+              <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+                <p>
+                  Upload verification images so we can confirm you’re a real
+                  person. If your status becomes{" "}
+                  <span className="font-medium">Unverified</span> again, your
+                  request was denied — check the reasons and re-upload.
+                </p>
 
-              {notice && (
-                <div className="mt-4 text-xs text-emerald-600 dark:text-emerald-300">
-                  {notice}
-                </div>
-              )}
-              {error && (
-                <div className="mt-3 text-xs text-rose-600 dark:text-rose-300">
-                  {error}
-                </div>
-              )}
-
-              <div className="mt-6 text-center text-xs text-slate-600 dark:text-slate-300">
-                {mode === "signin" ? (
-                  <>
-                    Don’t have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => setMode("signup")}
-                      className="font-medium text-indigo-600 hover:underline dark:text-indigo-300"
-                    >
-                      Sign up
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => setMode("signin")}
-                      className="font-medium text-indigo-600 hover:underline dark:text-indigo-300"
-                    >
-                      Sign in
-                    </button>
-                  </>
+                {!!kycStatus?.reasons?.length && (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-800 dark:bg-rose-950/40">
+                    <div className="mb-2 text-xs font-semibold text-rose-700 dark:text-rose-200">
+                      Previous rejection reasons
+                    </div>
+                    <ul className="space-y-1 text-[11px] text-rose-800 dark:text-rose-100">
+                      {kycStatus.reasons.map((r, idx) => (
+                        <li key={idx}>
+                          <span className="opacity-70">
+                            {new Date(r.created_at).toLocaleString()}
+                          </span>
+                          <span className="ml-2">{r.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
+
+                <div className="flex items-center gap-3 pt-1">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white">
+                    {kycBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
+                    {kycBusy ? "Uploading…" : "Choose images"}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      ref={kycInputRef}
+                      onChange={onUploadKycFiles}
+                    />
+                  </label>
+                  {kycBusy && (
+                    <span className="inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
+                    </span>
+                  )}
+                </div>
               </div>
-            </motion.div>
-          </div>
-        </main>
+            )}
+          </section>
 
-        <AppFooter />
-      </div>
+          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                Match preferences
+              </h2>
 
-      {/* Onboarding sheet */}
-      {phase === "onboarding" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900/95"
-          >
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              Set up your profile
-            </h2>
+              {prefsSaved && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              This helps us match you with people who actually fit your pace and
-              preferences.
+              This shapes who we prioritize showing you. It guides matching but
+              doesn’t act as a hard filter.
             </p>
 
-            <form
-              onSubmit={onCompleteOnboarding}
-              className="mt-4 space-y-3 text-sm"
-            >
+            <div className="mt-4 space-y-4 text-sm text-slate-700 dark:text-slate-200">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                  Your age
-                </label>
-                <input
-                  type="number"
-                  min={18}
-                  max={99}
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                  required
+                <div className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Preferred age range
+                </div>
+                <AgeRangeSlider
+                  min={minLimit}
+                  max={maxLimit}
+                  valueMin={ageMin}
+                  valueMax={ageMax}
+                  onChange={(newMin, newMax) =>
+                    setProfile({
+                      ...profile,
+                      preferred_min_age: newMin,
+                      preferred_max_age: newMax,
+                    })
+                  }
                 />
               </div>
 
-              {/* Country (locked) */}
-              <SearchableDropdown
-                label="Country"
-                value={country}
-                onChange={(v) => {
-                  if (foldToAsciiLike(v) !== "lebanon") return;
-                  setCountry("Lebanon");
-                  setCityId("");
-                  clearMsgs();
-                }}
-                options={[{ value: "Lebanon", label: "Lebanon" }]}
-                placeholder="Lebanon"
-                disabled
-              />
-
-              {/* City */}
-              <SearchableDropdown
-                label="City"
-                value={cityId}
-                onChange={(v) => {
-                  setCityId(v);
-                  clearMsgs();
-                }}
-                disabled={!country}
-                options={cityOptions}
-                placeholder={country ? "Select a city" : "Select country first"}
-              />
-
-              {/* Your gender */}
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                  Your gender
-                </label>
+                <div className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Gender preference
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { value: "woman" as const, label: "Woman" },
-                    { value: "man" as const, label: "Man" },
-                    { value: "nonbinary" as const, label: "Non-binary" },
+                    { value: "women" as GenderPreference, label: "Women" },
+                    { value: "men" as GenderPreference, label: "Men" },
+                    { value: "everyone" as GenderPreference, label: "Everyone" },
                   ].map((opt) => {
-                    const active = selfGender === opt.value;
+                    const active = profile.preferred_gender === opt.value;
                     return (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => setSelfGender(opt.value)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                        onClick={() =>
+                          setProfile({
+                            ...profile,
+                            preferred_gender: opt.value,
+                          })
+                        }
+                        disabled={savingPreferences}
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition disabled:opacity-60 ${
                           active
-                            ? "border-slate-900 bg-slate-900 text-slate-50 shadow-sm dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
+                            ? "border-slate-900 bg-slate-900 text-slate-50 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
                             : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400"
                         }`}
                       >
@@ -953,75 +811,329 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                  Preferred age range
-                </label>
-                <div className="flex gap-2">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Max distance
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300">
+                    <span className="font-medium">{distanceValue} km</span>
+                    <span className="opacity-70"> · </span>
+                    <span className="font-medium">{Math.round(milesValue)} mi</span>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="pointer-events-none absolute left-0 right-0 top-1/2 -translate-y-1/2">
+                    <div className="relative h-1 rounded-full bg-transparent">
+                      <div
+                        className="absolute h-1 rounded-full bg-emerald-400/35 dark:bg-emerald-300/20"
+                        style={{
+                          left: `${Math.max(0, Math.min(100, recLeftPct))}%`,
+                          width: `${Math.max(
+                            0,
+                            Math.min(100, recRightPct) - Math.min(100, recLeftPct)
+                          )}%`,
+                        }}
+                      />
+                      <div
+                        className="absolute -top-1 h-3 w-[2px] rounded bg-emerald-500/70 dark:bg-emerald-300/40"
+                        style={{ left: `${Math.max(0, Math.min(100, recLeftPct))}%` }}
+                      />
+                      <div
+                        className="absolute -top-1 h-3 w-[2px] rounded bg-emerald-500/70 dark:bg-emerald-300/40"
+                        style={{ left: `${Math.max(0, Math.min(100, recRightPct))}%` }}
+                      />
+                    </div>
+                  </div>
+
                   <input
-                    type="number"
-                    min={18}
-                    max={99}
-                    value={prefMin}
-                    onChange={(e) => setPrefMin(e.target.value)}
-                    placeholder="Min"
-                    className="w-1/2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                    type="range"
+                    min={distanceMin}
+                    max={distanceMax}
+                    value={distanceValue}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        preferred_max_distance_km: Number(e.target.value),
+                      })
+                    }
+                    disabled={savingPreferences}
+                    className="distance-range w-full disabled:opacity-70"
+                    style={{ ["--pct" as any]: `${distancePct}%` }}
+                    aria-label="Maximum distance in kilometers"
                   />
-                  <input
-                    type="number"
-                    min={18}
-                    max={99}
-                    value={prefMax}
-                    onChange={(e) => setPrefMax(e.target.value)}
-                    placeholder="Max"
-                    className="w-1/2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                  />
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>We’ll prioritize matches within this radius.</span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                      Recommended: {recommendedMinKm}–{recommendedMaxKm} km
+                      <span className="opacity-70">
+                        ({Math.round(recMinMi)}–{Math.round(recMaxMi)} mi)
+                      </span>
+                    </span>
+                    <span className="opacity-70">UI max {distanceMax} km</span>
+                  </span>
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                  Gender preference
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(["women", "men", "everyone"] as const).map((g) => {
-                    const active = prefGender === g;
-                    return (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setPrefGender(g)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                          active
-                            ? "border-rose-500 bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm"
-                            : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400"
-                        }`}
-                      >
-                        {g[0].toUpperCase() + g.slice(1)}
-                      </button>
-                    );
-                  })}
-                </div>
+              <button
+                onClick={savePreferences}
+                disabled={savingPreferences}
+                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              >
+                {savingPreferences ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : prefsSaved ? (
+                  <Check className="h-4 w-4" />
+                ) : null}
+                {savingPreferences ? "Saving…" : prefsSaved ? "Saved" : "Save preferences"}
+              </button>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-violet-500 dark:text-violet-300" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                Interests
+              </h2>
+
+              <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+                  {pendingInterests.length}/{MAX_INTERESTS}
+                </span>
+                {interestsSaved && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                    <Check className="h-3.5 w-3.5" /> Saved
+                  </span>
+                )}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              Pick everything that feels like you. You can select up to {MAX_INTERESTS}.
+              Your selections are only saved when you click “Save interests”.
+            </p>
+
+            <div className="mt-4">
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                Selected
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {pendingInterests.length === 0 && (
+                  <span className="text-[11px] text-slate-400">
+                    Nothing selected yet.
+                  </span>
+                )}
+                {pendingInterests.map((i) => (
+                  <span
+                    key={i.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <span>{i.name}</span>
+                    {i.category && (
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        · {i.category}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedInterest(i.id)}
+                      aria-label={`Remove ${i.name}`}
+                      className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                      disabled={updatingInterests}
+                      title="Remove"
+                    >
+                      <XCircle className="h-4 w-4 opacity-70" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="mb-1 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                <span>Available interests</span>
+                {allInterests.length > 0 && (
+                  <span className="normal-case tracking-normal text-[10px] text-slate-400 dark:text-slate-500">
+                    Tap to add / remove
+                  </span>
+                )}
+              </div>
+              <div className="max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/70">
+                {allInterests.length === 0 && (
+                  <span className="text-[11px] text-slate-400">
+                    No interests found. (You may need to add them in the
+                    admin/backend.)
+                  </span>
+                )}
+
+                {sortedCategories.map((cat) => {
+                  const items = interestsByCategory[cat] || [];
+                  if (!items.length) return null;
+                  const label = cat === "Other" ? "Other / uncategorized" : cat;
+
+                  return (
+                    <div key={cat} className="mb-3 last:mb-0">
+                      <div className="mb-1 flex items-center justify-between">
+                        <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                          {label}
+                        </div>
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                          {items.length} item{items.length !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {items.map((int) => {
+                          const active = selectedInterestIds.has(int.id);
+                          const atLimit = !active && pendingInterests.length >= MAX_INTERESTS;
+                          return (
+                            <button
+                              key={int.id}
+                              type="button"
+                              onClick={() => toggleInterest(int)}
+                              disabled={updatingInterests || atLimit}
+                              className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition disabled:opacity-50 ${
+                                active
+                                  ? "border-slate-900 bg-slate-900 text-slate-50 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
+                                  : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400"
+                              }`}
+                              title={atLimit ? `Limit: ${MAX_INTERESTS}` : undefined}
+                            >
+                              {int.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="mt-4 flex justify-end gap-2 text-xs">
+              <div className="mt-3 flex items-center gap-3">
                 <button
-                  type="submit"
-                  disabled={busy}
-                  className="rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2 font-semibold text-white shadow-md hover:brightness-110 disabled:opacity-60"
+                  onClick={saveInterests}
+                  disabled={updatingInterests}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                 >
-                  Save and continue
+                  {updatingInterests ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : interestsSaved ? (
+                    <Check className="h-4 w-4" />
+                  ) : null}
+                  {updatingInterests ? "Saving…" : interestsSaved ? "Saved" : "Save interests"}
                 </button>
+                {updatingInterests && (
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Saving…
+                  </span>
+                )}
               </div>
+            </div>
+          </section>
 
-              {error && (
-                <div className="mt-3 text-xs text-rose-600 dark:text-rose-300">
-                  {error}
-                </div>
+          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-rose-500 dark:text-rose-300" />
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                Gallery photos
+              </h2>
+
+              {photosSaved && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
               )}
-            </form>
-          </motion.div>
-        </div>
-      )}
+            </div>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              Upload up to three photos that feel like you. You can update them
+              anytime.
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[1, 2, 3].map((pos) => {
+                const p = pos as 1 | 2 | 3;
+                const hasPhoto = !!photos[p - 1];
+                const busy = uploadingPos === p || removingPos === p;
+
+                return (
+                  <div
+                    key={p}
+                    className="group relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    {hasPhoto ? (
+                      <img
+                        src={photos[p - 1]}
+                        alt={`gallery-${p}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">Empty slot {p}</span>
+                    )}
+
+                    {/* REMOVE (X) - always clickable */}
+                    {hasPhoto && (
+                      <button
+                        type="button"
+                        onClick={() => removeGallery(p)}
+                        disabled={busy}
+                        className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
+                        aria-label={`Remove photo ${p}`}
+                        title="Remove"
+                      >
+                        {removingPos === p ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="h-5 w-5" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* UPLOAD overlay
+                        KEY FIX: pointer-events-none until hover (so it doesn't block X)
+                    */}
+                    <label
+                      className={[
+                        "absolute inset-0 z-10 flex cursor-pointer items-center justify-center bg-slate-900/40 text-xs font-medium text-white backdrop-blur-[1px] transition",
+                        hasPhoto
+                          ? "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+                          : "opacity-100 pointer-events-auto bg-slate-900/25",
+                        busy ? "opacity-100 pointer-events-none" : "",
+                      ].join(" ")}
+                    >
+                      {uploadingPos === p ? (
+                        <>
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Uploading…
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-1 h-4 w-4" /> Upload
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => uploadGallery(e, p)}
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+
+            {uploading && (
+              <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
+              </div>
+            )}
+          </section>
+        </main>
+
+        <AppFooter />
+      </div>
     </div>
   );
 }
