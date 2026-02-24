@@ -1,5 +1,6 @@
 // src/pages/ChatbotPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -31,6 +32,7 @@ type HistoryProgress = {
 
 const STARTED_KEY = "lm_assessment_started_v2";
 const ATTEMPT_KEY = "lm_assessment_attempt_id_v1";
+const PHASE1_POPUP_SHOWN_KEY = "lm_phase1_congrats_shown_v1";
 
 /** Supports dynamic IDs (B1_S, B2_P, etc.) */
 const MCQ_TAG_RE = /\[\[mcq:([A-Z0-9_]+)\]\]/g;
@@ -122,32 +124,188 @@ function phaseBlurb(p: ChatPhase) {
   return "Short. Focused. Saved automatically.";
 }
 
+function easeOutCubic(t: number) {
+  const x = clamp(t, 0, 1);
+  return 1 - Math.pow(1 - x, 3);
+}
+
+function ConfirmModal({
+  open,
+  title,
+  subtitle,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  subtitle?: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="confirm-modal"
+          className="fixed inset-0 z-[80] grid place-items-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div
+            className="absolute inset-0 bg-black/45"
+            onClick={onCancel}
+            aria-hidden="true"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.985 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="relative w-full max-w-md rounded-3xl border border-white/20 bg-white/92 p-6 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/92"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-500/85 via-violet-500/85 to-rose-500/85 shadow-sm shadow-indigo-400/15">
+                <ShieldCheck className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  {title}
+                </div>
+                {subtitle ? (
+                  <div className="mt-1 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">
+                    {subtitle}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={onConfirm}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500/85 via-violet-500/85 to-rose-500/85 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-400/15 hover:brightness-105"
+              >
+                {confirmText} <CheckCircle2 className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={onCancel}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm shadow-slate-200/30 backdrop-blur hover:bg-white dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-200 dark:shadow-black/20 dark:hover:bg-slate-950/45"
+              >
+                {cancelText}
+              </button>
+            </div>
+
+            <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+              You can’t go back after confirming.
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function CongratsModal({
+  open,
+  onContinue,
+}: {
+  open: boolean;
+  onContinue: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="congrats-modal"
+          className="fixed inset-0 z-[75] grid place-items-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.985 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="relative w-full max-w-md rounded-3xl border border-white/20 bg-white/92 p-6 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-900/92"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-500/85 via-fuchsia-500/85 to-indigo-500/85 shadow-sm shadow-rose-400/15">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                  Phase 1 completed 🎉
+                </div>
+                <div className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">
+                  Congrats — now you’re in the final phase (Preferences).
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onContinue}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500/85 via-violet-500/85 to-rose-500/85 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-400/15 hover:brightness-105"
+            >
+              Continue <ArrowRight className="h-4 w-4" />
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function ProgressHeader({
   phase,
-  selfCount,
-  prefCount,
+  selfTotal,
+  prefTotal,
+  selfAnswered,
+  prefAnswered,
 }: {
   phase: ChatPhase;
-  selfCount: number;
-  prefCount: number;
+  selfTotal: number;
+  prefTotal: number;
+  selfAnswered: number;
+  prefAnswered: number;
 }) {
-  const total = Math.max(0, selfCount + prefCount);
+  const total = Math.max(0, selfTotal + prefTotal);
   const bubbles = Array.from({ length: total });
 
   const isSelfActive = phase === "self";
   const isPrefActive = phase === "pref";
 
   const bubbleClassForIndex = (i: number) => {
-    const inSelf = i < selfCount;
-    const inPref = i >= selfCount;
+    const inSelf = i < selfTotal;
+    const inPref = i >= selfTotal;
 
     if (inSelf) {
+      const filled = i < selfAnswered;
+      if (!filled) return "bg-slate-200/80 dark:bg-slate-800/70";
+
       return isSelfActive
         ? "bg-gradient-to-r from-indigo-500/75 via-violet-500/75 to-rose-500/75 shadow-[0_0_0_4px_rgba(129,140,248,0.10)]"
         : "bg-slate-300/70 dark:bg-slate-700/70";
     }
 
     if (inPref) {
+      const idx = i - selfTotal;
+      const filled = idx < prefAnswered;
+      if (!filled) return "bg-slate-200/80 dark:bg-slate-800/70";
+
       return isPrefActive
         ? "bg-gradient-to-r from-rose-500/75 via-fuchsia-500/70 to-indigo-500/70 shadow-[0_0_0_4px_rgba(244,114,182,0.10)]"
         : "bg-slate-300/70 dark:bg-slate-700/70";
@@ -257,10 +415,16 @@ function SidebarTallCard({
   );
 }
 
+type PendingConfirm =
+  | { kind: "mcq"; key: "A" | "B" | "C"; label: string }
+  | { kind: "other"; text: string };
+
 export default function ChatbotPage() {
+  const navigate = useNavigate();
+
   const assessmentCompletedRef = useRef(false);
   const isSendingRef = useRef(false);
-  const lastBumpedMcqIdRef = useRef<string | null>(null);
+  const prevPhaseRef = useRef<ChatPhase>("self");
 
   const [hasStarted, setHasStarted] = useState<boolean>(
     () => localStorage.getItem(STARTED_KEY) === "1"
@@ -270,8 +434,11 @@ export default function ChatbotPage() {
   const [phase, setPhase] = useState<ChatPhase>("self");
   const [, setServerProgress] = useState<HistoryProgress | null>(null);
 
-  const [selfBubbles, setSelfBubbles] = useState(0);
-  const [prefBubbles, setPrefBubbles] = useState(0);
+  // totals/answered for equal bubbles in both phases
+  const [selfTotal, setSelfTotal] = useState(0);
+  const [prefTotal, setPrefTotal] = useState(0);
+  const [selfAnswered, setSelfAnswered] = useState(0);
+  const [prefAnswered, setPrefAnswered] = useState(0);
 
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
@@ -292,14 +459,37 @@ export default function ChatbotPage() {
   const [otherText, setOtherText] = useState("");
   const [freeformText, setFreeformText] = useState("");
 
-  function mergeCountsFromServer(progress: HistoryProgress | null | undefined) {
+  // confirm + phase transition popups
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showPhase1Congrats, setShowPhase1Congrats] = useState(false);
+
+  function mergeFromServer(progress: HistoryProgress | null | undefined) {
     const sp = progress || {};
-    const s = typeof sp.self_answered === "number" ? sp.self_answered : 0;
-    const p = typeof sp.pref_answered === "number" ? sp.pref_answered : 0;
-    setSelfBubbles((prev) => Math.max(prev, s));
-    setPrefBubbles((prev) => Math.max(prev, p));
+    const sT = typeof sp.self_total === "number" ? sp.self_total : 0;
+    const pT = typeof sp.pref_total === "number" ? sp.pref_total : 0;
+    const sA = typeof sp.self_answered === "number" ? sp.self_answered : 0;
+    const pA = typeof sp.pref_answered === "number" ? sp.pref_answered : 0;
+
+    // Keep the biggest totals we've ever seen (prevents shrinking)
+    setSelfTotal((prev) => Math.max(prev, sT, sA));
+    setPrefTotal((prev) => Math.max(prev, pT, pA));
+
+    setSelfAnswered((prev) => Math.max(prev, sA));
+    setPrefAnswered((prev) => Math.max(prev, pA));
   }
 
+  function bumpAnsweredForCurrentPhaseOnce() {
+    // bump answered only once per mcqId (prevents double increments)
+    // we do it by using selectedOption reset per mcqId + confirm gating.
+    if (phase === "self") setSelfAnswered((n) => n + 1);
+    else if (phase === "pref") setPrefAnswered((n) => n + 1);
+  }
+
+  function rollbackAnsweredForCurrentPhase() {
+    if (phase === "self") setSelfAnswered((n) => Math.max(0, n - 1));
+    else if (phase === "pref") setPrefAnswered((n) => Math.max(0, n - 1));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -309,10 +499,15 @@ export default function ChatbotPage() {
         const data = await api.chatbotHistory();
         if (cancelled) return;
 
-        if (data?.phase) setPhase(data.phase as ChatPhase);
+        if (data?.phase) {
+          const newPhase = data.phase as ChatPhase;
+          setPhase(newPhase);
+          prevPhaseRef.current = newPhase;
+        }
+
         if (data?.progress) {
           setServerProgress(data.progress);
-          mergeCountsFromServer(data.progress);
+          mergeFromServer(data.progress);
         }
 
         const msgs: any[] = data?.messages || [];
@@ -358,6 +553,8 @@ export default function ChatbotPage() {
     setShowOtherInput(false);
     setOtherText("");
     setFreeformText("");
+    setPendingConfirm(null);
+    setShowConfirm(false);
   }, [mcqId]);
 
   // Loader appearance delay
@@ -366,31 +563,33 @@ export default function ChatbotPage() {
       setShowLoader(false);
       return;
     }
-    const t = window.setTimeout(() => setShowLoader(true), 220);
+    const t = window.setTimeout(() => setShowLoader(true), 160);
     return () => window.clearTimeout(t);
   }, [isLoadingNext]);
 
-  // Fake progress fill
+  // Fake progress fill (fast start, slow end)
   useEffect(() => {
     if (!isLoadingNext) {
       setSavePercent(0);
       return;
     }
 
-    const TOTAL_MS = 10_000;
+    const TOTAL_MS = 8_000; // feel snappier overall
     const start = Date.now();
 
     const tick = () => {
       const elapsed = Date.now() - start;
-      const p = (elapsed / TOTAL_MS) * 100;
+      const t = clamp(elapsed / TOTAL_MS, 0, 1);
+      const eased = easeOutCubic(t) * 100;
+
       setSavePercent((prev) => {
-        const next = Math.max(prev, p);
+        const next = Math.max(prev, eased);
         return next >= 99 ? 99 : next;
       });
     };
 
     tick();
-    const id = window.setInterval(tick, 100);
+    const id = window.setInterval(tick, 80);
     return () => window.clearInterval(id);
   }, [isLoadingNext]);
 
@@ -419,23 +618,6 @@ export default function ChatbotPage() {
     }
   }
 
-  function bumpBubbleForCurrentPhaseOnce() {
-    if (lastBumpedMcqIdRef.current === mcqId) return;
-    lastBumpedMcqIdRef.current = mcqId;
-
-    if (phase === "self") setSelfBubbles((n) => n + 1);
-    else if (phase === "pref") setPrefBubbles((n) => n + 1);
-  }
-
-  function rollbackBubbleForCurrentPhase() {
-    if (lastBumpedMcqIdRef.current !== mcqId) return;
-
-    if (phase === "self") setSelfBubbles((n) => Math.max(0, n - 1));
-    else if (phase === "pref") setPrefBubbles((n) => Math.max(0, n - 1));
-
-    lastBumpedMcqIdRef.current = null;
-  }
-
   async function sendAnswer(content: string) {
     const msg = (content || "").trim();
     if (!msg) return;
@@ -449,8 +631,23 @@ export default function ChatbotPage() {
       const res = await api.chatbotMessage(msg);
 
       if (res?.phase) {
-        setPhase(res.phase as ChatPhase);
-        if (res.phase === "done" && !assessmentCompletedRef.current) {
+        const newPhase = res.phase as ChatPhase;
+
+        // phase transition popup: self -> pref
+        const prev = prevPhaseRef.current;
+        if (
+          prev === "self" &&
+          newPhase === "pref" &&
+          localStorage.getItem(PHASE1_POPUP_SHOWN_KEY) !== "1"
+        ) {
+          setShowPhase1Congrats(true);
+          localStorage.setItem(PHASE1_POPUP_SHOWN_KEY, "1");
+        }
+
+        prevPhaseRef.current = newPhase;
+        setPhase(newPhase);
+
+        if (newPhase === "done" && !assessmentCompletedRef.current) {
           assessmentCompletedRef.current = true;
           api.trackEvent({
             event_name: "assessment_completed",
@@ -461,13 +658,13 @@ export default function ChatbotPage() {
 
       if (res?.progress) {
         setServerProgress((prev) => ({ ...(prev || {}), ...res.progress }));
-        mergeCountsFromServer(res.progress);
+        mergeFromServer(res.progress);
       }
 
       setSaveDone(true);
       setCurrentAssistantText(res?.reply || "");
     } catch {
-      rollbackBubbleForCurrentPhase();
+      rollbackAnsweredForCurrentPhase();
       setCurrentAssistantText("Network error — try again.");
     } finally {
       window.setTimeout(() => {
@@ -475,15 +672,15 @@ export default function ChatbotPage() {
         setSaveDone(false);
         setSavePercent(0);
         isSendingRef.current = false;
-      }, 350);
+      }, 300);
     }
   }
 
-  function onTapOption(key: "A" | "B" | "C") {
+  function openConfirmForMcq(key: "A" | "B" | "C", label: string) {
     if (isLoadingNext) return;
     setSelectedOption(key);
-    bumpBubbleForCurrentPhaseOnce();
-    void sendAnswer(key);
+    setPendingConfirm({ kind: "mcq", key, label });
+    setShowConfirm(true);
   }
 
   function onTapOther() {
@@ -499,9 +696,37 @@ export default function ChatbotPage() {
   function submitOther() {
     const txt = otherText.trim();
     if (!txt || isLoadingNext) return;
+
     setSelectedOption("D");
-    bumpBubbleForCurrentPhaseOnce();
-    void sendAnswer(`D ${txt}`);
+    setPendingConfirm({ kind: "other", text: `D ${txt}` });
+    setShowConfirm(true);
+  }
+
+  function confirmPending() {
+    if (!pendingConfirm) return;
+
+    setShowConfirm(false);
+
+    // bump answered only when user confirms
+    bumpAnsweredForCurrentPhaseOnce();
+
+    if (pendingConfirm.kind === "mcq") {
+      void sendAnswer(pendingConfirm.key);
+      return;
+    }
+
+    if (pendingConfirm.kind === "other") {
+      void sendAnswer(pendingConfirm.text);
+      return;
+    }
+  }
+
+  function cancelPending() {
+    setShowConfirm(false);
+    setPendingConfirm(null);
+
+    // if they cancel confirmation, reset selection (so they can pick again cleanly)
+    setSelectedOption(null);
   }
 
   function submitFreeform() {
@@ -617,7 +842,7 @@ export default function ChatbotPage() {
                 type="button"
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.99 }}
-                onClick={() => onTapOption(opt.key as "A" | "B" | "C")}
+                onClick={() => openConfirmForMcq(opt.key as "A" | "B" | "C", opt.text)}
                 disabled={isLoadingNext}
                 className={optionButtonClass(isSelected)}
               >
@@ -733,6 +958,28 @@ export default function ChatbotPage() {
       <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
         Tip: choose the closest option. Don’t overthink it.
       </div>
+
+      {phase === "done" ? (
+        <div className="mt-4 rounded-3xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                Bio ready ✅
+              </div>
+              <div className="mt-1 text-[12px] text-emerald-800/80 dark:text-emerald-200/80">
+                You can start matching now.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/conversations")}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/85 via-emerald-500/85 to-indigo-500/85 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-400/15 hover:brightness-105"
+            >
+              Match now <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
     </motion.div>
   ) : (
     <motion.div
@@ -746,8 +993,48 @@ export default function ChatbotPage() {
       <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
         {stripMcqArtifacts(currentAssistantText)}
       </div>
+
+      {phase === "done" ? (
+        <div className="mt-4 rounded-3xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                Bio ready ✅
+              </div>
+              <div className="mt-1 text-[12px] text-emerald-800/80 dark:text-emerald-200/80">
+                You can start matching now.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/conversations")}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/85 via-emerald-500/85 to-indigo-500/85 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-400/15 hover:brightness-105"
+            >
+              Match now <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
     </motion.div>
   );
+
+  const confirmTitle = useMemo(() => {
+    if (!pendingConfirm) return "Confirm your answer";
+    if (pendingConfirm.kind === "mcq") return "Confirm your answer";
+    return "Confirm your answer";
+  }, [pendingConfirm]);
+
+  const confirmSubtitle = useMemo(() => {
+    if (!pendingConfirm) return "";
+    if (pendingConfirm.kind === "mcq") {
+      return `You selected: ${pendingConfirm.key}) ${pendingConfirm.label}`;
+    }
+    return `You wrote: ${pendingConfirm.text.replace(/^D\s*/, "")}`;
+  }, [pendingConfirm]);
+
+  // If server never gives totals, keep UI sane: show at least answered bubbles
+  const safeSelfTotal = Math.max(selfTotal, selfAnswered);
+  const safePrefTotal = Math.max(prefTotal, prefAnswered);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
@@ -755,6 +1042,21 @@ export default function ChatbotPage() {
         <div className="absolute -top-28 left-0 right-0 mx-auto h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.14),_transparent_60%)] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.12),_transparent_60%)] blur-3xl" />
       </div>
+
+      <ConfirmModal
+        open={showConfirm}
+        title={confirmTitle}
+        subtitle={confirmSubtitle}
+        confirmText="Yes, confirm"
+        cancelText="Change"
+        onConfirm={confirmPending}
+        onCancel={cancelPending}
+      />
+
+      <CongratsModal
+        open={showPhase1Congrats}
+        onContinue={() => setShowPhase1Congrats(false)}
+      />
 
       {!isLoadingHistory && !hasStarted && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
@@ -794,7 +1096,13 @@ export default function ChatbotPage() {
           <div className="grid items-stretch grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
             <section className="h-full">
               <div className="h-full rounded-3xl border border-slate-200 bg-white/90 shadow-sm shadow-slate-200/50 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
-                <ProgressHeader phase={phase} selfCount={selfBubbles} prefCount={prefBubbles} />
+                <ProgressHeader
+                  phase={phase}
+                  selfTotal={safeSelfTotal}
+                  prefTotal={safePrefTotal}
+                  selfAnswered={selfAnswered}
+                  prefAnswered={prefAnswered}
+                />
 
                 <div className="px-4 py-5 sm:px-5">
                   {isLoadingHistory ? (
@@ -835,7 +1143,7 @@ export default function ChatbotPage() {
                 <SidebarTallCard
                   icon={<ShieldCheck className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
                   title="Progress you can trust."
-                  body="Bubbles add instantly as you answer, while the backend keeps everything consistent and saved."
+                  body="Bubbles are consistent: fixed totals per phase, filled as you answer, backed by the server."
                 />
               </div>
             </aside>
