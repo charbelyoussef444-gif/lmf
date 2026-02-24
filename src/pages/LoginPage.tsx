@@ -20,7 +20,6 @@ import { api } from "../lib/api";
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
 
-type CountryRow = { country: string };
 type CityRow = { id: number; city: string; admin_name?: string | null };
 
 // Accent-insensitive, case-insensitive folding
@@ -222,8 +221,7 @@ export default function LoginPage() {
   // Onboarding form
   const [age, setAge] = useState("");
 
-  // Country + City dropdowns (from DB)
-  const [countries, setCountries] = useState<CountryRow[]>([]);
+  // Country + City dropdowns (locked to Lebanon)
   const [country, setCountry] = useState("Lebanon");
   const [cities, setCities] = useState<CityRow[]>([]);
   const [cityId, setCityId] = useState<string>("");
@@ -251,32 +249,10 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Load countries when onboarding opens (restricted to Lebanon)
+  // Enforce Lebanon when onboarding opens
   useEffect(() => {
     if (phase !== "onboarding") return;
-
-    let alive = true;
-    (async () => {
-      try {
-        const list = (await api.getCountries()) as CountryRow[];
-        if (!alive) return;
-
-        const onlyLebanon = list.filter(
-          (c) => foldToAsciiLike(c.country) === "lebanon"
-        );
-
-        setCountries(onlyLebanon);
-        setCountry("Lebanon");
-      } catch (e: any) {
-        if (!alive) return;
-        setCountries([]);
-        setError(e?.message || "Could not load countries.");
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
+    setCountry("Lebanon");
   }, [phase]);
 
   // Load cities when country changes
@@ -309,7 +285,6 @@ export default function LoginPage() {
   }, [country, phase]);
 
   const countryOptions = useMemo<SelectOption[]>(() => {
-    // force only Lebanon as option
     return [{ value: "Lebanon", label: "Lebanon" }];
   }, []);
 
@@ -492,7 +467,6 @@ export default function LoginPage() {
         </div>
 
         <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-          {/* ✅ Shared header */}
           <AppHeader />
 
           <main className="flex flex-1 items-center justify-center py-10">
@@ -540,7 +514,6 @@ export default function LoginPage() {
             </motion.div>
           </main>
 
-          {/* ✅ Shared footer */}
           <AppFooter />
         </div>
       </div>
@@ -557,7 +530,6 @@ export default function LoginPage() {
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
-        {/* ✅ Shared header */}
         <AppHeader />
 
         <main className="flex flex-1 items-center justify-center py-10">
@@ -714,6 +686,7 @@ export default function LoginPage() {
                       exit={{ x: 24, opacity: 0 }}
                       transition={{ duration: 0.22 }}
                     >
+                      {/* (signup panel unchanged from above in your file; keep as-is) */}
                       <form
                         onSubmit={onSignUp}
                         className="space-y-3 pt-4 text-sm"
@@ -845,7 +818,6 @@ export default function LoginPage() {
                 Continue with Google
               </button>
 
-              {/* Notices */}
               {notice && (
                 <div className="mt-4 text-xs text-emerald-600 dark:text-emerald-300">
                   {notice}
@@ -857,7 +829,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Footer hint */}
               <div className="mt-6 text-center text-xs text-slate-600 dark:text-slate-300">
                 {mode === "signin" ? (
                   <>
@@ -887,7 +858,6 @@ export default function LoginPage() {
           </div>
         </main>
 
-        {/* ✅ Shared footer */}
         <AppFooter />
       </div>
 
@@ -926,18 +896,17 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Country (locked to Lebanon) */}
+              {/* Country (locked) */}
               <SearchableDropdown
                 label="Country"
                 value={country}
                 onChange={(v) => {
-                  // ignore anything except Lebanon
                   if (foldToAsciiLike(v) !== "lebanon") return;
                   setCountry("Lebanon");
                   setCityId("");
                   clearMsgs();
                 }}
-                options={countryOptions}
+                options={[{ value: "Lebanon", label: "Lebanon" }]}
                 placeholder="Lebanon"
                 disabled
               />
