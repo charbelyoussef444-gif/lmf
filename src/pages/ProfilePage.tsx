@@ -191,6 +191,8 @@ function kmToMiles(km: number): number {
 }
 
 export default function ProfilePage() {
+  const MAX_INTERESTS = 5;
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -217,8 +219,7 @@ export default function ProfilePage() {
   const [kycBusy, setKycBusy] = useState(false);
   const kycInputRef = useRef<HTMLInputElement | null>(null);
 
-  const MAX_INTERESTS = 5;
-
+  // saved indicators
   const [prefsSaved, setPrefsSaved] = useState(false);
   const [interestsSaved, setInterestsSaved] = useState(false);
   const [photosSaved, setPhotosSaved] = useState(false);
@@ -229,10 +230,7 @@ export default function ProfilePage() {
   const photosSavedTimer = useRef<number | null>(null);
   const kycSavedTimer = useRef<number | null>(null);
 
-  function flashSaved(
-    which: "prefs" | "interests" | "photos" | "kyc",
-    ms = 2200
-  ) {
+  function flashSaved(which: "prefs" | "interests" | "photos" | "kyc", ms = 2200) {
     const clear = (ref: React.MutableRefObject<number | null>) => {
       if (ref.current) window.clearTimeout(ref.current);
       ref.current = window.setTimeout(() => {
@@ -264,10 +262,8 @@ export default function ProfilePage() {
   useEffect(() => {
     return () => {
       if (prefsSavedTimer.current) window.clearTimeout(prefsSavedTimer.current);
-      if (interestsSavedTimer.current)
-        window.clearTimeout(interestsSavedTimer.current);
-      if (photosSavedTimer.current)
-        window.clearTimeout(photosSavedTimer.current);
+      if (interestsSavedTimer.current) window.clearTimeout(interestsSavedTimer.current);
+      if (photosSavedTimer.current) window.clearTimeout(photosSavedTimer.current);
       if (kycSavedTimer.current) window.clearTimeout(kycSavedTimer.current);
     };
   }, []);
@@ -287,12 +283,13 @@ export default function ProfilePage() {
 
         const pp = normalizeProfile(p);
 
-        // sane default if missing
+        // default distance
         if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
 
         setProfile(pp);
 
         setInterests(ints);
+        // enforce max 5 selected on load (UI rule)
         setPendingInterests(ints.slice(0, MAX_INTERESTS));
         setPhotos(ph);
         setAllInterests(allInts);
@@ -361,7 +358,7 @@ export default function ProfilePage() {
       console.error(err);
       alert("Failed to upload photo.");
     } finally {
-      // critical: allow selecting the same file again
+      // allow selecting SAME file again
       e.target.value = "";
       setUploading(false);
       setUploadingPos(null);
@@ -372,14 +369,12 @@ export default function ProfilePage() {
     setRemovingPos(pos);
     try {
       const anyApi = api as any;
-
       if (typeof anyApi.deleteGalleryPhoto !== "function") {
         alert(
-          "Backend endpoint missing: api.deleteGalleryPhoto(pos). Add it, then this button will work."
+          "Backend endpoint missing: api.deleteGalleryPhoto(pos). Add it in lib/api.ts and backend."
         );
         return;
       }
-
       await anyApi.deleteGalleryPhoto(pos);
       const ph = await api.myPhotos();
       setPhotos(ph);
@@ -685,6 +680,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="mt-3">
                   <button
+                    type="button"
                     onClick={cancelKyc}
                     disabled={kycBusy}
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/60"
@@ -901,6 +897,7 @@ export default function ProfilePage() {
               </div>
 
               <button
+                type="button"
                 onClick={savePreferences}
                 disabled={savingPreferences}
                 className="mt-2 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
@@ -934,8 +931,8 @@ export default function ProfilePage() {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Pick everything that feels like you. You can select up to {MAX_INTERESTS}.
-              Your selections are only saved when you click “Save interests”.
+              Pick everything that feels like you. You can select up to {MAX_INTERESTS}. Your
+              selections are only saved when you click “Save interests”.
             </p>
 
             <div className="mt-4">
@@ -944,9 +941,7 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {pendingInterests.length === 0 && (
-                  <span className="text-[11px] text-slate-400">
-                    Nothing selected yet.
-                  </span>
+                  <span className="text-[11px] text-slate-400">Nothing selected yet.</span>
                 )}
                 {pendingInterests.map((i) => (
                   <span
@@ -963,7 +958,7 @@ export default function ProfilePage() {
                       type="button"
                       onClick={() => removeSelectedInterest(i.id)}
                       aria-label={`Remove ${i.name}`}
-                      className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"
+                      className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-60"
                       disabled={updatingInterests}
                       title="Remove"
                     >
@@ -986,8 +981,7 @@ export default function ProfilePage() {
               <div className="max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/70">
                 {allInterests.length === 0 && (
                   <span className="text-[11px] text-slate-400">
-                    No interests found. (You may need to add them in the
-                    admin/backend.)
+                    No interests found. (You may need to add them in the admin/backend.)
                   </span>
                 )}
 
@@ -1035,6 +1029,7 @@ export default function ProfilePage() {
 
               <div className="mt-3 flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={saveInterests}
                   disabled={updatingInterests}
                   className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
@@ -1069,42 +1064,41 @@ export default function ProfilePage() {
               )}
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Upload up to three photos that feel like you. You can update them
-              anytime.
+              Upload up to three photos that feel like you. You can update them anytime.
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((pos) => {
-                const hasPhoto = !!photos[pos - 1];
-                const busy = uploadingPos === pos || removingPos === pos;
+                const p = pos as 1 | 2 | 3;
+                const hasPhoto = !!photos[p - 1];
+                const busy = uploadingPos === p || removingPos === p;
+
                 return (
                   <div
-                    key={pos}
-                    className="relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                    key={p}
+                    className="group relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
                   >
                     {hasPhoto ? (
                       <img
-                        src={photos[pos - 1]}
-                        alt={`gallery-${pos}`}
+                        src={photos[p - 1]}
+                        alt={`gallery-${p}`}
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="text-xs text-slate-400">
-                        Empty slot {pos}
-                      </span>
+                      <span className="text-xs text-slate-400">Empty slot {p}</span>
                     )}
 
-                    {/* Remove (X) */}
+                    {/* REMOVE (X) - must be above overlay */}
                     {hasPhoto && (
                       <button
                         type="button"
-                        onClick={() => removeGallery(pos as 1 | 2 | 3)}
+                        onClick={() => removeGallery(p)}
                         disabled={busy}
-                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
-                        aria-label={`Remove photo ${pos}`}
+                        className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
+                        aria-label={`Remove photo ${p}`}
                         title="Remove"
                       >
-                        {removingPos === pos ? (
+                        {removingPos === p ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <XCircle className="h-5 w-5" />
@@ -1112,13 +1106,20 @@ export default function ProfilePage() {
                       </button>
                     )}
 
-                    {/* Upload overlay */}
+                    {/* UPLOAD overlay:
+                        - If slot is empty: overlay is clickable always.
+                        - If slot has photo: overlay is NOT clickable until hover, so it won't block X.
+                    */}
                     <label
-                      className={`absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-900/40 text-xs font-medium text-white backdrop-blur-[1px] transition ${
-                        busy ? "opacity-100" : "opacity-0 hover:opacity-100"
-                      } ${busy ? "pointer-events-none" : ""}`}
+                      className={[
+                        "absolute inset-0 z-10 flex cursor-pointer items-center justify-center text-xs font-medium text-white backdrop-blur-[1px] transition",
+                        hasPhoto
+                          ? "bg-slate-900/40 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+                          : "bg-slate-900/25 opacity-100 pointer-events-auto",
+                        busy ? "opacity-100 pointer-events-none" : "",
+                      ].join(" ")}
                     >
-                      {uploadingPos === pos ? (
+                      {uploadingPos === p ? (
                         <>
                           <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Uploading…
                         </>
@@ -1131,7 +1132,7 @@ export default function ProfilePage() {
                         type="file"
                         className="hidden"
                         accept="image/*"
-                        onChange={(e) => uploadGallery(e, pos as 1 | 2 | 3)}
+                        onChange={(e) => uploadGallery(e, p)}
                       />
                     </label>
                   </div>
