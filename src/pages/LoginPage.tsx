@@ -1079,7 +1079,7 @@ export default function ProfilePage() {
                         type="button"
                         onClick={() => removeGallery(p)}
                         disabled={busy}
-                        className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
+                        className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full  text-white  disabled:opacity-60"
                         aria-label={`Remove photo ${p}`}
                         title="Remove"
                       >
