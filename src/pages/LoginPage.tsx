@@ -23,12 +23,6 @@ import AppFooter from "../components/AppFooter";
 type CountryRow = { country: string };
 type CityRow = { id: number; city: string; admin_name?: string | null };
 
-const KM_PER_MI = 1.609344;
-
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}
-
 // Accent-insensitive, case-insensitive folding
 function foldToAsciiLike(s: string) {
   return s
@@ -230,16 +224,12 @@ export default function LoginPage() {
 
   // Country + City dropdowns (from DB)
   const [countries, setCountries] = useState<CountryRow[]>([]);
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState("Lebanon");
   const [cities, setCities] = useState<CityRow[]>([]);
   const [cityId, setCityId] = useState<string>("");
 
   const [prefMin, setPrefMin] = useState("");
   const [prefMax, setPrefMax] = useState("");
-
-  // Distance preference (store as string for input)
-  const [prefDistance, setPrefDistance] = useState("");
-  const [distanceUnit, setDistanceUnit] = useState<"km" | "mi">("km");
 
   const [prefGender, setPrefGender] = useState<
     "women" | "men" | "everyone" | null
@@ -261,7 +251,7 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Load countries when onboarding opens
+  // Load countries when onboarding opens (restricted to Lebanon)
   useEffect(() => {
     if (phase !== "onboarding") return;
 
@@ -270,7 +260,13 @@ export default function LoginPage() {
       try {
         const list = (await api.getCountries()) as CountryRow[];
         if (!alive) return;
-        setCountries(list);
+
+        const onlyLebanon = list.filter(
+          (c) => foldToAsciiLike(c.country) === "lebanon"
+        );
+
+        setCountries(onlyLebanon);
+        setCountry("Lebanon");
       } catch (e: any) {
         if (!alive) return;
         setCountries([]);
@@ -313,10 +309,9 @@ export default function LoginPage() {
   }, [country, phase]);
 
   const countryOptions = useMemo<SelectOption[]>(() => {
-    return countries
-      .map((c) => ({ value: c.country, label: c.country }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [countries]);
+    // force only Lebanon as option
+    return [{ value: "Lebanon", label: "Lebanon" }];
+  }, []);
 
   const cityOptions = useMemo<SelectOption[]>(() => {
     return cities.map((c) => {
@@ -324,25 +319,6 @@ export default function LoginPage() {
       return { value: String(c.id), label };
     });
   }, [cities]);
-
-  const distanceKm = useMemo(() => {
-    const n = Number(prefDistance);
-    if (!prefDistance || Number.isNaN(n) || n <= 0) return null;
-    return distanceUnit === "km" ? n : n * KM_PER_MI;
-  }, [prefDistance, distanceUnit]);
-
-  const distanceEquivalenceText = useMemo(() => {
-    const n = Number(prefDistance);
-    if (!prefDistance || Number.isNaN(n) || n <= 0) return null;
-
-    if (distanceUnit === "km") {
-      const mi = n / KM_PER_MI;
-      return `≈ ${round1(mi)} mile`;
-    } else {
-      const km = n * KM_PER_MI;
-      return `≈ ${round1(km)} km`;
-    }
-  }, [prefDistance, distanceUnit]);
 
   async function signInWithGoogle() {
     clearMsgs();
@@ -474,14 +450,6 @@ export default function LoginPage() {
       return;
     }
 
-    if (distanceKm !== null) {
-      const kmInt = Math.round(distanceKm);
-      if (kmInt < 1 || kmInt > 500) {
-        setError("Preferred distance must be between 1 and 500 km.");
-        return;
-      }
-    }
-
     setBusy(true);
     try {
       const payload = {
@@ -492,9 +460,8 @@ export default function LoginPage() {
         preferred_max_age: prefMax ? Number(prefMax) : null,
         preferred_gender: prefGender,
 
-        // ALWAYS send km to backend
-        preferred_max_distance_km:
-          distanceKm === null ? null : Math.round(distanceKm),
+        // Default: 50 miles ≈ 80 km
+        preferred_max_distance_km: 80,
       };
 
       await api.completeOnboarding(payload);
@@ -828,9 +795,7 @@ export default function LoginPage() {
                             type="button"
                             onClick={() => setShowConfirmUp((v) => !v)}
                             aria-label={
-                              showConfirmUp
-                                ? "Hide password"
-                                : "Show password"
+                              showConfirmUp ? "Hide password" : "Show password"
                             }
                             className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                           >
@@ -961,17 +926,20 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* Country */}
+              {/* Country (locked to Lebanon) */}
               <SearchableDropdown
                 label="Country"
                 value={country}
                 onChange={(v) => {
-                  setCountry(v);
+                  // ignore anything except Lebanon
+                  if (foldToAsciiLike(v) !== "lebanon") return;
+                  setCountry("Lebanon");
                   setCityId("");
                   clearMsgs();
                 }}
                 options={countryOptions}
-                placeholder="Select a country"
+                placeholder="Lebanon"
+                disabled
               />
 
               {/* City */}
@@ -1041,46 +1009,6 @@ export default function LoginPage() {
                     className="w-1/2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                   />
                 </div>
-              </div>
-
-              {/* Preferred max distance */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
-                  Preferred max distance
-                </label>
-
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={500}
-                    value={prefDistance}
-                    onChange={(e) => setPrefDistance(e.target.value)}
-                    placeholder="25"
-                    className="w-2/3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                  />
-
-                  <select
-                    value={distanceUnit}
-                    onChange={(e) =>
-                      setDistanceUnit(e.target.value as "km" | "mi")
-                    }
-                    className="w-1/3 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
-                  >
-                    <option value="km">km</option>
-                    <option value="mi">mile</option>
-                  </select>
-                </div>
-
-                {distanceEquivalenceText ? (
-                  <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    {distanceEquivalenceText} (saved as km)
-                  </div>
-                ) : (
-                  <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    Optional. If set, we’ll match within this radius.
-                  </div>
-                )}
               </div>
 
               <div>
