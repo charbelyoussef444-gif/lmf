@@ -32,36 +32,8 @@ import AppFooter from "../components/AppFooter";
 // ✅ use the fixed WS hook
 import { useConversationWS, type WsEvent } from "../hooks/useConversationWS";
 
-const MATCH_LIMIT = 3;
-const PHOTO_UNLOCK_HOURS = 24;
-const PHOTO_UNLOCK_MS = PHOTO_UNLOCK_HOURS * 60 * 60 * 1000;
-
 const PHOTO_UNLOCK_NOTE =
-  "Photos can unlock only after 24 hours, and only if BOTH users mark the match as satisfied (Yes).";
-
-function fmtTs(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString();
-}
-
-function formatCountdown(ms: number) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
-}
-
-function formatShortTime(tsSec?: number) {
-  if (!tsSec) return "";
-  const d = new Date(tsSec * 1000);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
+  "Photos will appear only with mutual consent, and only after 24 hours of the match.";
 
 /** ---------------- Match popup (dopamine animation) ---------------- */
 function useElapsedMs(enabled: boolean, startAt: number | null, tick = 80) {
@@ -86,56 +58,45 @@ function useElapsedMs(enabled: boolean, startAt: number | null, tick = 80) {
   return elapsed;
 }
 
-function seeded(n: number) {
-  const x = Math.sin(n * 999.123 + 0.12345) * 10000;
-  return x - Math.floor(x);
-}
-
-function polarToXY(angleDeg: number, radius: number) {
-  const a = (angleDeg * Math.PI) / 180;
-  return { x: Math.cos(a) * radius, y: Math.sin(a) * radius };
-}
-
 function MatchFindingModal({
   open,
+  locked,
   startedAt,
 }: {
   open: boolean;
+  locked: boolean;
   startedAt: number | null;
 }) {
   const elapsed = useElapsedMs(open, startedAt, 80);
 
-  const stages = useMemo(
-    () => [
-      { title: "Curating your match…", sub: "Warming up signals" },
-      { title: "Scanning compatibility…", sub: "Personality, interests, intent" },
-      { title: "Ranking the best fit…", sub: "Quality-first, not quantity" },
-      { title: "Finalizing…", sub: "Creating your conversation thread" },
-      { title: "Double-checking…", sub: "One last pass" },
-      { title: "Tuning results…", sub: "Reducing noise" },
-    ],
-    []
-  );
-
-  const stageIndex = useMemo(() => {
-    const i = Math.floor(elapsed / 700) % stages.length;
-    return i;
-  }, [elapsed, stages.length]);
-
-  const blobTargets = useMemo(() => {
-    const k = stageIndex + 1;
-    const a1 = 360 * seeded(k * 1.1);
-    const a2 = 360 * seeded(k * 2.2 + 7);
-    const a3 = 360 * seeded(k * 3.3 + 13);
-
-    const r1 = 18 + 10 * seeded(k * 4.4);
-    const r2 = 18 + 10 * seeded(k * 5.5);
-    const r3 = 18 + 10 * seeded(k * 6.6);
-
-    return [polarToXY(a1, r1), polarToXY(a2, r2), polarToXY(a3, r3)];
-  }, [stageIndex]);
-
-  const stage = stages[stageIndex];
+  // staged copy (feels “premium” without a progress bar)
+  const stage = useMemo(() => {
+    if (elapsed < 650)
+      return { k: 0, title: "Curating your match…", sub: "Warming up signals" };
+    if (elapsed < 1400)
+      return {
+        k: 1,
+        title: "Scanning compatibility…",
+        sub: "Personality, interests, intent",
+      };
+    if (elapsed < 2300)
+      return {
+        k: 2,
+        title: "Ranking the best fit…",
+        sub: "Quality-first, not quantity",
+      };
+    if (elapsed < 3300)
+      return {
+        k: 3,
+        title: "Finalizing…",
+        sub: "Creating your conversation thread",
+      };
+    return {
+      k: 4,
+      title: "Almost there…",
+      sub: "One last pass for accuracy",
+    };
+  }, [elapsed]);
 
   return (
     <AnimatePresence>
@@ -155,6 +116,7 @@ function MatchFindingModal({
             exit={{ y: 14, opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
+            {/* animated glow */}
             <div className="pointer-events-none absolute inset-0">
               <motion.div
                 className="absolute -top-24 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.35),_transparent_60%)] blur-3xl"
@@ -173,52 +135,65 @@ function MatchFindingModal({
               />
             </div>
 
-            <div className="relative mt-2 grid place-items-center">
+            {/* top badge */}
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/90">
+                <motion.span
+                  className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2.8, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                </motion.span>
+                Curated match engine
+              </div>
+
+              <div className="text-[11px] font-medium text-white/60">
+                {locked ? "No interruptions" : " "}
+              </div>
+            </div>
+
+            {/* centerpiece */}
+            <div className="relative mt-5 grid place-items-center">
               <div className="relative">
+                {/* rotating halo */}
                 <motion.div
                   className="absolute inset-[-12px] rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 opacity-70 blur-[10px]"
                   animate={{ rotate: 360 }}
                   transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
                 />
 
+                {/* ring */}
                 <motion.div
                   className="relative grid h-24 w-24 place-items-center rounded-full border border-white/15 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
                   animate={{ scale: [1, 1.03, 1] }}
                   transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
                 >
+                  {/* orbit dots */}
                   <motion.div
                     className="absolute inset-0"
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 2.1, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 1.9, repeat: Infinity, ease: "linear" }}
                   >
-                    {blobTargets.map((p, i) => (
-                      <motion.div
-                        key={i}
-                        className={
-                          i === 0
-                            ? "absolute left-1/2 top-1/2 h-2.5 w-2.5 rounded-full bg-white/90 shadow"
-                            : i === 1
-                            ? "absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-white/70 shadow"
-                            : "absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-white/60 shadow"
-                        }
-                        initial={false}
-                        animate={{ x: p.x, y: p.y }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 140,
-                          damping: 18,
-                          mass: 0.8,
-                        }}
-                      />
-                    ))}
+                    <div className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-white/90 shadow" />
+                    <div className="absolute bottom-1 left-3 h-2 w-2 rounded-full bg-white/70 shadow" />
+                    <div className="absolute bottom-4 right-2 h-1.5 w-1.5 rounded-full bg-white/60 shadow" />
                   </motion.div>
 
-                  <div className="grid place-items-center">
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 opacity-90 shadow-[0_0_30px_rgba(244,114,182,0.22)]" />
-                  </div>
+                  <motion.div
+                    key={stage.k}
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    transition={{ duration: 0.22 }}
+                    className="grid place-items-center"
+                  >
+                    <Loader2 className="h-7 w-7 animate-spin text-white" />
+                  </motion.div>
                 </motion.div>
               </div>
 
+              {/* pulse bar */}
               <div className="mt-5 w-full">
                 <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
                   <motion.div
@@ -230,23 +205,33 @@ function MatchFindingModal({
               </div>
             </div>
 
+            {/* copy */}
             <div className="relative mt-4 text-center">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={stageIndex}
+                  key={stage.k}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <div className="text-base font-semibold text-white">{stage.title}</div>
+                  <div className="text-base font-semibold text-white">
+                    {stage.title}
+                  </div>
                   <div className="mt-1 text-xs text-white/70">{stage.sub}</div>
                 </motion.div>
               </AnimatePresence>
+
+              <div className="mt-3 text-[11px] text-white/55">
+                We’re optimizing for *best* match quality, not endless swipes.
+              </div>
             </div>
 
+            {/* footer hint */}
             <div className="relative mt-5 flex items-center justify-between gap-3">
-              <div className="text-[11px] text-white/50">This usually takes a few seconds.</div>
+              <div className="text-[11px] text-white/50">
+                This usually takes a few seconds.
+              </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/80">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 Live
@@ -287,7 +272,8 @@ function MatchBlockers({
   if (checks) {
     if (!checks.not_banned) issues.push("Your account is banned.");
     if (!checks.verified) issues.push("Your account is not verified.");
-    if (!checks.assessment_completed) issues.push("Your compatibility assessment is not complete.");
+    if (!checks.assessment_completed)
+      issues.push("Your compatibility assessment is not complete.");
     if (!checks.has_interest) issues.push("Add at least 1 interest to your profile.");
     if (!checks.has_photos) {
       const n = checks.photos_count ?? 0;
@@ -301,7 +287,8 @@ function MatchBlockers({
   const show = issues.length > 0 || (!!reason && !status.eligible);
   if (!show) return null;
 
-  const alignClasses = align === "center" ? "items-center text-center" : "items-start text-left";
+  const alignClasses =
+    align === "center" ? "items-center text-center" : "items-start text-left";
   const buttonsJustify = align === "center" ? "justify-center" : "";
 
   const needsProfile = checks
@@ -376,6 +363,7 @@ function extractIntroPrompts(text?: string) {
   return prompts.slice(0, 3);
 }
 
+/** ---------------- Helpers ---------------- */
 function useNow(intervalMs = 1000) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -385,73 +373,30 @@ function useNow(intervalMs = 1000) {
   return now;
 }
 
-function getMatchStartedAtMs(convo: Conversation | null): number | null {
-  if (!convo) return null;
-  const anyC = convo as any;
-
-  const candidates: Array<any> = [
-    anyC.match_started_at,
-    anyC.match_started_at_utc,
-    anyC.started_at,
-    anyC.started_at_utc,
-    anyC.created_at,
-    anyC.created_at_utc,
-    anyC.matched_at,
-    anyC.matched_at_utc,
-  ];
-
-  for (const c of candidates) {
-    if (!c) continue;
-    if (typeof c === "number") {
-      if (c > 10_000_000_000) return c;
-      return c * 1000;
-    }
-    if (typeof c === "string") {
-      const ms = Date.parse(c);
-      if (!Number.isNaN(ms)) return ms;
-    }
-  }
-  return null;
+function msToClock(ms: number) {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-function getLastActiveLabel(convo: Conversation | null): string {
-  if (!convo) return "";
-  const anyC = convo as any;
-
-  // Try iso fields first (like your Admin page does)
-  const isoCandidates: Array<any> = [
-    anyC.partner_last_active,
-    anyC.partner_last_active_utc,
-    anyC.last_active,
-    anyC.last_active_utc,
-    anyC.partner_last_seen,
-    anyC.partner_last_seen_utc,
-  ];
-
-  for (const c of isoCandidates) {
-    if (typeof c === "string" && c.trim()) {
-      const ms = Date.parse(c);
-      if (!Number.isNaN(ms)) return fmtTs(c);
-    }
-  }
-
-  // Fallback to your existing relative string (e.g. "now"/"5m")
-  if (typeof (convo as any).lastAt === "string") return (convo as any).lastAt;
-
-  return "";
+// ✅ admin-style timestamp display (same spirit as AdminUserJourneyPage fmtTs)
+function fmtTs(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString();
 }
 
 /** ---------------- Page ---------------- */
 export default function ConversationsPage() {
-  type ThreadMsg = Msg & {
-    role: "me" | "them" | "system";
-    kind?: string;
-    pending?: boolean;
-    delivered?: boolean;
-    read?: boolean;
-  };
+  // Widen message type locally without forcing lib/api changes.
+  type ThreadMsg = Msg & { role: "me" | "them" | "system"; kind?: string };
 
-  const [convos, setConvos] = useState<Conversation[]>([]);
+  // ✅ widen conversation type locally (so we can read partnerLastActive without touching lib/api)
+  type ConversationRow = Conversation & { partnerLastActive?: string | null };
+
+  const [convos, setConvos] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadMsg[]>([]);
   const [message, setMessage] = useState("");
@@ -463,17 +408,15 @@ export default function ConversationsPage() {
   const [meId, setMeId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  const [reportOpen, setReportOpen] = useState<null | { cid: string; partnerName?: string }>(null);
+  const [reportOpen, setReportOpen] = useState<null | { cid: string; partnerName?: string }>(
+    null
+  );
   const [reportReason, setReportReason] = useState<ReportReason | "">("");
   const [reportDetails, setReportDetails] = useState("");
   const [reportSaving, setReportSaving] = useState(false);
 
+  // ✅ prevents openConversation race (fast clicks)
   const openSeq = useRef(0);
-
-  const [feedbackByCid, setFeedbackByCid] = useState<Record<string, "yes" | "no">>({});
-
-  const [partnerTyping, setPartnerTyping] = useState(false);
-  const typingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -495,24 +438,19 @@ export default function ConversationsPage() {
   const [noMatch, setNoMatch] = useState(false);
 
   const now = useNow(1000);
-
   const remainingMs = useMemo(() => {
     if (nextEligibleAt == null) return 0;
     return Math.max(0, nextEligibleAt - now);
   }, [nextEligibleAt, now]);
 
   const canMatch = matchAllowed && remainingMs === 0;
-
-  const isAtMatchLimit = convos.length >= MATCH_LIMIT;
-  const canRequestNewMatch = canMatch && !isAtMatchLimit;
-
-  const countdown = formatCountdown(remainingMs);
+  const countdown = msToClock(remainingMs);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const data = await api.conversations();
+        const data = (await api.conversations()) as any as ConversationRow[];
         if (alive) setConvos(data);
       } catch (e) {
         console.error(e);
@@ -557,6 +495,8 @@ export default function ConversationsPage() {
   }, []);
 
   const [matchLoading, setMatchLoading] = useState(false);
+
+  // ✅ modal control (keeps it open smoothly during transitions)
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const matchStartedAtRef = useRef<number | null>(null);
 
@@ -572,29 +512,34 @@ export default function ConversationsPage() {
       if (e.key === "Escape") {
         setPhotoViewerUrl(null);
         if (!reportSaving) setReportOpen(null);
+        // do NOT close the match popup with ESC (feels cheap + breaks flow)
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [reportSaving]);
 
+  // ✅ WS event handler (FIXED)
   const onWsEvent = useCallback(
     (evt: WsEvent) => {
       switch (evt.type) {
         case "message-new": {
-          const d = (evt as any).data ?? (evt as any);
+          const d = evt.data;
 
+          // ✅ if not for the currently open conversation, DO NOT push into thread
           if (!activeId || d.conversation_id !== activeId) {
+            // optional: update previews + unread badge
             setConvos((prev) =>
               prev.map((c) => {
                 if (c.id !== d.conversation_id) return c;
+
                 const isFromMe = !!meId && d.sender_user_id === meId;
                 const unreadInc = isFromMe ? 0 : 1;
 
                 return {
                   ...c,
                   lastMessage: d.content_text ?? c.lastMessage,
-                  lastAt: "now" as any,
+                  lastAt: "now" as any, // your backend returns "now"/"5m"/etc
                   unread: (c.unread ?? 0) + unreadInc,
                 };
               })
@@ -602,19 +547,18 @@ export default function ConversationsPage() {
             return;
           }
 
+          // if meId isn't loaded yet, don't mislabel messages
           if (!meId) return;
 
           const role: "me" | "them" = d.sender_user_id === meId ? "me" : "them";
-          if (role === "them") setPartnerTyping(false);
 
           setThread((t) => {
-            const alreadyThere = t.some((msg) => (msg as any).id === d.id);
+            const alreadyThere = t.some((msg) => msg.id === d.id);
             if (alreadyThere) return t;
 
+            // Replace temp message if it was ours
             if (role === "me") {
-              const idx = [...t]
-                .reverse()
-                .findIndex((m) => (m as any).role === "me" && (m as any).id?.startsWith?.("temp-"));
+              const idx = [...t].reverse().findIndex((m) => m.role === "me" && (m as any).id.startsWith("temp-"));
 
               if (idx !== -1) {
                 const realIndex = t.length - 1 - idx;
@@ -624,8 +568,6 @@ export default function ConversationsPage() {
                   role,
                   text: d.content_text ?? undefined,
                   ts: Math.floor(new Date(d.created_at).getTime() / 1000),
-                  pending: false,
-                  delivered: true,
                 } as any;
                 return clone;
               }
@@ -638,12 +580,11 @@ export default function ConversationsPage() {
                 role,
                 text: d.content_text ?? undefined,
                 ts: Math.floor(new Date(d.created_at).getTime() / 1000),
-                pending: false,
-                delivered: true,
               } as any,
             ];
           });
 
+          // keep preview updated for active convo
           setConvos((prev) =>
             prev.map((c) =>
               c.id === d.conversation_id
@@ -659,41 +600,22 @@ export default function ConversationsPage() {
           break;
         }
 
-        case "typing": {
-          const cid = (evt as any).conversation_id;
-          if (!activeId || cid !== activeId) break;
-
-          const isTyping = !!(evt as any).is_typing;
-          setPartnerTyping(isTyping);
-
-          if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current);
-          if (isTyping) {
-            typingTimeoutRef.current = window.setTimeout(() => {
-              setPartnerTyping(false);
-              typingTimeoutRef.current = null;
-            }, 2500);
-          }
-          break;
-        }
-
         case "photos-unlocked": {
           if (!activeId) break;
-          if ((evt as any).conversation_id !== activeId) break;
+          if (evt.conversation_id !== activeId) break;
 
           api.conversationPhotos(activeId).then((urls) => setUnlockedPhotos(urls)).catch(() => {});
           break;
         }
 
         case "ended": {
-          const cid = (evt as any).conversation_id;
-          setConvos((prev) => prev.filter((c) => c.id !== cid));
-          if (cid === activeId) {
+          setConvos((prev) => prev.filter((c) => c.id !== evt.conversation_id));
+          if (evt.conversation_id === activeId) {
             setThread([]);
             setActiveId(null);
             setShowFeedbackPrompt(false);
             setUnlockedPhotos(null);
             setPhotoViewerUrl(null);
-            setPartnerTyping(false);
           }
           break;
         }
@@ -712,6 +634,7 @@ export default function ConversationsPage() {
     onEvent: onWsEvent,
   });
 
+  // ✅ race-safe conversation open
   async function openConversation(id: string) {
     const seq = ++openSeq.current;
 
@@ -722,37 +645,28 @@ export default function ConversationsPage() {
     setFeedbackChoice("");
     setUnlockedPhotos(null);
     setPhotoViewerUrl(null);
-    setPartnerTyping(false);
 
     api.trackEvent({ event_name: "match_opened", conversation_id: id }).catch(() => {});
 
     const msgs = await api.thread(id);
+
+    // ✅ if user opened a different convo while awaiting, ignore
     if (openSeq.current !== seq) return;
 
-    setThread(
-      (msgs as any[]).map((m) => ({
-        ...(m as any),
-        pending: (m as any)?.id?.startsWith?.("temp-") ?? false,
-        delivered: !(m as any)?.id?.startsWith?.("temp-"),
-      })) as any
-    );
+    setThread(msgs as any);
 
     try {
       markReadWS();
     } catch {}
     api.markRead(id).catch(() => {});
+
+    // clear unread for this convo locally
     setConvos((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
 
     try {
       const st = await api.matchFeedbackStatus(id);
       if (openSeq.current !== seq) return;
-
-      setShowFeedbackPrompt(!!(st as any).should_prompt);
-
-      const myAns = (st as any).my_choice;
-      if (myAns === "yes" || myAns === "no") {
-        setFeedbackByCid((prev) => ({ ...prev, [id]: myAns }));
-      }
+      setShowFeedbackPrompt(!!st.should_prompt);
     } catch {
       if (openSeq.current !== seq) return;
       setShowFeedbackPrompt(false);
@@ -773,10 +687,9 @@ export default function ConversationsPage() {
     setFeedbackSaving(true);
     try {
       const res = await api.submitMatchFeedback(activeId, feedbackChoice === "yes");
-      setFeedbackByCid((prev) => ({ ...prev, [activeId]: feedbackChoice }));
       setShowFeedbackPrompt(false);
 
-      if ((res as any).photos_unlocked) {
+      if (res.photos_unlocked) {
         const urls = await api.conversationPhotos(activeId);
         setUnlockedPhotos(urls);
       }
@@ -788,6 +701,7 @@ export default function ConversationsPage() {
     }
   }
 
+  // ✅ send (kept your logic, now safe because sockets won’t multiply)
   async function send() {
     if (!message.trim() || !activeId || sending) return;
     setSending(true);
@@ -802,8 +716,6 @@ export default function ConversationsPage() {
         role: "me",
         text,
         ts: Math.floor(Date.now() / 1000),
-        pending: true,
-        delivered: false,
       } as any,
     ]);
 
@@ -838,13 +750,6 @@ export default function ConversationsPage() {
       setShowFeedbackPrompt(false);
       setUnlockedPhotos(null);
       setPhotoViewerUrl(null);
-      setPartnerTyping(false);
-
-      setFeedbackByCid((prev) => {
-        const clone = { ...prev };
-        delete clone[cid];
-        return clone;
-      });
     } catch (err) {
       console.error("Failed to end chat", err);
       alert("Couldn't end this chat. Please try again.");
@@ -872,45 +777,37 @@ export default function ConversationsPage() {
   async function getNewMatch() {
     if (matchLoading) return;
 
-    if (convos.length >= MATCH_LIMIT) {
-      alert(`You can only have ${MATCH_LIMIT} matches at a time. End a chat to get a new match.`);
-      return;
-    }
-
+    // open premium popup immediately
     matchStartedAtRef.current = Date.now();
     setMatchModalOpen(true);
+
     setMatchLoading(true);
 
     try {
       const res: MatchResponse = await api.match();
 
-      if ((res as any).status === "matched") {
+      if (res.status === "matched") {
         setNoMatch(false);
 
-        const updated = await api.conversations();
+        const updated = (await api.conversations()) as any as ConversationRow[];
         setConvos(updated);
 
-        if ((res as any).conversation_id) {
-          setActiveId((res as any).conversation_id);
-          const msgs = await api.thread((res as any).conversation_id);
+        if (res.conversation_id) {
+          setActiveId(res.conversation_id);
+          const msgs = await api.thread(res.conversation_id);
           setThread(msgs as any);
 
-          api.trackEvent({ event_name: "match_opened", conversation_id: (res as any).conversation_id }).catch(() => {});
+          api.trackEvent({ event_name: "match_opened", conversation_id: res.conversation_id }).catch(() => {});
 
           try {
-            const st = await api.matchFeedbackStatus((res as any).conversation_id);
-            setShowFeedbackPrompt(!!(st as any).should_prompt);
-
-            const myAns = (st as any).my_choice;
-            if (myAns === "yes" || myAns === "no") {
-              setFeedbackByCid((prev) => ({ ...prev, [(res as any).conversation_id]: myAns }));
-            }
+            const st = await api.matchFeedbackStatus(res.conversation_id);
+            setShowFeedbackPrompt(!!st.should_prompt);
           } catch {
             setShowFeedbackPrompt(false);
           }
 
           try {
-            const urls = await api.conversationPhotos((res as any).conversation_id);
+            const urls = await api.conversationPhotos(res.conversation_id);
             setUnlockedPhotos(urls);
           } catch {
             setUnlockedPhotos(null);
@@ -918,10 +815,10 @@ export default function ConversationsPage() {
         }
 
         await refreshMatchStatus();
-      } else if ((res as any).status === "ineligible") {
+      } else if (res.status === "ineligible") {
         setNoMatch(false);
         await refreshMatchStatus();
-      } else if ((res as any).status === "no_match") {
+      } else if (res.status === "no_match") {
         setNoMatch(true);
         setMatchStatus((prev) => ({
           ...(prev || { eligible: true }),
@@ -948,6 +845,8 @@ export default function ConversationsPage() {
       }));
     } finally {
       setMatchLoading(false);
+
+      // small delay so the exit animation feels intentional (not a hard cut)
       window.setTimeout(() => {
         setMatchModalOpen(false);
         matchStartedAtRef.current = null;
@@ -964,34 +863,23 @@ export default function ConversationsPage() {
   }, [search, convos]);
 
   const active = convos.find((c) => c.id === activeId) || null;
-
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [thread, activeId]);
 
   const hasAnyConvos = convos.length > 0;
 
-  const hasBlockingReasons = !canMatch || (matchStatus && !matchStatus.eligible) || isAtMatchLimit;
+  const hasBlockingReasons = !canMatch || (matchStatus && !matchStatus.eligible);
   const showTopMatchButton = !hasBlockingReasons;
 
   const showCuratingModal = matchModalOpen || matchLoading;
 
-  const matchStartedAtMs = useMemo(() => getMatchStartedAtMs(active), [active]);
-  const photoUnlockAtMs = useMemo(() => (matchStartedAtMs ? matchStartedAtMs + PHOTO_UNLOCK_MS : null), [matchStartedAtMs]);
-
-  const photoRemainingMs = useMemo(() => {
-    if (!photoUnlockAtMs) return null;
-    return Math.max(0, photoUnlockAtMs - now);
-  }, [photoUnlockAtMs, now]);
-
-  const photosCooldownDone = photoRemainingMs != null ? photoRemainingMs === 0 : false;
-
-  const myFeedback = activeId ? feedbackByCid[activeId] : undefined;
-
-  const lastActiveLabel = useMemo(() => getLastActiveLabel(active), [active]);
+  const activeLastActive = active?.partnerLastActive ? fmtTs(active.partnerLastActive) : "—";
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
-      <MatchFindingModal open={showCuratingModal} startedAt={matchStartedAtRef.current} />
+      {/* ✅ Dopamine popup while curating */}
+      <MatchFindingModal open={showCuratingModal} locked={true} startedAt={matchStartedAtRef.current} />
 
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
@@ -1011,9 +899,7 @@ export default function ConversationsPage() {
                     Conversations
                   </h2>
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {convos.length} active
-                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">{convos.length} active</div>
               </div>
 
               <div className="mt-3 flex items-center gap-2">
@@ -1040,21 +926,13 @@ export default function ConversationsPage() {
                   <div className="flex flex-1 flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
-                      {isAtMatchLimit ? (
-                        <span>
-                          You reached the limit: {MATCH_LIMIT} matches max. End one chat to get a new match.
-                        </span>
-                      ) : canMatch ? (
+                      {canMatch ? (
                         <span>You’re eligible for a new match now.</span>
                       ) : nextEligibleAt ? (
                         <span>Next curated match in {countdown}.</span>
                       ) : (
                         <span>Matching is currently unavailable.</span>
                       )}
-                    </div>
-
-                    <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                      Limit: {MATCH_LIMIT} active matches. For more, end one of your chats.
                     </div>
 
                     <MatchBlockers status={matchStatus} align="left" />
@@ -1064,28 +942,16 @@ export default function ConversationsPage() {
                   {showTopMatchButton && (
                     <button
                       onClick={getNewMatch}
-                      disabled={matchLoading || !canRequestNewMatch}
+                      disabled={matchLoading}
                       className={
                         "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium " +
                         (matchLoading
                           ? "bg-slate-200 text-slate-500 cursor-wait dark:bg-slate-800 dark:text-slate-400"
-                          : !canRequestNewMatch
-                          ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                           : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                       }
-                      title={
-                        matchLoading
-                          ? "Matching..."
-                          : !canRequestNewMatch
-                          ? `Max ${MATCH_LIMIT} matches at a time`
-                          : "Find a new match"
-                      }
+                      title={matchLoading ? "Matching..." : "Find a new match"}
                     >
-                      {matchLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
+                      {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                       <span>New match</span>
                     </button>
                   )}
@@ -1096,10 +962,8 @@ export default function ConversationsPage() {
                 {filtered.map((c) => {
                   const isActive = activeId === c.id;
                   const isMenuOpen = menuFor === c.id;
-                  const badge = feedbackByCid[c.id];
 
-                  // "last active" label like Admin page: prefer ISO, fallback to lastAt
-                  const lastActive = getLastActiveLabel(c);
+                  const partnerLast = c.partnerLastActive ? fmtTs(c.partnerLastActive) : null;
 
                   return (
                     <div
@@ -1118,21 +982,6 @@ export default function ConversationsPage() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
                               {c.partnerName}
-
-                              {badge && (
-                                <span
-                                  className={
-                                    "ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold " +
-                                    (badge === "yes"
-                                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
-                                      : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200")
-                                  }
-                                  title="Your satisfaction vote"
-                                >
-                                  {badge === "yes" ? "You: Yes" : "You: No"}
-                                </span>
-                              )}
-
                               {c.partnerAge ? (
                                 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                                   {" "}
@@ -1146,13 +995,12 @@ export default function ConversationsPage() {
                                 </span>
                               ) : null}
                             </div>
+                            <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{c.lastAt}</div>
+                          </div>
 
-                            <div
-                              className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500"
-                              title={lastActive}
-                            >
-                              {lastActive}
-                            </div>
+                          {/* ✅ admin-style last active display */}
+                          <div className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                            Last active: {partnerLast ?? "—"}
                           </div>
 
                           <div className="truncate text-[11px] text-slate-600 dark:text-slate-300">{c.lastMessage}</div>
@@ -1223,19 +1071,15 @@ export default function ConversationsPage() {
                     <MessageSquareHeart className="mb-2 h-6 w-6 text-indigo-500 dark:text-indigo-300" />
                     <div className="text-sm text-slate-700 dark:text-slate-200">No conversations yet.</div>
 
-                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      Limit: {MATCH_LIMIT} active matches. End one to get another.
-                    </div>
-
                     <div className="mt-3">
                       <button
                         onClick={getNewMatch}
-                        disabled={matchLoading || !canRequestNewMatch}
+                        disabled={matchLoading || !canMatch}
                         className={
                           "inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium " +
                           (matchLoading
                             ? "bg-slate-200 text-slate-500 cursor-wait dark:bg-slate-800 dark:text-slate-400"
-                            : !canRequestNewMatch
+                            : !canMatch
                             ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                             : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                         }
@@ -1254,7 +1098,7 @@ export default function ConversationsPage() {
               </div>
             </aside>
 
-            <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <section className="flex min-h-[70vh] flex-col rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
               {!active ? (
                 <div className="flex-1 p-8">
                   <div className="grid h-full place-items-center">
@@ -1269,9 +1113,7 @@ export default function ConversationsPage() {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
-                              {isAtMatchLimit ? (
-                                <span>Max {MATCH_LIMIT} matches. End one chat to get a new match.</span>
-                              ) : canMatch ? (
+                              {canMatch ? (
                                 <span>You can request a new match now.</span>
                               ) : nextEligibleAt ? (
                                 <span>Next curated match in {countdown}.</span>
@@ -1280,22 +1122,18 @@ export default function ConversationsPage() {
                               )}
                             </div>
 
-                            <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                              Limit: {MATCH_LIMIT} active matches. For more, end one of your chats.
-                            </div>
-
                             <MatchBlockers status={matchStatus} align="left" />
                             {noMatch && <NoMatchBanner />}
                           </div>
 
                           <button
                             onClick={getNewMatch}
-                            disabled={matchLoading || !canRequestNewMatch}
+                            disabled={matchLoading || !canMatch}
                             className={
                               "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-medium " +
                               (matchLoading
                                 ? "bg-slate-200 text-slate-500 cursor-wait dark:bg-slate-800 dark:text-slate-400"
-                                : !canRequestNewMatch
+                                : !canMatch
                                 ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                                 : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                             }
@@ -1309,9 +1147,6 @@ export default function ConversationsPage() {
                       <div className="text-center text-sm text-slate-600 dark:text-slate-300">
                         <MessageSquareHeart className="mx-auto h-10 w-10 text-indigo-500 dark:text-indigo-300" />
                         <p className="mt-3">No conversations yet. Try creating your first match.</p>
-                        <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                          Limit: {MATCH_LIMIT} active matches. End one to get another.
-                        </div>
                         <div className="mt-4 w-full max-w-xs mx-auto">
                           <MatchBlockers status={matchStatus} align="center" />
                           {noMatch && <NoMatchBanner />}
@@ -1323,43 +1158,21 @@ export default function ConversationsPage() {
               ) : (
                 <>
                   <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="truncate font-semibold text-slate-900 dark:text-slate-50">
-                          {active?.partnerName}
-                        </span>
-
-                        {myFeedback && (
-                          <span
-                            className={
-                              "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " +
-                              (myFeedback === "yes"
-                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
-                                : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200")
-                            }
-                            title="Your satisfaction vote"
-                          >
-                            You: {myFeedback === "yes" ? "Yes" : "No"}
-                          </span>
-                        )}
-
-                        {typeof active?.compatibility === "number" && (
-                          <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
-                            {Math.round((active.compatibility || 0) * 100)}% match
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 dark:text-slate-50">{active?.partnerName}</span>
+                        {typeof (active as any)?.compatibility === "number" && (
+                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
+                            {Math.round(((active as any).compatibility || 0) * 100)}% match
                           </span>
                         )}
                       </div>
 
+                      {/* ✅ admin-style last active under name */}
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {active?.partnerAge ? `${active.partnerAge} yrs` : "Age —"} ·{" "}
-                        {active?.partnerCity ? active.partnerCity : "Location —"}
-                      </div>
-
-                      <div className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500" title={lastActiveLabel}>
-                        {partnerTyping ? "Typing now…" : lastActiveLabel ? `Last active: ${lastActiveLabel}` : ""}
+                        Last active: {activeLastActive}
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                       <Link
                         to="/profile"
@@ -1373,9 +1186,7 @@ export default function ConversationsPage() {
 
                   {showFeedbackPrompt && (
                     <div className="mx-4 mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                      <div className="font-medium text-slate-900 dark:text-slate-50">
-                        Are you satisfied with this match?
-                      </div>
+                      <div className="font-medium text-slate-900 dark:text-slate-50">Are you satisfied with this match?</div>
 
                       <div className="mt-2 flex items-center gap-2">
                         <select
@@ -1426,28 +1237,7 @@ export default function ConversationsPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="font-semibold">Photos locked</div>
-
-                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                                {PHOTO_UNLOCK_NOTE}
-                              </div>
-
-                              {photoUnlockAtMs ? (
-                                <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200">
-                                  <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
-                                  {photosCooldownDone ? (
-                                    <span>Cooldown finished. Waiting for mutual Yes.</span>
-                                  ) : (
-                                    <span>
-                                      Unlock available in{" "}
-                                      <span className="font-semibold">{formatCountdown(photoRemainingMs || 0)}</span>
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                                  Unlock is available 24 hours after the match starts.
-                                </div>
-                              )}
+                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{PHOTO_UNLOCK_NOTE}</div>
                             </div>
                           </div>
                         </div>
@@ -1455,102 +1245,67 @@ export default function ConversationsPage() {
                     </>
                   )}
 
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <div className="h-full space-y-3 overflow-y-auto px-4 py-4">
-                      {thread.map((m) => {
-                        if ((m as any).role === "system") {
-                          const prompts = extractIntroPrompts((m as any).text);
-                          return (
-                            <motion.div
-                              key={(m as any).id}
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="flex justify-center"
-                            >
-                              <div className="w-full max-w-[92%] rounded-3xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-slate-900 shadow-sm dark:border-indigo-800/50 dark:bg-indigo-950/40 dark:text-slate-50">
-                                <div className="flex items-center gap-2 text-[11px] font-semibold text-indigo-700 dark:text-indigo-200">
-                                  <Sparkles className="h-4 w-4" />
-                                  Match intro
-                                </div>
-
-                                <div className="mt-2 whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-100">
-                                  {(m as any).text}
-                                </div>
-
-                                {prompts.length > 0 && (
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {prompts.map((p) => (
-                                      <button
-                                        key={p}
-                                        type="button"
-                                        onClick={() => setMessage(p)}
-                                        className="rounded-full border border-indigo-200 bg-white/70 px-3 py-1 text-[11px] font-medium text-indigo-700 hover:bg-white dark:border-indigo-800/50 dark:bg-slate-900/60 dark:text-indigo-200"
-                                        title="Use this starter"
-                                      >
-                                        {p}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          );
-                        }
-
-                        const mine = (m as any).role === "me";
-                        const pending = !!(m as any).pending || ((m as any).id?.startsWith?.("temp-") ?? false);
-                        const tsLabel = formatShortTime((m as any).ts);
-
-                        const tsFull =
-                          (m as any).ts != null ? new Date((m as any).ts * 1000).toLocaleString() : "";
-
+                  <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+                    {thread.map((m) => {
+                      if ((m as any).role === "system") {
+                        const prompts = extractIntroPrompts((m as any).text);
                         return (
                           <motion.div
                             key={(m as any).id}
                             initial={{ opacity: 0, y: 6 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                            className="flex justify-center"
                           >
-                            <div className="max-w-[78%]">
-                              <div
-                                className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                                  mine
-                                    ? "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
-                                    : "bg-slate-100/90 text-slate-900 dark:bg-slate-800/80 dark:text-slate-50"
-                                }`}
-                              >
+                            <div className="w-full max-w-[92%] rounded-3xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-slate-900 shadow-sm dark:border-indigo-800/50 dark:bg-indigo-950/40 dark:text-slate-50">
+                              <div className="flex items-center gap-2 text-[11px] font-semibold text-indigo-700 dark:text-indigo-200">
+                                <Sparkles className="h-4 w-4" />
+                                Match intro
+                              </div>
+
+                              <div className="mt-2 whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-100">
                                 {(m as any).text}
                               </div>
 
-                              <div
-                                className={`mt-1 flex items-center gap-2 text-[10px] ${
-                                  mine ? "justify-end" : "justify-start"
-                                } text-slate-400 dark:text-slate-500`}
-                                title={tsFull}
-                              >
-                                {tsLabel ? <span>{tsLabel}</span> : null}
-                                {mine && (
-                                  <span className="inline-flex items-center gap-1">
-                                    {pending ? (
-                                      <>
-                                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400/70" />
-                                        <span>Sending…</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/80" />
-                                        <span>Sent</span>
-                                      </>
-                                    )}
-                                  </span>
-                                )}
-                              </div>
+                              {prompts.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {prompts.map((p) => (
+                                    <button
+                                      key={p}
+                                      type="button"
+                                      onClick={() => setMessage(p)}
+                                      className="rounded-full border border-indigo-200 bg-white/70 px-3 py-1 text-[11px] font-medium text-indigo-700 hover:bg-white dark:border-indigo-800/50 dark:bg-slate-900/60 dark:text-indigo-200"
+                                      title="Use this starter"
+                                    >
+                                      {p}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );
-                      })}
-                      <div ref={bottomRef} />
-                    </div>
+                      }
+
+                      return (
+                        <motion.div
+                          key={(m as any).id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`flex ${(m as any).role === "me" ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
+                              (m as any).role === "me"
+                                ? "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
+                                : "bg-slate-100/90 text-slate-900 dark:bg-slate-800/80 dark:text-slate-50"
+                            }`}
+                          >
+                            {(m as any).text}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                    <div ref={bottomRef} />
                   </div>
 
                   <form
@@ -1589,7 +1344,7 @@ export default function ConversationsPage() {
         <AppFooter />
       </div>
 
-      {/* REPORT MODAL */}
+      {/* REPORT MODAL (does NOT end chat) */}
       {reportOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
