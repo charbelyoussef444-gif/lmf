@@ -163,9 +163,6 @@ function MatchFindingModal({
               />
             </div>
 
-            {/* ✅ no "curated match engine" + no "no interruptions" row */}
-
-            {/* centerpiece */}
             <div className="relative mt-2 grid place-items-center">
               <div className="relative">
                 {/* rotating halo */}
@@ -425,6 +422,34 @@ function fmtMsgTimeFromSec(tsSec?: number) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function isActiveNow(lastActiveIso?: string | null, windowMs = 45_000) {
+  if (!lastActiveIso) return false;
+  const t = Date.parse(lastActiveIso);
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t <= windowMs;
+}
+
+function TypingDots({ compact }: { compact?: boolean }) {
+  const dot = "h-1.5 w-1.5 rounded-full";
+  return (
+    <div
+      className={`inline-flex items-center gap-1 ${
+        compact ? "" : "rounded-full border border-slate-200 bg-white/75 px-3 py-1 shadow-sm"
+      } dark:border-slate-700 dark:bg-slate-900/70`}
+      aria-label="Typing"
+    >
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className={`${dot} bg-slate-500 dark:bg-slate-300`}
+          animate={{ y: [0, -3, 0], opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /** ---------------- Page ---------------- */
 export default function ConversationsPage() {
   // Widen message type locally without forcing lib/api changes.
@@ -458,6 +483,27 @@ export default function ConversationsPage() {
   // ✅ small loading when switching chats
   const [openingChat, setOpeningChat] = useState(false);
   const openingChatIdRef = useRef<string | null>(null);
+
+  // ✅ partner typing indicator (in active chat)
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const partnerTypingTimeoutRef = useRef<number | null>(null);
+
+  const bumpPartnerTyping = useCallback((on: boolean) => {
+    setPartnerTyping(on);
+
+    if (partnerTypingTimeoutRef.current) {
+      window.clearTimeout(partnerTypingTimeoutRef.current);
+      partnerTypingTimeoutRef.current = null;
+    }
+
+    // auto-clear typing after a short window (so it never gets stuck)
+    if (on) {
+      partnerTypingTimeoutRef.current = window.setTimeout(() => {
+        setPartnerTyping(false);
+        partnerTypingTimeoutRef.current = null;
+      }, 3000);
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -565,7 +611,10 @@ export default function ConversationsPage() {
     (evt: WsEvent) => {
       switch (evt.type) {
         case "message-new": {
-          const d = evt.data;
+          const d = (evt as any).data;
+
+          // if message arrives, typing should stop
+          if (activeId && d?.conversation_id === activeId) bumpPartnerTyping(false);
 
           // ✅ if not for the currently open conversation, DO NOT push into thread
           if (!activeId || d.conversation_id !== activeId) {
@@ -637,9 +686,31 @@ export default function ConversationsPage() {
           break;
         }
 
+        // ✅ tolerate multiple possible typing event shapes without touching backend
+        case "typing":
+        case "typing-start":
+        case "typing-stop": {
+          const anyEvt = evt as any;
+          const cid = anyEvt.conversation_id ?? anyEvt.data?.conversation_id ?? anyEvt.cid;
+          const sender = anyEvt.user_id ?? anyEvt.data?.user_id ?? anyEvt.sender_user_id;
+
+          if (!activeId || !cid || cid !== activeId) break;
+          if (meId && sender && sender === meId) break;
+
+          const on =
+            evt.type === "typing-start"
+              ? true
+              : evt.type === "typing-stop"
+              ? false
+              : !!(anyEvt.data?.is_typing ?? anyEvt.is_typing ?? true);
+
+          bumpPartnerTyping(on);
+          break;
+        }
+
         case "photos-unlocked": {
           if (!activeId) break;
-          if (evt.conversation_id !== activeId) break;
+          if ((evt as any).conversation_id !== activeId) break;
 
           api
             .conversationPhotos(activeId)
@@ -649,13 +720,14 @@ export default function ConversationsPage() {
         }
 
         case "ended": {
-          setConvos((prev) => prev.filter((c) => c.id !== evt.conversation_id));
-          if (evt.conversation_id === activeId) {
+          setConvos((prev) => prev.filter((c) => c.id !== (evt as any).conversation_id));
+          if ((evt as any).conversation_id === activeId) {
             setThread([]);
             setActiveId(null);
             setShowFeedbackPrompt(false);
             setUnlockedPhotos(null);
             setPhotoViewerUrl(null);
+            bumpPartnerTyping(false);
           }
           break;
         }
@@ -664,7 +736,7 @@ export default function ConversationsPage() {
           break;
       }
     },
-    [meId, activeId]
+    [meId, activeId, bumpPartnerTyping]
   );
 
   const { status: wsStatus, sendText, setTyping, markRead: markReadWS } = useConversationWS({
@@ -688,6 +760,7 @@ export default function ConversationsPage() {
     setFeedbackChoice("");
     setUnlockedPhotos(null);
     setPhotoViewerUrl(null);
+    bumpPartnerTyping(false);
 
     api.trackEvent({ event_name: "match_opened", conversation_id: id }).catch(() => {});
 
@@ -767,6 +840,7 @@ export default function ConversationsPage() {
     ]);
 
     setMessage("");
+    bumpPartnerTyping(false);
 
     api
       .trackEvent({
@@ -797,6 +871,7 @@ export default function ConversationsPage() {
       setShowFeedbackPrompt(false);
       setUnlockedPhotos(null);
       setPhotoViewerUrl(null);
+      bumpPartnerTyping(false);
     } catch (err) {
       console.error("Failed to end chat", err);
       alert("Couldn't end this chat. Please try again.");
@@ -919,7 +994,7 @@ export default function ConversationsPage() {
 
   useEffect(() => {
     if (!openingChat) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [thread, activeId, openingChat]);
+  }, [thread, activeId, openingChat, partnerTyping]);
 
   const hasAnyConvos = convos.length > 0;
 
@@ -928,8 +1003,8 @@ export default function ConversationsPage() {
 
   const showCuratingModal = matchModalOpen || matchLoading;
 
+  const activeIsNow = isActiveNow(active?.partnerLastActive);
   const activeLastActive = active?.partnerLastActive ? fmtTs(active.partnerLastActive) : "—";
-  const activeLastMessage = active?.lastMessage ? active.lastMessage : "—";
 
   // ✅ scrollbar styling without plugins
   const scrollNice =
@@ -1069,12 +1144,10 @@ export default function ConversationsPage() {
                               ) : null}
                             </div>
 
-                            <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
-                              {c.lastAt}
-                            </div>
+                            {/* ✅ removed the "23m" / lastAt indicator */}
                           </div>
 
-                          {/* ✅ removed list previews: last active + last message */}
+                          {/* ✅ kept: compatibility + unread */}
                           <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                             {typeof c.compatibility === "number" && (
                               <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -1278,10 +1351,27 @@ export default function ConversationsPage() {
                         )}
                       </div>
 
-                      {/* ✅ show only when chat is opened */}
-                      <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                        <div>Last active: {activeLastActive}</div>
-                        <div className="truncate">Last message: {activeLastMessage}</div>
+                      {/* ✅ only: last active (+ active now / typing) */}
+                      <div className="mt-0.5 flex flex-col gap-0.5 text-[11px]">
+                        <div className="flex items-center gap-2">
+                          {activeIsNow ? (
+                            <span className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              Active now
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 dark:text-slate-400">
+                              Last active: {activeLastActive}
+                            </span>
+                          )}
+
+                          {partnerTyping && (
+                            <span className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              Typing…
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -1431,7 +1521,7 @@ export default function ConversationsPage() {
                             className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
                               isMe
                                 ? "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
-                                : "bg-slate-100/90 text-slate-900 dark:bg-slate-800/80 dark:text-slate-50"
+                                : "border border-slate-200/70 bg-white/85 text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.06)] dark:border-slate-700/60 dark:bg-slate-900/65 dark:text-slate-50"
                             }`}
                           >
                             <div className="whitespace-pre-wrap">{(m as any).text}</div>
@@ -1451,6 +1541,23 @@ export default function ConversationsPage() {
                         </motion.div>
                       );
                     })}
+
+                    {/* ✅ typing bubble (other person) */}
+                    <AnimatePresence>
+                      {active && partnerTyping && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          className="flex justify-start"
+                        >
+                          <div className="max-w-[60%] rounded-2xl border border-slate-200/70 bg-white/85 px-3 py-2 shadow-[0_8px_20px_rgba(15,23,42,0.06)] dark:border-slate-700/60 dark:bg-slate-900/65">
+                            <TypingDots compact />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     <div ref={bottomRef} />
                   </div>
 
