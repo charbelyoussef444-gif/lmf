@@ -34,6 +34,13 @@ import { useConversationWS, type WsEvent } from "../hooks/useConversationWS";
 
 const PHOTO_UNLOCK_NOTE =
   "Photos will appear only with mutual consent, and only after 24 hours of the match.";
+const PHOTO_UNLOCK_HOURS = 24;
+
+// UI-only cap (no backend enforcement)
+const MAX_ACTIVE_CHATS = 3;
+
+const LS_FEEDBACK_PREFIX = "lm_feedback_choice_v1:"; // + cid
+const LS_MATCHEDAT_PREFIX = "lm_matched_at_v1:"; // + cid
 
 /** ---------------- Match popup (dopamine animation) ---------------- */
 function useElapsedMs(enabled: boolean, startAt: number | null, tick = 80) {
@@ -442,13 +449,40 @@ function TypingDots() {
   );
 }
 
+function safeGetLS(key: string) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function safeSetLS(key: string, val: string) {
+  try {
+    window.localStorage.setItem(key, val);
+  } catch {}
+}
+function safeRemoveLS(key: string) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {}
+}
+
+function parseIsoOrNull(s?: string | null) {
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isNaN(t) ? null : t;
+}
+
 /** ---------------- Page ---------------- */
 export default function ConversationsPage() {
   // Widen message type locally without forcing lib/api changes.
   type ThreadMsg = Msg & { role: "me" | "them" | "system"; kind?: string };
 
-  // ✅ widen conversation type locally (so we can read partnerLastActive without touching lib/api)
-  type ConversationRow = Conversation & { partnerLastActive?: string | null };
+  // ✅ widen conversation type locally (so we can read partnerLastActive + matchedAt without touching lib/api)
+  type ConversationRow = Conversation & {
+    partnerLastActive?: string | null;
+    matchedAt?: string | null; // optional (if backend ever adds it)
+  };
 
   const [convos, setConvos] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -533,15 +567,75 @@ export default function ConversationsPage() {
     return Math.max(0, nextEligibleAt - now);
   }, [nextEligibleAt, now]);
 
-  const canMatch = matchAllowed && remainingMs === 0;
   const countdown = msToClock(remainingMs);
+
+  // ✅ UI-only active chat cap
+  const atChatLimit = convos.length >= MAX_ACTIVE_CHATS;
+
+  // old canMatch = matchAllowed && remainingMs === 0
+  const canMatch = matchAllowed && remainingMs === 0 && !atChatLimit;
+
+  // feedback pin (UI-only, persisted)
+  const [pinnedFeedback, setPinnedFeedback] = useState<Record<string, "yes" | "no">>({});
+  const pinnedForActive = activeId ? pinnedFeedback[activeId] : undefined;
+
+  // matchedAt (UI-only, persisted fallback) for cooldown
+  const [matchedAtMsByCid, setMatchedAtMsByCid] = useState<Record<string, number>>({});
+
+  // Load pinned feedback map lazily from LS for active convo on open
+  const loadPinnedForCid = useCallback((cid: string) => {
+    const v = safeGetLS(LS_FEEDBACK_PREFIX + cid);
+    if (v === "yes" || v === "no") {
+      setPinnedFeedback((prev) => ({ ...prev, [cid]: v }));
+      return v;
+    }
+    return null;
+  }, []);
+
+  const savePinnedForCid = useCallback((cid: string, v: "yes" | "no" | null) => {
+    if (!cid) return;
+    if (!v) {
+      safeRemoveLS(LS_FEEDBACK_PREFIX + cid);
+      setPinnedFeedback((prev) => {
+        const clone = { ...prev };
+        delete clone[cid];
+        return clone;
+      });
+      return;
+    }
+    safeSetLS(LS_FEEDBACK_PREFIX + cid, v);
+    setPinnedFeedback((prev) => ({ ...prev, [cid]: v }));
+  }, []);
+
+  const loadMatchedAtForCid = useCallback((cid: string) => {
+    const raw = safeGetLS(LS_MATCHEDAT_PREFIX + cid);
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    setMatchedAtMsByCid((prev) => ({ ...prev, [cid]: n }));
+    return n;
+  }, []);
+
+  const saveMatchedAtForCid = useCallback((cid: string, ms: number) => {
+    if (!cid || !Number.isFinite(ms) || ms <= 0) return;
+    safeSetLS(LS_MATCHEDAT_PREFIX + cid, String(ms));
+    setMatchedAtMsByCid((prev) => ({ ...prev, [cid]: ms }));
+  }, []);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const data = (await api.conversations()) as any as ConversationRow[];
-        if (alive) setConvos(data);
+        if (!alive) return;
+
+        setConvos(data);
+
+        // opportunistically stash matchedAt if backend ever includes it
+        data.forEach((c) => {
+          const ms = parseIsoOrNull((c as any).matchedAt);
+          if (ms) saveMatchedAtForCid(c.id, ms);
+        });
       } catch (e) {
         console.error(e);
       }
@@ -549,7 +643,7 @@ export default function ConversationsPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [saveMatchedAtForCid]);
 
   useEffect(() => {
     let alive = true;
@@ -751,6 +845,15 @@ export default function ConversationsPage() {
     setPhotoViewerUrl(null);
     stopPartnerTyping();
 
+    // load pinned feedback immediately (UI memory)
+    const pinned = loadPinnedForCid(id);
+    if (pinned === "yes" || pinned === "no") {
+      setFeedbackChoice(pinned);
+    }
+
+    // load matchedAt (UI memory)
+    loadMatchedAtForCid(id);
+
     api.trackEvent({ event_name: "match_opened", conversation_id: id }).catch(() => {});
 
     try {
@@ -760,6 +863,23 @@ export default function ConversationsPage() {
 
       setThread(msgs as any);
 
+      // If we don't have a matchedAt for this convo, approximate using earliest message ts
+      // (UI-only fallback; avoids needing backend changes)
+      const already = matchedAtMsByCid[id] ?? loadMatchedAtForCid(id);
+      if (!already) {
+        const earliest = (msgs as any[])
+          .map((m) => Number((m as any).ts))
+          .filter((x) => Number.isFinite(x) && x > 0)
+          .sort((a, b) => a - b)[0];
+
+        if (earliest) {
+          saveMatchedAtForCid(id, earliest * 1000);
+        } else {
+          // worst-case fallback: "now" (prevents NaN / weird UI)
+          saveMatchedAtForCid(id, Date.now());
+        }
+      }
+
       try {
         markReadWS();
       } catch {}
@@ -768,13 +888,25 @@ export default function ConversationsPage() {
       // clear unread for this convo locally
       setConvos((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
 
+      // Keep calling your backend status if it exists, but UI doesn't depend on it anymore.
       try {
         const st = await api.matchFeedbackStatus(id);
         if (openSeq.current !== seq) return;
-        setShowFeedbackPrompt(!!st.should_prompt);
+
+        // If backend returns my_response, reflect it in UI + pin it
+        const my = (st as any)?.my_response;
+        if (my === true) savePinnedForCid(id, "yes");
+        else if (my === false) savePinnedForCid(id, "no");
+
+        // We'll still respect should_prompt if you ever implement it,
+        // but even if false, the pinned badge + cooldown still work.
+        setShowFeedbackPrompt(!!(st as any).should_prompt);
       } catch {
         if (openSeq.current !== seq) return;
-        setShowFeedbackPrompt(false);
+        // UI-only: show prompt anytime if user hasn't picked yet
+        const v = safeGetLS(LS_FEEDBACK_PREFIX + id);
+        const hasPicked = v === "yes" || v === "no";
+        setShowFeedbackPrompt(!hasPicked);
       }
 
       try {
@@ -794,6 +926,10 @@ export default function ConversationsPage() {
 
   async function submitFeedback() {
     if (!activeId || feedbackChoice === "") return;
+
+    // pin immediately (UI memory)
+    savePinnedForCid(activeId, feedbackChoice);
+
     setFeedbackSaving(true);
     try {
       const res = await api.submitMatchFeedback(activeId, feedbackChoice === "yes");
@@ -805,6 +941,7 @@ export default function ConversationsPage() {
       }
     } catch (e) {
       console.error(e);
+      // still keep the UI pin (that's what you wanted)
       alert("Could not save your answer. Try again.");
     } finally {
       setFeedbackSaving(false);
@@ -888,6 +1025,12 @@ export default function ConversationsPage() {
   }
 
   async function getNewMatch() {
+    // UI-only lock: 3 chats max
+    if (atChatLimit) {
+      alert(`You already have ${MAX_ACTIVE_CHATS} active chats. End a chat to get a new match.`);
+      return;
+    }
+
     if (matchLoading) return;
 
     matchStartedAtRef.current = Date.now();
@@ -904,27 +1047,39 @@ export default function ConversationsPage() {
         setConvos(updated);
 
         if ((res as any).conversation_id) {
-          setActiveId((res as any).conversation_id);
+          const cid = (res as any).conversation_id as string;
 
-          openingChatIdRef.current = (res as any).conversation_id;
+          setActiveId(cid);
+
+          // store matchedAt as "now" immediately for cooldown UI,
+          // then openConversation will refine using earliest message ts.
+          saveMatchedAtForCid(cid, Date.now());
+
+          openingChatIdRef.current = cid;
           setOpeningChat(true);
 
-          const msgs = await api.thread((res as any).conversation_id);
+          const msgs = await api.thread(cid);
           setThread(msgs as any);
 
-          api.trackEvent({ event_name: "match_opened", conversation_id: (res as any).conversation_id }).catch(
-            () => {}
-          );
+          api.trackEvent({ event_name: "match_opened", conversation_id: cid }).catch(() => {});
+
+          // load pinned feedback
+          loadPinnedForCid(cid);
 
           try {
-            const st = await api.matchFeedbackStatus((res as any).conversation_id);
+            const st = await api.matchFeedbackStatus(cid);
             setShowFeedbackPrompt(!!(st as any).should_prompt);
+            const my = (st as any)?.my_response;
+            if (my === true) savePinnedForCid(cid, "yes");
+            else if (my === false) savePinnedForCid(cid, "no");
           } catch {
-            setShowFeedbackPrompt(false);
+            // show prompt if no pin exists
+            const v = safeGetLS(LS_FEEDBACK_PREFIX + cid);
+            setShowFeedbackPrompt(!(v === "yes" || v === "no"));
           }
 
           try {
-            const urls = await api.conversationPhotos((res as any).conversation_id);
+            const urls = await api.conversationPhotos(cid);
             setUnlockedPhotos(urls);
           } catch {
             setUnlockedPhotos(null);
@@ -1005,6 +1160,66 @@ export default function ConversationsPage() {
     "dark:[&::-webkit-scrollbar-thumb]:bg-slate-700/70 " +
     "[&::-webkit-scrollbar-thumb:hover]:bg-slate-300/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-600/80";
 
+  // -------- Photos locked cooldown (UI-only) --------
+  const activeMatchedAtMs = useMemo(() => {
+    if (!activeId) return null;
+
+    // best: conv row provides matchedAt
+    const msFromRow = parseIsoOrNull((active as any)?.matchedAt);
+    if (msFromRow) {
+      // keep cached
+      saveMatchedAtForCid(activeId, msFromRow);
+      return msFromRow;
+    }
+
+    // fallback: localStorage cached
+    const cached = matchedAtMsByCid[activeId];
+    if (cached) return cached;
+
+    // fallback: try LS read
+    const ls = loadMatchedAtForCid(activeId);
+    if (ls) return ls;
+
+    // fallback: earliest message in current thread
+    const earliest = thread
+      .map((m) => Number((m as any).ts))
+      .filter((x) => Number.isFinite(x) && x > 0)
+      .sort((a, b) => a - b)[0];
+    if (earliest) {
+      const ms = earliest * 1000;
+      saveMatchedAtForCid(activeId, ms);
+      return ms;
+    }
+
+    return null;
+  }, [
+    activeId,
+    active,
+    thread,
+    matchedAtMsByCid,
+    loadMatchedAtForCid,
+    saveMatchedAtForCid,
+  ]);
+
+  const photoUnlockAtMs = useMemo(() => {
+    if (!activeMatchedAtMs) return null;
+    return activeMatchedAtMs + PHOTO_UNLOCK_HOURS * 3600 * 1000;
+  }, [activeMatchedAtMs]);
+
+  const photoRemainingMs = useMemo(() => {
+    if (!photoUnlockAtMs) return null;
+    return Math.max(0, photoUnlockAtMs - now);
+  }, [photoUnlockAtMs, now]);
+
+  const photoCountdown = useMemo(() => {
+    if (photoRemainingMs == null) return null;
+    return msToClock(photoRemainingMs);
+  }, [photoRemainingMs]);
+
+  const photosShouldBeUnlockedByTime = photoRemainingMs != null && photoRemainingMs === 0;
+
+  // -----------------------------------------------
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
       <MatchFindingModal open={showCuratingModal} startedAt={matchStartedAtRef.current} />
@@ -1057,7 +1272,11 @@ export default function ConversationsPage() {
                   <div className="flex flex-1 flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
-                      {canMatch ? (
+                      {atChatLimit ? (
+                        <span>
+                          Limit reached: {MAX_ACTIVE_CHATS} active chats. End one to match again.
+                        </span>
+                      ) : canMatch ? (
                         <span>You’re eligible for a new match now.</span>
                       ) : nextEligibleAt ? (
                         <span>Next curated match in {countdown}.</span>
@@ -1073,14 +1292,22 @@ export default function ConversationsPage() {
                   {showTopMatchButton && (
                     <button
                       onClick={getNewMatch}
-                      disabled={matchLoading}
+                      disabled={matchLoading || atChatLimit}
                       className={
                         "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium " +
                         (matchLoading
                           ? "bg-slate-200 text-slate-500 cursor-wait dark:bg-slate-800 dark:text-slate-400"
+                          : atChatLimit
+                          ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                           : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                       }
-                      title={matchLoading ? "Matching..." : "Find a new match"}
+                      title={
+                        matchLoading
+                          ? "Matching..."
+                          : atChatLimit
+                          ? `Max ${MAX_ACTIVE_CHATS} chats reached`
+                          : "Find a new match"
+                      }
                     >
                       {matchLoading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1098,6 +1325,8 @@ export default function ConversationsPage() {
                 {filtered.map((c) => {
                   const isActive = activeId === c.id;
                   const isMenuOpen = menuFor === c.id;
+
+                  const pin = pinnedFeedback[c.id];
 
                   return (
                     <div
@@ -1133,8 +1362,6 @@ export default function ConversationsPage() {
                                 </span>
                               ) : null}
                             </div>
-
-                            {/* ✅ removed 23m indicator / lastAt */}
                           </div>
 
                           <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
@@ -1144,6 +1371,21 @@ export default function ConversationsPage() {
                                 <span>{Math.round((c.compatibility || 0) * 100)}%</span>
                               </div>
                             )}
+
+                            {pin && (
+                              <span
+                                className={
+                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold " +
+                                  (pin === "yes"
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                    : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200")
+                                }
+                                title="Your feedback"
+                              >
+                                You: {pin === "yes" ? "Yes" : "No"}
+                              </span>
+                            )}
+
                             {c.unread ? (
                               <span className="ml-auto inline-flex rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-semibold text-white">
                                 {c.unread}
@@ -1217,11 +1459,13 @@ export default function ConversationsPage() {
                     <div className="mt-3">
                       <button
                         onClick={getNewMatch}
-                        disabled={matchLoading || !canMatch}
+                        disabled={matchLoading || !canMatch || atChatLimit}
                         className={
                           "inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium " +
                           (matchLoading
                             ? "bg-slate-200 text-slate-500 cursor-wait dark:bg-slate-800 dark:text-slate-400"
+                            : atChatLimit
+                            ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                             : !canMatch
                             ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                             : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
@@ -1261,7 +1505,11 @@ export default function ConversationsPage() {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
-                              {canMatch ? (
+                              {atChatLimit ? (
+                                <span>
+                                  Limit reached: {MAX_ACTIVE_CHATS} active chats. End one to match again.
+                                </span>
+                              ) : canMatch ? (
                                 <span>You can request a new match now.</span>
                               ) : nextEligibleAt ? (
                                 <span>Next curated match in {countdown}.</span>
@@ -1276,11 +1524,13 @@ export default function ConversationsPage() {
 
                           <button
                             onClick={getNewMatch}
-                            disabled={matchLoading || !canMatch}
+                            disabled={matchLoading || !canMatch || atChatLimit}
                             className={
                               "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-medium " +
                               (matchLoading
                                 ? "bg-slate-200 text-slate-500 cursor-wait dark:bg-slate-800 dark:text-slate-400"
+                                : atChatLimit
+                                ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                                 : !canMatch
                                 ? "bg-slate-200 text-slate-500 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
                                 : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
@@ -1331,9 +1581,25 @@ export default function ConversationsPage() {
                         <span className="truncate font-semibold text-slate-900 dark:text-slate-50">
                           {active?.partnerName}
                         </span>
+
                         {typeof (active as any)?.compatibility === "number" && (
                           <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
                             {Math.round(((active as any).compatibility || 0) * 100)}% match
+                          </span>
+                        )}
+
+                        {/* ✅ pinned feedback next to name */}
+                        {pinnedForActive && (
+                          <span
+                            className={
+                              "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold " +
+                              (pinnedForActive === "yes"
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200")
+                            }
+                            title="Your feedback"
+                          >
+                            You: {pinnedForActive === "yes" ? "Yes" : "No"}
                           </span>
                         )}
                       </div>
@@ -1380,7 +1646,15 @@ export default function ConversationsPage() {
                       <div className="mt-2 flex items-center gap-2">
                         <select
                           value={feedbackChoice}
-                          onChange={(e) => setFeedbackChoice(e.target.value as any)}
+                          onChange={(e) => {
+                            const v = e.target.value as any as "" | "yes" | "no";
+                            setFeedbackChoice(v);
+
+                            // ✅ pin as soon as user selects (so you remember even before submit)
+                            if (activeId && (v === "yes" || v === "no")) {
+                              savePinnedForCid(activeId, v);
+                            }
+                          }}
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900"
                         >
                           <option value="">Select…</option>
@@ -1431,11 +1705,60 @@ export default function ConversationsPage() {
                             <div className="mt-0.5 grid h-7 w-7 place-items-center rounded-xl bg-white/70 shadow-sm dark:bg-slate-950/60">
                               <ShieldCheck className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
                             </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold">Photos locked</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="font-semibold">Photos locked</div>
+
+                                {/* ✅ countdown pill */}
+                                {photoCountdown && (
+                                  <span
+                                    className={
+                                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold " +
+                                      (photosShouldBeUnlockedByTime
+                                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                        : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200")
+                                    }
+                                    title="Time remaining"
+                                  >
+                                    {photosShouldBeUnlockedByTime
+                                      ? "Time passed"
+                                      : `Unlocks in ${photoCountdown}`}
+                                  </span>
+                                )}
+                              </div>
+
                               <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 {PHOTO_UNLOCK_NOTE}
                               </div>
+
+                              {/* ✅ tiny progress bar (optional, looks good) */}
+                              {activeMatchedAtMs && photoUnlockAtMs && (
+                                <div className="mt-2">
+                                  <div className="h-2 w-full overflow-hidden rounded-full bg-white/60 dark:bg-white/10">
+                                    <motion.div
+                                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500"
+                                      initial={false}
+                                      animate={{
+                                        width: `${Math.max(
+                                          0,
+                                          Math.min(
+                                            100,
+                                            ((now - activeMatchedAtMs) /
+                                              (photoUnlockAtMs - activeMatchedAtMs)) *
+                                              100
+                                          )
+                                        )}%`,
+                                      }}
+                                      transition={{ duration: 0.25 }}
+                                    />
+                                  </div>
+                                  <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                    {photosShouldBeUnlockedByTime
+                                      ? "24 hours passed. Still requires mutual consent."
+                                      : "Countdown is time-based. Consent still required."}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
