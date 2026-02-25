@@ -1,6 +1,6 @@
 // src/pages/ConversationsPage.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
   SendHorizontal,
@@ -35,6 +35,215 @@ import { useConversationWS, type WsEvent } from "../hooks/useConversationWS";
 const PHOTO_UNLOCK_NOTE =
   "Photos will appear only with mutual consent, and only after 24 hours of the match.";
 
+/** ---------------- Match popup (dopamine animation) ---------------- */
+function useElapsedMs(enabled: boolean, startAt: number | null, tick = 80) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!enabled || !startAt) {
+      setElapsed(0);
+      return;
+    }
+    let alive = true;
+    const t = setInterval(() => {
+      if (!alive) return;
+      setElapsed(Date.now() - startAt);
+    }, tick);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [enabled, startAt, tick]);
+
+  return elapsed;
+}
+
+function MatchFindingModal({
+  open,
+  locked,
+  startedAt,
+}: {
+  open: boolean;
+  locked: boolean;
+  startedAt: number | null;
+}) {
+  const elapsed = useElapsedMs(open, startedAt, 80);
+
+  // staged copy (feels “premium” without a progress bar)
+  const stage = useMemo(() => {
+    if (elapsed < 650)
+      return { k: 0, title: "Curating your match…", sub: "Warming up signals" };
+    if (elapsed < 1400)
+      return {
+        k: 1,
+        title: "Scanning compatibility…",
+        sub: "Personality, interests, intent",
+      };
+    if (elapsed < 2300)
+      return {
+        k: 2,
+        title: "Ranking the best fit…",
+        sub: "Quality-first, not quantity",
+      };
+    if (elapsed < 3300)
+      return {
+        k: 3,
+        title: "Finalizing…",
+        sub: "Creating your conversation thread",
+      };
+    return {
+      k: 4,
+      title: "Almost there…",
+      sub: "One last pass for accuracy",
+    };
+  }, [elapsed]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4"
+          role="dialog"
+          aria-modal="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/70 p-5 shadow-2xl backdrop-blur-xl"
+            initial={{ y: 18, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 14, opacity: 0, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 260, damping: 22 }}
+          >
+            {/* animated glow */}
+            <div className="pointer-events-none absolute inset-0">
+              <motion.div
+                className="absolute -top-24 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.35),_transparent_60%)] blur-3xl"
+                animate={{ scale: [1, 1.08, 1], opacity: [0.9, 1, 0.9] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <motion.div
+                className="absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.28),_transparent_60%)] blur-3xl"
+                animate={{ scale: [1, 1.06, 1], opacity: [0.85, 1, 0.85] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <motion.div
+                className="absolute -bottom-10 -left-10 h-60 w-60 rounded-full bg-[radial-gradient(circle_at_center,_rgba(139,92,246,0.22),_transparent_60%)] blur-3xl"
+                animate={{ scale: [1, 1.1, 1], opacity: [0.8, 1, 0.8] }}
+                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
+
+            {/* top badge */}
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/90">
+                <motion.span
+                  className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2.8, repeat: Infinity, ease: "linear" }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                </motion.span>
+                Curated match engine
+              </div>
+
+              <div className="text-[11px] font-medium text-white/60">
+                {locked ? "No interruptions" : " "}
+              </div>
+            </div>
+
+            {/* centerpiece */}
+            <div className="relative mt-5 grid place-items-center">
+              <div className="relative">
+                {/* rotating halo */}
+                <motion.div
+                  className="absolute inset-[-12px] rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 opacity-70 blur-[10px]"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 3.2, repeat: Infinity, ease: "linear" }}
+                />
+
+                {/* ring */}
+                <motion.div
+                  className="relative grid h-24 w-24 place-items-center rounded-full border border-white/15 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+                  animate={{ scale: [1, 1.03, 1] }}
+                  transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  {/* orbit dots */}
+                  <motion.div
+                    className="absolute inset-0"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.9, repeat: Infinity, ease: "linear" }}
+                  >
+                    <div className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-white/90 shadow" />
+                    <div className="absolute bottom-1 left-3 h-2 w-2 rounded-full bg-white/70 shadow" />
+                    <div className="absolute bottom-4 right-2 h-1.5 w-1.5 rounded-full bg-white/60 shadow" />
+                  </motion.div>
+
+                  <motion.div
+                    key={stage.k}
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                    transition={{ duration: 0.22 }}
+                    className="grid place-items-center"
+                  >
+                    <Loader2 className="h-7 w-7 animate-spin text-white" />
+                  </motion.div>
+                </motion.div>
+              </div>
+
+              {/* pulse bar */}
+              <div className="mt-5 w-full">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <motion.div
+                    className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500"
+                    animate={{ x: ["-40%", "220%"] }}
+                    transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* copy */}
+            <div className="relative mt-4 text-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={stage.k}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22 }}
+                >
+                  <div className="text-base font-semibold text-white">
+                    {stage.title}
+                  </div>
+                  <div className="mt-1 text-xs text-white/70">{stage.sub}</div>
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="mt-3 text-[11px] text-white/55">
+                We’re optimizing for *best* match quality, not endless swipes.
+              </div>
+            </div>
+
+            {/* footer hint */}
+            <div className="relative mt-5 flex items-center justify-between gap-3">
+              <div className="text-[11px] text-white/50">
+                This usually takes a few seconds.
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/80">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Live
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function MatchBlockers({
   status,
   align = "left",
@@ -65,8 +274,7 @@ function MatchBlockers({
     if (!checks.verified) issues.push("Your account is not verified.");
     if (!checks.assessment_completed)
       issues.push("Your compatibility assessment is not complete.");
-    if (!checks.has_interest)
-      issues.push("Add at least 1 interest to your profile.");
+    if (!checks.has_interest) issues.push("Add at least 1 interest to your profile.");
     if (!checks.has_photos) {
       const n = checks.photos_count ?? 0;
       issues.push(`Upload at least 3 gallery photos. (${n}/3)`);
@@ -84,18 +292,10 @@ function MatchBlockers({
   const buttonsJustify = align === "center" ? "justify-center" : "";
 
   const needsProfile = checks
-    ? !checks.not_banned ||
-      !checks.verified ||
-      !checks.has_interest ||
-      !checks.has_photos
+    ? !checks.not_banned || !checks.verified || !checks.has_interest || !checks.has_photos
     : issues.some((x) => {
         const s = x.toLowerCase();
-        return (
-          s.includes("interest") ||
-          s.includes("photo") ||
-          s.includes("verified") ||
-          s.includes("banned")
-        );
+        return s.includes("interest") || s.includes("photo") || s.includes("verified") || s.includes("banned");
       });
 
   const needsAssessment = checks
@@ -142,8 +342,7 @@ function NoMatchBanner() {
         <div className="min-w-0">
           <div className="font-semibold">No compatible matches right now</div>
           <div className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-200/80">
-            Try again later, or broaden preferences in Profile to increase
-            results.
+            Try again later, or broaden preferences in Profile to increase results.
           </div>
         </div>
       </div>
@@ -154,9 +353,7 @@ function NoMatchBanner() {
 function extractIntroPrompts(text?: string) {
   if (!text) return [];
   const lines = text.split("\n").map((l) => l.trim());
-  const idx = lines.findIndex((l) =>
-    l.toLowerCase().includes("easy ways to start")
-  );
+  const idx = lines.findIndex((l) => l.toLowerCase().includes("easy ways to start"));
   if (idx === -1) return [];
   const after = lines.slice(idx + 1);
   const prompts = after
@@ -202,9 +399,9 @@ export default function ConversationsPage() {
   const [meId, setMeId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  const [reportOpen, setReportOpen] = useState<
-    null | { cid: string; partnerName?: string }
-  >(null);
+  const [reportOpen, setReportOpen] = useState<null | { cid: string; partnerName?: string }>(
+    null
+  );
   const [reportReason, setReportReason] = useState<ReportReason | "">("");
   const [reportDetails, setReportDetails] = useState("");
   const [reportSaving, setReportSaving] = useState(false);
@@ -290,6 +487,10 @@ export default function ConversationsPage() {
 
   const [matchLoading, setMatchLoading] = useState(false);
 
+  // ✅ modal control (keeps it open smoothly during transitions)
+  const [matchModalOpen, setMatchModalOpen] = useState(false);
+  const matchStartedAtRef = useRef<number | null>(null);
+
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
   const [feedbackChoice, setFeedbackChoice] = useState<"" | "yes" | "no">("");
   const [feedbackSaving, setFeedbackSaving] = useState(false);
@@ -302,6 +503,7 @@ export default function ConversationsPage() {
       if (e.key === "Escape") {
         setPhotoViewerUrl(null);
         if (!reportSaving) setReportOpen(null);
+        // do NOT close the match popup with ESC (feels cheap + breaks flow)
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -347,9 +549,7 @@ export default function ConversationsPage() {
 
             // Replace temp message if it was ours
             if (role === "me") {
-              const idx = [...t]
-                .reverse()
-                .findIndex((m) => m.role === "me" && m.id.startsWith("temp-"));
+              const idx = [...t].reverse().findIndex((m) => m.role === "me" && m.id.startsWith("temp-"));
 
               if (idx !== -1) {
                 const realIndex = t.length - 1 - idx;
@@ -395,10 +595,7 @@ export default function ConversationsPage() {
           if (!activeId) break;
           if (evt.conversation_id !== activeId) break;
 
-          api
-            .conversationPhotos(activeId)
-            .then((urls) => setUnlockedPhotos(urls))
-            .catch(() => {});
+          api.conversationPhotos(activeId).then((urls) => setUnlockedPhotos(urls)).catch(() => {});
           break;
         }
 
@@ -421,13 +618,12 @@ export default function ConversationsPage() {
     [meId, activeId]
   );
 
-  const { status: wsStatus, sendText, setTyping, markRead: markReadWS } =
-    useConversationWS({
-      apiBase: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000",
-      cid: activeId,
-      token,
-      onEvent: onWsEvent,
-    });
+  const { status: wsStatus, sendText, setTyping, markRead: markReadWS } = useConversationWS({
+    apiBase: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000",
+    cid: activeId,
+    token,
+    onEvent: onWsEvent,
+  });
 
   // ✅ race-safe conversation open
   async function openConversation(id: string) {
@@ -441,12 +637,7 @@ export default function ConversationsPage() {
     setUnlockedPhotos(null);
     setPhotoViewerUrl(null);
 
-    api
-      .trackEvent({
-        event_name: "match_opened",
-        conversation_id: id,
-      })
-      .catch(() => {});
+    api.trackEvent({ event_name: "match_opened", conversation_id: id }).catch(() => {});
 
     const msgs = await api.thread(id);
 
@@ -461,9 +652,7 @@ export default function ConversationsPage() {
     api.markRead(id).catch(() => {});
 
     // clear unread for this convo locally
-    setConvos((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c))
-    );
+    setConvos((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
 
     try {
       const st = await api.matchFeedbackStatus(id);
@@ -488,10 +677,7 @@ export default function ConversationsPage() {
     if (!activeId || feedbackChoice === "") return;
     setFeedbackSaving(true);
     try {
-      const res = await api.submitMatchFeedback(
-        activeId,
-        feedbackChoice === "yes"
-      );
+      const res = await api.submitMatchFeedback(activeId, feedbackChoice === "yes");
       setShowFeedbackPrompt(false);
 
       if (res.photos_unlocked) {
@@ -581,6 +767,11 @@ export default function ConversationsPage() {
 
   async function getNewMatch() {
     if (matchLoading) return;
+
+    // open premium popup immediately
+    matchStartedAtRef.current = Date.now();
+    setMatchModalOpen(true);
+
     setMatchLoading(true);
 
     try {
@@ -597,12 +788,7 @@ export default function ConversationsPage() {
           const msgs = await api.thread(res.conversation_id);
           setThread(msgs as any);
 
-          api
-            .trackEvent({
-              event_name: "match_opened",
-              conversation_id: res.conversation_id,
-            })
-            .catch(() => {});
+          api.trackEvent({ event_name: "match_opened", conversation_id: res.conversation_id }).catch(() => {});
 
           try {
             const st = await api.matchFeedbackStatus(res.conversation_id);
@@ -650,6 +836,12 @@ export default function ConversationsPage() {
       }));
     } finally {
       setMatchLoading(false);
+
+      // small delay so the exit animation feels intentional (not a hard cut)
+      window.setTimeout(() => {
+        setMatchModalOpen(false);
+        matchStartedAtRef.current = null;
+      }, 260);
     }
   }
 
@@ -657,27 +849,27 @@ export default function ConversationsPage() {
     const q = search.trim().toLowerCase();
     if (!q) return convos;
     return convos.filter((c) =>
-      [c.partnerName, c.partnerCity, c.lastMessage].some((v) =>
-        v?.toLowerCase().includes(q)
-      )
+      [c.partnerName, c.partnerCity, c.lastMessage].some((v) => v?.toLowerCase().includes(q))
     );
   }, [search, convos]);
 
   const active = convos.find((c) => c.id === activeId) || null;
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(
-    () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
-    [thread, activeId]
-  );
+  useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [thread, activeId]);
 
   const hasAnyConvos = convos.length > 0;
 
   const hasBlockingReasons = !canMatch || (matchStatus && !matchStatus.eligible);
   const showTopMatchButton = !hasBlockingReasons;
 
+  const showCuratingModal = matchModalOpen || matchLoading;
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
+      {/* ✅ Dopamine popup while curating */}
+      <MatchFindingModal open={showCuratingModal} locked={true} startedAt={matchStartedAtRef.current} />
+
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
@@ -696,9 +888,7 @@ export default function ConversationsPage() {
                     Conversations
                   </h2>
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {convos.length} active
-                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">{convos.length} active</div>
               </div>
 
               <div className="mt-3 flex items-center gap-2">
@@ -750,21 +940,14 @@ export default function ConversationsPage() {
                       }
                       title={matchLoading ? "Matching..." : "Find a new match"}
                     >
-                      {matchLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
+                      {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                       <span>New match</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              <div
-                className="mt-4 space-y-1 overflow-y-auto pr-1"
-                style={{ maxHeight: "58vh" }}
-              >
+              <div className="mt-4 space-y-1 overflow-y-auto pr-1" style={{ maxHeight: "58vh" }}>
                 {filtered.map((c) => {
                   const isActive = activeId === c.id;
                   const isMenuOpen = menuFor === c.id;
@@ -778,10 +961,7 @@ export default function ConversationsPage() {
                           : "hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
                       }`}
                     >
-                      <button
-                        onClick={() => openConversation(c.id)}
-                        className="flex flex-1 items-start gap-3 text-left"
-                      >
+                      <button onClick={() => openConversation(c.id)} className="flex flex-1 items-start gap-3 text-left">
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 text-xs font-semibold text-white">
                           {c.partnerName?.substring(0, 1) ?? "?"}
                         </div>
@@ -802,20 +982,14 @@ export default function ConversationsPage() {
                                 </span>
                               ) : null}
                             </div>
-                            <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
-                              {c.lastAt}
-                            </div>
+                            <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{c.lastAt}</div>
                           </div>
-                          <div className="truncate text-[11px] text-slate-600 dark:text-slate-300">
-                            {c.lastMessage}
-                          </div>
+                          <div className="truncate text-[11px] text-slate-600 dark:text-slate-300">{c.lastMessage}</div>
                           <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                             {typeof c.compatibility === "number" && (
                               <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                 <Star className="h-3 w-3 text-rose-500" />
-                                <span>
-                                  {Math.round((c.compatibility || 0) * 100)}%
-                                </span>
+                                <span>{Math.round((c.compatibility || 0) * 100)}%</span>
                               </div>
                             )}
                             {c.unread ? (
@@ -846,10 +1020,7 @@ export default function ConversationsPage() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setMenuFor(null);
-                                  setReportOpen({
-                                    cid: c.id,
-                                    partnerName: c.partnerName,
-                                  });
+                                  setReportOpen({ cid: c.id, partnerName: c.partnerName });
                                   setReportReason("");
                                   setReportDetails("");
                                 }}
@@ -878,9 +1049,7 @@ export default function ConversationsPage() {
                 {filtered.length === 0 && (
                   <div className="flex flex-col items-center px-4 py-8 text-center text-xs text-slate-500 dark:text-slate-400">
                     <MessageSquareHeart className="mb-2 h-6 w-6 text-indigo-500 dark:text-indigo-300" />
-                    <div className="text-sm text-slate-700 dark:text-slate-200">
-                      No conversations yet.
-                    </div>
+                    <div className="text-sm text-slate-700 dark:text-slate-200">No conversations yet.</div>
 
                     <div className="mt-3">
                       <button
@@ -895,11 +1064,7 @@ export default function ConversationsPage() {
                             : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                         }
                       >
-                        {matchLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5" />
-                        )}
+                        {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                         <span>Find my first match</span>
                       </button>
                     </div>
@@ -953,11 +1118,7 @@ export default function ConversationsPage() {
                                 : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                             }
                           >
-                            {matchLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Plus className="h-3.5 w-3.5" />
-                            )}
+                            {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                             <span>New match</span>
                           </button>
                         </div>
@@ -965,9 +1126,7 @@ export default function ConversationsPage() {
                     ) : (
                       <div className="text-center text-sm text-slate-600 dark:text-slate-300">
                         <MessageSquareHeart className="mx-auto h-10 w-10 text-indigo-500 dark:text-indigo-300" />
-                        <p className="mt-3">
-                          No conversations yet. Try creating your first match.
-                        </p>
+                        <p className="mt-3">No conversations yet. Try creating your first match.</p>
                         <div className="mt-4 w-full max-w-xs mx-auto">
                           <MatchBlockers status={matchStatus} align="center" />
                           {noMatch && <NoMatchBanner />}
@@ -981,9 +1140,7 @@ export default function ConversationsPage() {
                   <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          {active?.partnerName}
-                        </span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-50">{active?.partnerName}</span>
                         {typeof active?.compatibility === "number" && (
                           <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
                             {Math.round((active.compatibility || 0) * 100)}% match
@@ -1007,16 +1164,12 @@ export default function ConversationsPage() {
 
                   {showFeedbackPrompt && (
                     <div className="mx-4 mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                      <div className="font-medium text-slate-900 dark:text-slate-50">
-                        Are you satisfied with this match?
-                      </div>
+                      <div className="font-medium text-slate-900 dark:text-slate-50">Are you satisfied with this match?</div>
 
                       <div className="mt-2 flex items-center gap-2">
                         <select
                           value={feedbackChoice}
-                          onChange={(e) =>
-                            setFeedbackChoice(e.target.value as any)
-                          }
+                          onChange={(e) => setFeedbackChoice(e.target.value as any)}
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900"
                         >
                           <option value="">Select…</option>
@@ -1034,9 +1187,7 @@ export default function ConversationsPage() {
                         </button>
                       </div>
 
-                      <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        {PHOTO_UNLOCK_NOTE}
-                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{PHOTO_UNLOCK_NOTE}</div>
                     </div>
                   )}
 
@@ -1052,12 +1203,7 @@ export default function ConversationsPage() {
                               className="shrink-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
                               title="Open photo"
                             >
-                              <img
-                                src={u}
-                                className="h-24 w-24 rounded-2xl object-cover"
-                                alt="Unlocked"
-                                loading="lazy"
-                              />
+                              <img src={u} className="h-24 w-24 rounded-2xl object-cover" alt="Unlocked" loading="lazy" />
                             </button>
                           ))}
                         </div>
@@ -1069,9 +1215,7 @@ export default function ConversationsPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="font-semibold">Photos locked</div>
-                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                                {PHOTO_UNLOCK_NOTE}
-                              </div>
+                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{PHOTO_UNLOCK_NOTE}</div>
                             </div>
                           </div>
                         </div>
@@ -1125,11 +1269,7 @@ export default function ConversationsPage() {
                           key={(m as any).id}
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={`flex ${
-                            (m as any).role === "me"
-                              ? "justify-end"
-                              : "justify-start"
-                          }`}
+                          className={`flex ${(m as any).role === "me" ? "justify-end" : "justify-start"}`}
                         >
                           <div
                             className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
@@ -1156,10 +1296,7 @@ export default function ConversationsPage() {
                     <input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      onFocus={() =>
-                        activeId &&
-                        (markReadWS(), api.markRead(activeId).catch(() => {}))
-                      }
+                      onFocus={() => activeId && (markReadWS(), api.markRead(activeId).catch(() => {}))}
                       placeholder="Write a message…"
                       className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                       onKeyDown={() => setTyping(true)}
@@ -1170,18 +1307,12 @@ export default function ConversationsPage() {
                       disabled={sending}
                       className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
                     >
-                      {sending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <SendHorizontal className="h-4 w-4" />
-                      )}
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
                       Send
                     </button>
                   </form>
 
-                  <div className="px-4 pb-3 text-[11px] text-slate-400 dark:text-slate-500">
-                    WS status: {wsStatus}
-                  </div>
+                  <div className="px-4 pb-3 text-[11px] text-slate-400 dark:text-slate-500">WS status: {wsStatus}</div>
                 </>
               )}
             </section>
@@ -1204,9 +1335,7 @@ export default function ConversationsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-sm font-semibold">
-                Report {reportOpen.partnerName || "user"}
-              </div>
+              <div className="text-sm font-semibold">Report {reportOpen.partnerName || "user"}</div>
               <button
                 type="button"
                 onClick={() => !reportSaving && setReportOpen(null)}
@@ -1216,9 +1345,7 @@ export default function ConversationsPage() {
               </button>
             </div>
 
-            <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-              Reason
-            </div>
+            <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">Reason</div>
             <select
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value as ReportReason)}
@@ -1235,9 +1362,7 @@ export default function ConversationsPage() {
               <option value="other">Other</option>
             </select>
 
-            <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-              Details (optional)
-            </div>
+            <div className="mt-3 text-xs text-slate-600 dark:text-slate-300">Details (optional)</div>
             <textarea
               value={reportDetails}
               onChange={(e) => setReportDetails(e.target.value)}
@@ -1296,10 +1421,7 @@ export default function ConversationsPage() {
           aria-modal="true"
           onClick={() => setPhotoViewerUrl(null)}
         >
-          <div
-            className="relative max-h-[85vh] max-w-[92vw]"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="relative max-h-[85vh] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setPhotoViewerUrl(null)}
