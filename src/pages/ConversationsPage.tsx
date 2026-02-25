@@ -484,6 +484,50 @@ export default function ConversationsPage() {
     matchedAt?: string | null; // optional (if backend ever adds it)
   };
 
+  // ✅ FIX: backend can sometimes return duplicate "system" intro (or duplicate IDs)
+  // We normalize once on every fetch/set so "Match intro" never renders twice.
+  function normalizeThread(raw: any[]): ThreadMsg[] {
+    if (!Array.isArray(raw)) return [];
+
+    const seenIds = new Set<string>();
+    const seenSystemTexts = new Set<string>();
+    let keptFirstSystem = false;
+
+    const out: any[] = [];
+
+    for (const m of raw) {
+      if (!m) continue;
+
+      const id = String((m as any).id ?? "");
+      const role = String((m as any).role ?? "");
+      const text = String((m as any).text ?? "");
+
+      // 1) Dedup by id if provided
+      if (id && seenIds.has(id)) continue;
+      if (id) seenIds.add(id);
+
+      // 2) Dedup the match intro specifically:
+      // - Keep only the first system message
+      // - Also dedup identical system texts (some backends send the same intro twice with different ids)
+      if (role === "system") {
+        const key = text.trim();
+
+        // If multiple system messages exist, keep only the first one.
+        if (keptFirstSystem) continue;
+
+        // Safety: if the same system text somehow repeats, drop it
+        if (key && seenSystemTexts.has(key)) continue;
+        if (key) seenSystemTexts.add(key);
+
+        keptFirstSystem = true;
+      }
+
+      out.push(m);
+    }
+
+    return out as ThreadMsg[];
+  }
+
   const [convos, setConvos] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadMsg[]>([]);
@@ -857,7 +901,8 @@ export default function ConversationsPage() {
     api.trackEvent({ event_name: "match_opened", conversation_id: id }).catch(() => {});
 
     try {
-      const msgs = await api.thread(id);
+      const rawMsgs = (await api.thread(id)) as any;
+      const msgs = normalizeThread(rawMsgs);
 
       if (openSeq.current !== seq) return;
 
@@ -1058,7 +1103,8 @@ export default function ConversationsPage() {
           openingChatIdRef.current = cid;
           setOpeningChat(true);
 
-          const msgs = await api.thread(cid);
+          const rawMsgs = (await api.thread(cid)) as any;
+          const msgs = normalizeThread(rawMsgs);
           setThread(msgs as any);
 
           api.trackEvent({ event_name: "match_opened", conversation_id: cid }).catch(() => {});
