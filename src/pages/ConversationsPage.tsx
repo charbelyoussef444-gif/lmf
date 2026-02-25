@@ -317,7 +317,7 @@ function MatchBlockers({
 
       {(needsProfile || needsAssessment) && (
         <div className={`mt-1 flex flex-wrap gap-2 ${buttonsJustify}`}>
-          {(needsProfile || needsAssessment) && (
+          {(needsProfile || needsAssessment) => (
             <Link
               to="/profile"
               className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-white/80 px-2.5 py-0.5 text-[10px] font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-500/60 dark:bg-rose-950/60 dark:text-rose-100"
@@ -389,6 +389,12 @@ function fmtTs(iso: string) {
   return d.toLocaleString();
 }
 
+function fmtMsgTimeFromSec(tsSec?: number) {
+  if (!tsSec) return "";
+  const d = new Date(tsSec * 1000);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 /** ---------------- Page ---------------- */
 export default function ConversationsPage() {
   // Widen message type locally without forcing lib/api changes.
@@ -418,6 +424,10 @@ export default function ConversationsPage() {
 
   // ✅ prevents openConversation race (fast clicks)
   const openSeq = useRef(0);
+
+  // ✅ small loading when switching chats
+  const [openingChat, setOpeningChat] = useState(false);
+  const openingChatIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -644,6 +654,10 @@ export default function ConversationsPage() {
   async function openConversation(id: string) {
     const seq = ++openSeq.current;
 
+    // show tiny "switching" loading in right pane
+    openingChatIdRef.current = id;
+    setOpeningChat(true);
+
     setActiveId(id);
     setMenuFor(null);
 
@@ -654,37 +668,44 @@ export default function ConversationsPage() {
 
     api.trackEvent({ event_name: "match_opened", conversation_id: id }).catch(() => {});
 
-    const msgs = await api.thread(id);
-
-    // ✅ if user opened a different convo while awaiting, ignore
-    if (openSeq.current !== seq) return;
-
-    setThread(msgs as any);
-
     try {
-      markReadWS();
-    } catch {}
-    api.markRead(id).catch(() => {});
+      const msgs = await api.thread(id);
 
-    // clear unread for this convo locally
-    setConvos((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+      // ✅ if user opened a different convo while awaiting, ignore
+      if (openSeq.current !== seq) return;
 
-    try {
-      const st = await api.matchFeedbackStatus(id);
-      if (openSeq.current !== seq) return;
-      setShowFeedbackPrompt(!!st.should_prompt);
-    } catch {
-      if (openSeq.current !== seq) return;
-      setShowFeedbackPrompt(false);
-    }
+      setThread(msgs as any);
 
-    try {
-      const urls = await api.conversationPhotos(id);
-      if (openSeq.current !== seq) return;
-      setUnlockedPhotos(urls);
-    } catch {
-      if (openSeq.current !== seq) return;
-      setUnlockedPhotos(null);
+      try {
+        markReadWS();
+      } catch {}
+      api.markRead(id).catch(() => {});
+
+      // clear unread for this convo locally
+      setConvos((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+
+      try {
+        const st = await api.matchFeedbackStatus(id);
+        if (openSeq.current !== seq) return;
+        setShowFeedbackPrompt(!!st.should_prompt);
+      } catch {
+        if (openSeq.current !== seq) return;
+        setShowFeedbackPrompt(false);
+      }
+
+      try {
+        const urls = await api.conversationPhotos(id);
+        if (openSeq.current !== seq) return;
+        setUnlockedPhotos(urls);
+      } catch {
+        if (openSeq.current !== seq) return;
+        setUnlockedPhotos(null);
+      }
+    } finally {
+      // only stop loading if we’re still opening the same chat
+      if (openingChatIdRef.current === id) {
+        window.setTimeout(() => setOpeningChat(false), 120);
+      }
     }
   }
 
@@ -709,7 +730,7 @@ export default function ConversationsPage() {
 
   // ✅ send (kept your logic, now safe because sockets won’t multiply)
   async function send() {
-    if (!message.trim() || !activeId || sending) return;
+    if (!message.trim() || !activeId || sending || openingChat) return;
     setSending(true);
 
     const text = message.trim();
@@ -800,6 +821,11 @@ export default function ConversationsPage() {
 
         if (res.conversation_id) {
           setActiveId(res.conversation_id);
+
+          // show "opening" since we jump into a new thread
+          openingChatIdRef.current = res.conversation_id;
+          setOpeningChat(true);
+
           const msgs = await api.thread(res.conversation_id);
           setThread(msgs as any);
 
@@ -819,6 +845,8 @@ export default function ConversationsPage() {
             setUnlockedPhotos(urls);
           } catch {
             setUnlockedPhotos(null);
+          } finally {
+            window.setTimeout(() => setOpeningChat(false), 120);
           }
         }
 
@@ -865,6 +893,7 @@ export default function ConversationsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return convos;
+    // ✅ keep search useful even after removing previews: still search by name/city/message (if present)
     return convos.filter((c) =>
       [c.partnerName, c.partnerCity, c.lastMessage].some((v) => v?.toLowerCase().includes(q))
     );
@@ -873,7 +902,10 @@ export default function ConversationsPage() {
   const active = convos.find((c) => c.id === activeId) || null;
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [thread, activeId]);
+  // only auto-scroll when already in a thread + not switching
+  useEffect(() => {
+    if (!openingChat) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [thread, activeId, openingChat]);
 
   const hasAnyConvos = convos.length > 0;
 
@@ -883,6 +915,15 @@ export default function ConversationsPage() {
   const showCuratingModal = matchModalOpen || matchLoading;
 
   const activeLastActive = active?.partnerLastActive ? fmtTs(active.partnerLastActive) : "—";
+  const activeLastMessage = active?.lastMessage ? active.lastMessage : "—";
+
+  // ✅ scrollbar styling without plugins (webkit + firefox)
+  const scrollNice =
+    "overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.6)_transparent] " +
+    "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent " +
+    "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300/70 " +
+    "dark:[&::-webkit-scrollbar-thumb]:bg-slate-700/70 " +
+    "[&::-webkit-scrollbar-thumb:hover]:bg-slate-300/90 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-600/80";
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
@@ -979,12 +1020,10 @@ export default function ConversationsPage() {
               </div>
 
               {/* ✅ this is the ONLY scrolling part on the left */}
-              <div className="mt-4 flex-1 min-h-0 space-y-1 overflow-y-auto pr-1">
+              <div className={`mt-4 flex-1 min-h-0 space-y-1 pr-1 ${scrollNice}`}>
                 {filtered.map((c) => {
                   const isActive = activeId === c.id;
                   const isMenuOpen = menuFor === c.id;
-
-                  const partnerLast = c.partnerLastActive ? fmtTs(c.partnerLastActive) : null;
 
                   return (
                     <div
@@ -1002,6 +1041,7 @@ export default function ConversationsPage() {
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 text-xs font-semibold text-white">
                           {c.partnerName?.substring(0, 1) ?? "?"}
                         </div>
+
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-50">
@@ -1019,20 +1059,13 @@ export default function ConversationsPage() {
                                 </span>
                               ) : null}
                             </div>
+
                             <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
                               {c.lastAt}
                             </div>
                           </div>
 
-                          {/* ✅ admin-style last active display */}
-                          <div className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
-                            Last active: {partnerLast ?? "—"}
-                          </div>
-
-                          <div className="truncate text-[11px] text-slate-600 dark:text-slate-300">
-                            {c.lastMessage}
-                          </div>
-
+                          {/* ✅ removed list previews: last active + last message */}
                           <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                             {typeof c.compatibility === "number" && (
                               <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -1049,21 +1082,31 @@ export default function ConversationsPage() {
                         </div>
                       </button>
 
-                      {isActive && (
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMenuFor(isMenuOpen ? null : c.id);
-                            }}
-                            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                            title="More options"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
+                      {/* ✅ 3-dots menu: always a clean popup, no wheel/scroll hijack */}
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuFor(isMenuOpen ? null : c.id);
+                          }}
+                          onWheel={(e) => e.stopPropagation()}
+                          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          title="More options"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
 
+                        <AnimatePresence>
                           {isMenuOpen && (
-                            <div className="absolute right-0 mt-1 w-40 rounded-2xl border border-slate-200 bg-white/95 text-xs text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200">
+                            <motion.div
+                              initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                              transition={{ duration: 0.14 }}
+                              onWheel={(e) => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
+                            >
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1072,7 +1115,7 @@ export default function ConversationsPage() {
                                   setReportReason("");
                                   setReportDetails("");
                                 }}
-                                className="w-full rounded-2xl px-4 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                                className="w-full px-4 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800/60"
                               >
                                 Report
                               </button>
@@ -1082,14 +1125,14 @@ export default function ConversationsPage() {
                                   e.stopPropagation();
                                   endChat(c.id);
                                 }}
-                                className="w-full rounded-2xl px-4 py-2 text-left text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                                className="w-full px-4 py-2.5 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40"
                               >
                                 End chat
                               </button>
-                            </div>
+                            </motion.div>
                           )}
-                        </div>
-                      )}
+                        </AnimatePresence>
+                      </div>
                     </div>
                   );
                 })}
@@ -1097,7 +1140,9 @@ export default function ConversationsPage() {
                 {filtered.length === 0 && (
                   <div className="flex flex-col items-center px-4 py-8 text-center text-xs text-slate-500 dark:text-slate-400">
                     <MessageSquareHeart className="mb-2 h-6 w-6 text-indigo-500 dark:text-indigo-300" />
-                    <div className="text-sm text-slate-700 dark:text-slate-200">No conversations yet.</div>
+                    <div className="text-sm text-slate-700 dark:text-slate-200">
+                      No conversations yet.
+                    </div>
 
                     <div className="mt-3">
                       <button
@@ -1131,7 +1176,7 @@ export default function ConversationsPage() {
             </aside>
 
             {/* ✅ right column: fixed height + scroll inside */}
-            <section className="flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <section className="relative flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
               {!active ? (
                 <div className="flex-1 p-8">
                   <div className="grid h-full place-items-center">
@@ -1194,24 +1239,43 @@ export default function ConversationsPage() {
                 </div>
               ) : (
                 <>
+                  {/* ✅ small loading overlay when switching chats */}
+                  <AnimatePresence>
+                    {openingChat && (
+                      <motion.div
+                        className="absolute inset-0 z-20 grid place-items-center bg-white/55 backdrop-blur-sm dark:bg-slate-950/40"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading chat…
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
+                        <span className="truncate font-semibold text-slate-900 dark:text-slate-50">
                           {active?.partnerName}
                         </span>
                         {typeof (active as any)?.compatibility === "number" && (
-                          <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
+                          <span className="shrink-0 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
                             {Math.round(((active as any).compatibility || 0) * 100)}% match
                           </span>
                         )}
                       </div>
 
-                      {/* ✅ admin-style last active under name */}
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Last active: {activeLastActive}
+                      {/* ✅ show last active + last message ONLY when chat is opened */}
+                      <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div>Last active: {activeLastActive}</div>
+                        <div className="truncate">Last message: {activeLastMessage}</div>
                       </div>
                     </div>
+
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                       <Link
                         to="/profile"
@@ -1259,7 +1323,7 @@ export default function ConversationsPage() {
                   {active && (
                     <>
                       {unlockedPhotos && unlockedPhotos.length > 0 ? (
-                        <div className="mx-4 mt-3 flex gap-2 overflow-x-auto pb-1">
+                        <div className={`mx-4 mt-3 flex gap-2 overflow-x-auto pb-1 ${scrollNice}`}>
                           {unlockedPhotos.map((u) => (
                             <button
                               key={u}
@@ -1296,8 +1360,10 @@ export default function ConversationsPage() {
                   )}
 
                   {/* ✅ main scrolling thread area (min-h-0 is the key) */}
-                  <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-4">
+                  <div className={`flex-1 min-h-0 space-y-3 px-4 py-4 ${scrollNice}`}>
                     {thread.map((m) => {
+                      const ts = fmtMsgTimeFromSec((m as any).ts);
+
                       if ((m as any).role === "system") {
                         const prompts = extractIntroPrompts((m as any).text);
                         return (
@@ -1332,26 +1398,46 @@ export default function ConversationsPage() {
                                   ))}
                                 </div>
                               )}
+
+                              {ts && (
+                                <div className="mt-2 text-right text-[10px] text-slate-500/80 dark:text-slate-300/60">
+                                  {ts}
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );
                       }
+
+                      const isMe = (m as any).role === "me";
 
                       return (
                         <motion.div
                           key={(m as any).id}
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={`flex ${(m as any).role === "me" ? "justify-end" : "justify-start"}`}
+                          className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                         >
                           <div
                             className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                              (m as any).role === "me"
+                              isMe
                                 ? "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
                                 : "bg-slate-100/90 text-slate-900 dark:bg-slate-800/80 dark:text-slate-50"
                             }`}
                           >
-                            {(m as any).text}
+                            <div className="whitespace-pre-wrap">{(m as any).text}</div>
+
+                            {/* ✅ timestamp */}
+                            {ts && (
+                              <div
+                                className={`mt-1 text-[10px] ${
+                                  isMe ? "text-white/75" : "text-slate-500 dark:text-slate-300/70"
+                                }`}
+                                style={{ textAlign: "right" }}
+                              >
+                                {ts}
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       );
@@ -1376,10 +1462,11 @@ export default function ConversationsPage() {
                       className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                       onKeyDown={() => setTyping(true)}
                       onBlur={() => setTyping(false)}
+                      disabled={openingChat}
                     />
                     <button
                       type="submit"
-                      disabled={sending}
+                      disabled={sending || openingChat}
                       className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
                     >
                       {sending ? (
