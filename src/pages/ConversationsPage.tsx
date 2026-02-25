@@ -60,43 +60,71 @@ function useElapsedMs(enabled: boolean, startAt: number | null, tick = 80) {
 
 function MatchFindingModal({
   open,
-  locked,
   startedAt,
 }: {
   open: boolean;
-  locked: boolean;
   startedAt: number | null;
 }) {
   const elapsed = useElapsedMs(open, startedAt, 80);
 
-  // staged copy (feels “premium” without a progress bar)
-  const stage = useMemo(() => {
-    if (elapsed < 650)
-      return { k: 0, title: "Curating your match…", sub: "Warming up signals" };
-    if (elapsed < 1400)
-      return {
-        k: 1,
-        title: "Scanning compatibility…",
-        sub: "Personality, interests, intent",
-      };
-    if (elapsed < 2300)
-      return {
-        k: 2,
-        title: "Ranking the best fit…",
-        sub: "Quality-first, not quantity",
-      };
-    if (elapsed < 3300)
-      return {
-        k: 3,
-        title: "Finalizing…",
-        sub: "Creating your conversation thread",
-      };
-    return {
-      k: 4,
-      title: "Almost there…",
-      sub: "One last pass for accuracy",
-    };
-  }, [elapsed]);
+  // ✅ loop phrases forever
+  const PHRASES = useMemo(
+    () => [
+      { title: "Curating your match…", sub: "Warming up signals" },
+      { title: "Scanning compatibility…", sub: "Personality, interests, intent" },
+      { title: "Ranking the best fit…", sub: "Quality-first, not quantity" },
+      { title: "Finalizing…", sub: "Creating your conversation thread" },
+      { title: "Almost there…", sub: "One last pass for accuracy" },
+    ],
+    []
+  );
+
+  const step = useMemo(() => {
+    const i = Math.floor(elapsed / 900) % PHRASES.length;
+    return { k: i, ...PHRASES[i] };
+  }, [elapsed, PHRASES]);
+
+  // ✅ bubble positions per step (inside the ring)
+  const bubbleLayouts = useMemo(
+    () => [
+      [
+        { x: "26%", y: "30%", s: 10, o: 0.95 },
+        { x: "58%", y: "26%", s: 7, o: 0.85 },
+        { x: "64%", y: "56%", s: 9, o: 0.9 },
+        { x: "34%", y: "64%", s: 6, o: 0.8 },
+        { x: "48%", y: "46%", s: 4, o: 0.6 },
+      ],
+      [
+        { x: "32%", y: "24%", s: 8, o: 0.9 },
+        { x: "66%", y: "34%", s: 10, o: 0.95 },
+        { x: "58%", y: "66%", s: 7, o: 0.85 },
+        { x: "28%", y: "58%", s: 9, o: 0.9 },
+        { x: "46%", y: "44%", s: 4, o: 0.6 },
+      ],
+      [
+        { x: "24%", y: "40%", s: 9, o: 0.9 },
+        { x: "54%", y: "22%", s: 6, o: 0.8 },
+        { x: "70%", y: "48%", s: 10, o: 0.95 },
+        { x: "44%", y: "70%", s: 8, o: 0.88 },
+        { x: "46%", y: "46%", s: 4, o: 0.6 },
+      ],
+      [
+        { x: "30%", y: "32%", s: 6, o: 0.8 },
+        { x: "62%", y: "28%", s: 9, o: 0.9 },
+        { x: "68%", y: "62%", s: 7, o: 0.85 },
+        { x: "30%", y: "66%", s: 10, o: 0.95 },
+        { x: "48%", y: "46%", s: 4, o: 0.6 },
+      ],
+      [
+        { x: "22%", y: "28%", s: 10, o: 0.95 },
+        { x: "66%", y: "26%", s: 6, o: 0.8 },
+        { x: "72%", y: "58%", s: 9, o: 0.9 },
+        { x: "34%", y: "72%", s: 7, o: 0.85 },
+        { x: "48%", y: "46%", s: 4, o: 0.6 },
+      ],
+    ],
+    []
+  );
 
   return (
     <AnimatePresence>
@@ -135,26 +163,10 @@ function MatchFindingModal({
               />
             </div>
 
-            {/* top badge */}
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/90">
-                <motion.span
-                  className="grid h-6 w-6 place-items-center rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2.8, repeat: Infinity, ease: "linear" }}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                </motion.span>
-                Curated match engine
-              </div>
-
-              <div className="text-[11px] font-medium text-white/60">
-                {locked ? "No interruptions" : " "}
-              </div>
-            </div>
+            {/* ✅ no "curated match engine" + no "no interruptions" row */}
 
             {/* centerpiece */}
-            <div className="relative mt-5 grid place-items-center">
+            <div className="relative mt-2 grid place-items-center">
               <div className="relative">
                 {/* rotating halo */}
                 <motion.div
@@ -169,7 +181,7 @@ function MatchFindingModal({
                   animate={{ scale: [1, 1.03, 1] }}
                   transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  {/* orbit dots */}
+                  {/* orbit dots (outer) */}
                   <motion.div
                     className="absolute inset-0"
                     animate={{ rotate: 360 }}
@@ -180,16 +192,40 @@ function MatchFindingModal({
                     <div className="absolute bottom-4 right-2 h-1.5 w-1.5 rounded-full bg-white/60 shadow" />
                   </motion.div>
 
-                  <motion.div
-                    key={stage.k}
-                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                    transition={{ duration: 0.22 }}
-                    className="grid place-items-center"
-                  >
-                    <Loader2 className="h-7 w-7 animate-spin text-white" />
-                  </motion.div>
+                  {/* ✅ inner bubbles (no white loader) */}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step.k}
+                      className="absolute inset-0"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      {bubbleLayouts[step.k].map((b, i) => (
+                        <motion.span
+                          key={i}
+                          className="absolute rounded-full bg-white"
+                          style={{
+                            left: b.x,
+                            top: b.y,
+                            width: b.s,
+                            height: b.s,
+                            opacity: b.o,
+                          }}
+                          initial={{ opacity: 0, scale: 0.6 }}
+                          animate={{ opacity: b.o, scale: [0.9, 1.05, 0.95] }}
+                          exit={{ opacity: 0, scale: 0.6 }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            repeatType: "mirror",
+                            delay: i * 0.05,
+                          }}
+                        />
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
                 </motion.div>
               </div>
 
@@ -205,24 +241,20 @@ function MatchFindingModal({
               </div>
             </div>
 
-            {/* copy */}
+            {/* copy (looped) */}
             <div className="relative mt-4 text-center">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={stage.k}
+                  key={step.k}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <div className="text-base font-semibold text-white">{stage.title}</div>
-                  <div className="mt-1 text-xs text-white/70">{stage.sub}</div>
+                  <div className="text-base font-semibold text-white">{step.title}</div>
+                  <div className="mt-1 text-xs text-white/70">{step.sub}</div>
                 </motion.div>
               </AnimatePresence>
-
-              <div className="mt-3 text-[11px] text-white/55">
-                We’re optimizing for *best* match quality, not endless swipes.
-              </div>
             </div>
 
             {/* footer hint */}
@@ -317,16 +349,14 @@ function MatchBlockers({
 
       {(needsProfile || needsAssessment) && (
         <div className={`mt-1 flex flex-wrap gap-2 ${buttonsJustify}`}>
-          {(needsProfile || needsAssessment) => (
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-white/80 px-2.5 py-0.5 text-[10px] font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-500/60 dark:bg-rose-950/60 dark:text-rose-100"
-              title="Fix requirements"
-            >
-              <ShieldCheck className="h-3 w-3" />
-              <span>Fix profile</span>
-            </Link>
-          )}
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-1 rounded-full border border-rose-300 bg-white/80 px-2.5 py-0.5 text-[10px] font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-500/60 dark:bg-rose-950/60 dark:text-rose-100"
+            title="Fix requirements"
+          >
+            <ShieldCheck className="h-3 w-3" />
+            <span>Fix profile</span>
+          </Link>
         </div>
       )}
     </div>
@@ -383,7 +413,7 @@ function msToClock(ms: number) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-// ✅ admin-style timestamp display (same spirit as AdminUserJourneyPage fmtTs)
+// ✅ admin-style timestamp display
 function fmtTs(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString();
@@ -507,7 +537,7 @@ export default function ConversationsPage() {
 
   const [matchLoading, setMatchLoading] = useState(false);
 
-  // ✅ modal control (keeps it open smoothly during transitions)
+  // ✅ modal control
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const matchStartedAtRef = useRef<number | null>(null);
 
@@ -523,7 +553,7 @@ export default function ConversationsPage() {
       if (e.key === "Escape") {
         setPhotoViewerUrl(null);
         if (!reportSaving) setReportOpen(null);
-        // do NOT close the match popup with ESC (feels cheap + breaks flow)
+        // do NOT close the match popup with ESC
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -539,7 +569,6 @@ export default function ConversationsPage() {
 
           // ✅ if not for the currently open conversation, DO NOT push into thread
           if (!activeId || d.conversation_id !== activeId) {
-            // optional: update previews + unread badge
             setConvos((prev) =>
               prev.map((c) => {
                 if (c.id !== d.conversation_id) return c;
@@ -550,7 +579,7 @@ export default function ConversationsPage() {
                 return {
                   ...c,
                   lastMessage: d.content_text ?? c.lastMessage,
-                  lastAt: "now" as any, // your backend returns "now"/"5m"/etc
+                  lastAt: "now" as any,
                   unread: (c.unread ?? 0) + unreadInc,
                 };
               })
@@ -558,7 +587,6 @@ export default function ConversationsPage() {
             return;
           }
 
-          // if meId isn't loaded yet, don't mislabel messages
           if (!meId) return;
 
           const role: "me" | "them" = d.sender_user_id === meId ? "me" : "them";
@@ -601,11 +629,7 @@ export default function ConversationsPage() {
           setConvos((prev) =>
             prev.map((c) =>
               c.id === d.conversation_id
-                ? {
-                    ...c,
-                    lastMessage: d.content_text ?? c.lastMessage,
-                    lastAt: "now" as any,
-                  }
+                ? { ...c, lastMessage: d.content_text ?? c.lastMessage, lastAt: "now" as any }
                 : c
             )
           );
@@ -654,7 +678,6 @@ export default function ConversationsPage() {
   async function openConversation(id: string) {
     const seq = ++openSeq.current;
 
-    // show tiny "switching" loading in right pane
     openingChatIdRef.current = id;
     setOpeningChat(true);
 
@@ -671,7 +694,6 @@ export default function ConversationsPage() {
     try {
       const msgs = await api.thread(id);
 
-      // ✅ if user opened a different convo while awaiting, ignore
       if (openSeq.current !== seq) return;
 
       setThread(msgs as any);
@@ -702,7 +724,6 @@ export default function ConversationsPage() {
         setUnlockedPhotos(null);
       }
     } finally {
-      // only stop loading if we’re still opening the same chat
       if (openingChatIdRef.current === id) {
         window.setTimeout(() => setOpeningChat(false), 120);
       }
@@ -728,7 +749,6 @@ export default function ConversationsPage() {
     }
   }
 
-  // ✅ send (kept your logic, now safe because sockets won’t multiply)
   async function send() {
     if (!message.trim() || !activeId || sending || openingChat) return;
     setSending(true);
@@ -804,10 +824,8 @@ export default function ConversationsPage() {
   async function getNewMatch() {
     if (matchLoading) return;
 
-    // open premium popup immediately
     matchStartedAtRef.current = Date.now();
     setMatchModalOpen(true);
-
     setMatchLoading(true);
 
     try {
@@ -822,7 +840,6 @@ export default function ConversationsPage() {
         if (res.conversation_id) {
           setActiveId(res.conversation_id);
 
-          // show "opening" since we jump into a new thread
           openingChatIdRef.current = res.conversation_id;
           setOpeningChat(true);
 
@@ -882,7 +899,6 @@ export default function ConversationsPage() {
     } finally {
       setMatchLoading(false);
 
-      // small delay so the exit animation feels intentional (not a hard cut)
       window.setTimeout(() => {
         setMatchModalOpen(false);
         matchStartedAtRef.current = null;
@@ -893,7 +909,6 @@ export default function ConversationsPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return convos;
-    // ✅ keep search useful even after removing previews: still search by name/city/message (if present)
     return convos.filter((c) =>
       [c.partnerName, c.partnerCity, c.lastMessage].some((v) => v?.toLowerCase().includes(q))
     );
@@ -902,7 +917,6 @@ export default function ConversationsPage() {
   const active = convos.find((c) => c.id === activeId) || null;
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // only auto-scroll when already in a thread + not switching
   useEffect(() => {
     if (!openingChat) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread, activeId, openingChat]);
@@ -917,7 +931,7 @@ export default function ConversationsPage() {
   const activeLastActive = active?.partnerLastActive ? fmtTs(active.partnerLastActive) : "—";
   const activeLastMessage = active?.lastMessage ? active.lastMessage : "—";
 
-  // ✅ scrollbar styling without plugins (webkit + firefox)
+  // ✅ scrollbar styling without plugins
   const scrollNice =
     "overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.6)_transparent] " +
     "[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent " +
@@ -928,11 +942,7 @@ export default function ConversationsPage() {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
       {/* ✅ Dopamine popup while curating */}
-      <MatchFindingModal
-        open={showCuratingModal}
-        locked={true}
-        startedAt={matchStartedAtRef.current}
-      />
+      <MatchFindingModal open={showCuratingModal} startedAt={matchStartedAtRef.current} />
 
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
@@ -943,9 +953,8 @@ export default function ConversationsPage() {
         <AppHeader />
 
         <main className="flex-1 py-6">
-          {/* ✅ lock the grid height (no elongation); inner areas scroll */}
           <div className="grid h-[72vh] gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.95fr)]">
-            {/* ✅ left column: fixed height + scroll inside */}
+            {/* LEFT */}
             <aside className="flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1019,7 +1028,7 @@ export default function ConversationsPage() {
                 </div>
               </div>
 
-              {/* ✅ this is the ONLY scrolling part on the left */}
+              {/* ✅ ONLY scrolling part on the left */}
               <div className={`mt-4 flex-1 min-h-0 space-y-1 pr-1 ${scrollNice}`}>
                 {filtered.map((c) => {
                   const isActive = activeId === c.id;
@@ -1082,7 +1091,7 @@ export default function ConversationsPage() {
                         </div>
                       </button>
 
-                      {/* ✅ 3-dots menu: always a clean popup, no wheel/scroll hijack */}
+                      {/* ✅ 3-dots menu popup (no wheel/scroll hijack) */}
                       <div className="relative">
                         <button
                           onClick={(e) => {
@@ -1175,7 +1184,7 @@ export default function ConversationsPage() {
               </div>
             </aside>
 
-            {/* ✅ right column: fixed height + scroll inside */}
+            {/* RIGHT */}
             <section className="relative flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
               {!active ? (
                 <div className="flex-1 p-8">
@@ -1269,7 +1278,7 @@ export default function ConversationsPage() {
                         )}
                       </div>
 
-                      {/* ✅ show last active + last message ONLY when chat is opened */}
+                      {/* ✅ show only when chat is opened */}
                       <div className="mt-0.5 flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                         <div>Last active: {activeLastActive}</div>
                         <div className="truncate">Last message: {activeLastMessage}</div>
@@ -1359,7 +1368,7 @@ export default function ConversationsPage() {
                     </>
                   )}
 
-                  {/* ✅ main scrolling thread area (min-h-0 is the key) */}
+                  {/* ✅ main scrolling thread area */}
                   <div className={`flex-1 min-h-0 space-y-3 px-4 py-4 ${scrollNice}`}>
                     {thread.map((m) => {
                       const ts = fmtMsgTimeFromSec((m as any).ts);
@@ -1455,9 +1464,7 @@ export default function ConversationsPage() {
                     <input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      onFocus={() =>
-                        activeId && (markReadWS(), api.markRead(activeId).catch(() => {}))
-                      }
+                      onFocus={() => activeId && (markReadWS(), api.markRead(activeId).catch(() => {}))}
                       placeholder="Write a message…"
                       className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                       onKeyDown={() => setTyping(true)}
@@ -1490,7 +1497,7 @@ export default function ConversationsPage() {
         <AppFooter />
       </div>
 
-      {/* REPORT MODAL (does NOT end chat) */}
+      {/* REPORT MODAL */}
       {reportOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
