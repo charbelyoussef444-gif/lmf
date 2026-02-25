@@ -426,6 +426,7 @@ function fmtMsgTimeFromSec(tsSec?: number) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+// NOTE: kept for potential reuse elsewhere, but no longer used in header UI
 function isActiveNow(lastActiveIso?: string | null, windowMs = 45_000) {
   if (!lastActiveIso) return false;
   const t = Date.parse(lastActiveIso);
@@ -1195,7 +1196,7 @@ export default function ConversationsPage() {
 
   const showCuratingModal = matchModalOpen || matchLoading;
 
-  const activeIsNow = isActiveNow(active?.partnerLastActive);
+  // ✅ REMOVE “Active now”: only keep last active + typing
   const activeLastActive = active?.partnerLastActive ? fmtTs(active.partnerLastActive) : "—";
 
   // ✅ scrollbar styling without plugins
@@ -1650,18 +1651,11 @@ export default function ConversationsPage() {
                         )}
                       </div>
 
-                      {/* ✅ no "last message" line, only last active + active now + typing */}
+                      {/* ✅ last active + typing (no Active now) */}
                       <div className="mt-0.5 flex items-center gap-3 text-[11px]">
-                        {activeIsNow ? (
-                          <span className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            Active now
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 dark:text-slate-400">
-                            Last active: {activeLastActive}
-                          </span>
-                        )}
+                        <span className="text-slate-500 dark:text-slate-400">
+                          Last active: {activeLastActive}
+                        </span>
 
                         {partnerTyping && (
                           <span className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
