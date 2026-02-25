@@ -215,9 +215,7 @@ function MatchFindingModal({
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <div className="text-base font-semibold text-white">
-                    {stage.title}
-                  </div>
+                  <div className="text-base font-semibold text-white">{stage.title}</div>
                   <div className="mt-1 text-xs text-white/70">{stage.sub}</div>
                 </motion.div>
               </AnimatePresence>
@@ -229,9 +227,7 @@ function MatchFindingModal({
 
             {/* footer hint */}
             <div className="relative mt-5 flex items-center justify-between gap-3">
-              <div className="text-[11px] text-white/50">
-                This usually takes a few seconds.
-              </div>
+              <div className="text-[11px] text-white/50">This usually takes a few seconds.</div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/80">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 Live
@@ -295,7 +291,12 @@ function MatchBlockers({
     ? !checks.not_banned || !checks.verified || !checks.has_interest || !checks.has_photos
     : issues.some((x) => {
         const s = x.toLowerCase();
-        return s.includes("interest") || s.includes("photo") || s.includes("verified") || s.includes("banned");
+        return (
+          s.includes("interest") ||
+          s.includes("photo") ||
+          s.includes("verified") ||
+          s.includes("banned")
+        );
       });
 
   const needsAssessment = checks
@@ -558,7 +559,9 @@ export default function ConversationsPage() {
 
             // Replace temp message if it was ours
             if (role === "me") {
-              const idx = [...t].reverse().findIndex((m) => m.role === "me" && (m as any).id.startsWith("temp-"));
+              const idx = [...t].reverse().findIndex(
+                (m) => m.role === "me" && (m as any).id.startsWith("temp-")
+              );
 
               if (idx !== -1) {
                 const realIndex = t.length - 1 - idx;
@@ -604,7 +607,10 @@ export default function ConversationsPage() {
           if (!activeId) break;
           if (evt.conversation_id !== activeId) break;
 
-          api.conversationPhotos(activeId).then((urls) => setUnlockedPhotos(urls)).catch(() => {});
+          api
+            .conversationPhotos(activeId)
+            .then((urls) => setUnlockedPhotos(urls))
+            .catch(() => {});
           break;
         }
 
@@ -797,7 +803,9 @@ export default function ConversationsPage() {
           const msgs = await api.thread(res.conversation_id);
           setThread(msgs as any);
 
-          api.trackEvent({ event_name: "match_opened", conversation_id: res.conversation_id }).catch(() => {});
+          api.trackEvent({ event_name: "match_opened", conversation_id: res.conversation_id }).catch(
+            () => {}
+          );
 
           try {
             const st = await api.matchFeedbackStatus(res.conversation_id);
@@ -879,7 +887,11 @@ export default function ConversationsPage() {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
       {/* ✅ Dopamine popup while curating */}
-      <MatchFindingModal open={showCuratingModal} locked={true} startedAt={matchStartedAtRef.current} />
+      <MatchFindingModal
+        open={showCuratingModal}
+        locked={true}
+        startedAt={matchStartedAtRef.current}
+      />
 
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
@@ -890,8 +902,10 @@ export default function ConversationsPage() {
         <AppHeader />
 
         <main className="flex-1 py-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.95fr)]">
-            <aside className="flex min-h-[70vh] flex-col rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          {/* ✅ lock the grid height (no elongation); inner areas scroll */}
+          <div className="grid h-[72vh] gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.95fr)]">
+            {/* ✅ left column: fixed height + scroll inside */}
+            <aside className="flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <MessageSquareHeart className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
@@ -899,7 +913,9 @@ export default function ConversationsPage() {
                     Conversations
                   </h2>
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">{convos.length} active</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {convos.length} active
+                </div>
               </div>
 
               <div className="mt-3 flex items-center gap-2">
@@ -951,14 +967,19 @@ export default function ConversationsPage() {
                       }
                       title={matchLoading ? "Matching..." : "Find a new match"}
                     >
-                      {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                      {matchLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
                       <span>New match</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="mt-4 space-y-1 overflow-y-auto pr-1" style={{ maxHeight: "58vh" }}>
+              {/* ✅ this is the ONLY scrolling part on the left */}
+              <div className="mt-4 flex-1 min-h-0 space-y-1 overflow-y-auto pr-1">
                 {filtered.map((c) => {
                   const isActive = activeId === c.id;
                   const isMenuOpen = menuFor === c.id;
@@ -974,7 +995,10 @@ export default function ConversationsPage() {
                           : "hover:bg-slate-50/80 dark:hover:bg-slate-800/60"
                       }`}
                     >
-                      <button onClick={() => openConversation(c.id)} className="flex flex-1 items-start gap-3 text-left">
+                      <button
+                        onClick={() => openConversation(c.id)}
+                        className="flex flex-1 items-start gap-3 text-left"
+                      >
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 text-xs font-semibold text-white">
                           {c.partnerName?.substring(0, 1) ?? "?"}
                         </div>
@@ -995,7 +1019,9 @@ export default function ConversationsPage() {
                                 </span>
                               ) : null}
                             </div>
-                            <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{c.lastAt}</div>
+                            <div className="shrink-0 text-[11px] text-slate-400 dark:text-slate-500">
+                              {c.lastAt}
+                            </div>
                           </div>
 
                           {/* ✅ admin-style last active display */}
@@ -1003,7 +1029,9 @@ export default function ConversationsPage() {
                             Last active: {partnerLast ?? "—"}
                           </div>
 
-                          <div className="truncate text-[11px] text-slate-600 dark:text-slate-300">{c.lastMessage}</div>
+                          <div className="truncate text-[11px] text-slate-600 dark:text-slate-300">
+                            {c.lastMessage}
+                          </div>
 
                           <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                             {typeof c.compatibility === "number" && (
@@ -1084,7 +1112,11 @@ export default function ConversationsPage() {
                             : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                         }
                       >
-                        {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        {matchLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
                         <span>Find my first match</span>
                       </button>
                     </div>
@@ -1098,7 +1130,8 @@ export default function ConversationsPage() {
               </div>
             </aside>
 
-            <section className="flex min-h-[70vh] flex-col rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            {/* ✅ right column: fixed height + scroll inside */}
+            <section className="flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
               {!active ? (
                 <div className="flex-1 p-8">
                   <div className="grid h-full place-items-center">
@@ -1138,7 +1171,11 @@ export default function ConversationsPage() {
                                 : "bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm hover:brightness-110")
                             }
                           >
-                            {matchLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                            {matchLoading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Plus className="h-3.5 w-3.5" />
+                            )}
                             <span>New match</span>
                           </button>
                         </div>
@@ -1160,7 +1197,9 @@ export default function ConversationsPage() {
                   <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">{active?.partnerName}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-50">
+                          {active?.partnerName}
+                        </span>
                         {typeof (active as any)?.compatibility === "number" && (
                           <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">
                             {Math.round(((active as any).compatibility || 0) * 100)}% match
@@ -1186,7 +1225,9 @@ export default function ConversationsPage() {
 
                   {showFeedbackPrompt && (
                     <div className="mx-4 mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                      <div className="font-medium text-slate-900 dark:text-slate-50">Are you satisfied with this match?</div>
+                      <div className="font-medium text-slate-900 dark:text-slate-50">
+                        Are you satisfied with this match?
+                      </div>
 
                       <div className="mt-2 flex items-center gap-2">
                         <select
@@ -1209,7 +1250,9 @@ export default function ConversationsPage() {
                         </button>
                       </div>
 
-                      <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{PHOTO_UNLOCK_NOTE}</div>
+                      <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        {PHOTO_UNLOCK_NOTE}
+                      </div>
                     </div>
                   )}
 
@@ -1225,7 +1268,12 @@ export default function ConversationsPage() {
                               className="shrink-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
                               title="Open photo"
                             >
-                              <img src={u} className="h-24 w-24 rounded-2xl object-cover" alt="Unlocked" loading="lazy" />
+                              <img
+                                src={u}
+                                className="h-24 w-24 rounded-2xl object-cover"
+                                alt="Unlocked"
+                                loading="lazy"
+                              />
                             </button>
                           ))}
                         </div>
@@ -1237,7 +1285,9 @@ export default function ConversationsPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="font-semibold">Photos locked</div>
-                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{PHOTO_UNLOCK_NOTE}</div>
+                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                {PHOTO_UNLOCK_NOTE}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1245,7 +1295,8 @@ export default function ConversationsPage() {
                     </>
                   )}
 
-                  <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+                  {/* ✅ main scrolling thread area (min-h-0 is the key) */}
+                  <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-4">
                     {thread.map((m) => {
                       if ((m as any).role === "system") {
                         const prompts = extractIntroPrompts((m as any).text);
@@ -1318,7 +1369,9 @@ export default function ConversationsPage() {
                     <input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      onFocus={() => activeId && (markReadWS(), api.markRead(activeId).catch(() => {}))}
+                      onFocus={() =>
+                        activeId && (markReadWS(), api.markRead(activeId).catch(() => {}))
+                      }
                       placeholder="Write a message…"
                       className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
                       onKeyDown={() => setTyping(true)}
@@ -1329,12 +1382,18 @@ export default function ConversationsPage() {
                       disabled={sending}
                       className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
                     >
-                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <SendHorizontal className="h-4 w-4" />
+                      )}
                       Send
                     </button>
                   </form>
 
-                  <div className="px-4 pb-3 text-[11px] text-slate-400 dark:text-slate-500">WS status: {wsStatus}</div>
+                  <div className="px-4 pb-3 text-[11px] text-slate-400 dark:text-slate-500">
+                    WS status: {wsStatus}
+                  </div>
                 </>
               )}
             </section>
