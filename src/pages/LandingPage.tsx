@@ -33,77 +33,44 @@ function AnimatedBackground() {
     window.addEventListener("resize", resize);
 
     const palette = [
-      "rgba(129,140,248,", // indigo
-      "rgba(167,139,250,", // violet
-      "rgba(244,114,182,", // rose
-      "rgba(196,181,253,", // lavender
-      "rgba(52,211,153,",  // emerald
+      "rgba(129,140,248,",
+      "rgba(167,139,250,",
+      "rgba(244,114,182,",
+      "rgba(196,181,253,",
     ];
 
     type Particle = {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      r: number;
-      color: string;
-      alpha: number;
-      pulse: number;
-      pulseSpeed: number;
-      kind: "dot" | "heart";
-      rot: number;
-      rotSpeed: number;
+      x: number; y: number;
+      vx: number; vy: number;
+      r: number; color: string;
+      alpha: number; pulse: number; pulseSpeed: number;
     };
 
-    const particles: Particle[] = Array.from({ length: 92 }, () => ({
+    const particles: Particle[] = Array.from({ length: 80 }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
       vx: (Math.random() - 0.5) * 0.35,
       vy: (Math.random() - 0.5) * 0.35,
-      r: Math.random() * 2.2 + 0.7,
+      r: Math.random() * 2.2 + 0.6,
       color: palette[Math.floor(Math.random() * palette.length)],
-      alpha: Math.random() * 0.55 + 0.18,
+      alpha: Math.random() * 0.6 + 0.2,
       pulse: Math.random() * Math.PI * 2,
       pulseSpeed: Math.random() * 0.018 + 0.006,
-      kind: Math.random() < 0.14 ? "heart" : "dot",
-      rot: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.01,
     }));
-
-    const drawHeart = (x: number, y: number, s: number, a: number, rot: number, fill: string) => {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      ctx.beginPath();
-      const scale = s * 0.9;
-      // simple heart path (small + soft)
-      ctx.moveTo(0, -0.35 * scale);
-      ctx.bezierCurveTo(0.55 * scale, -0.95 * scale, 1.25 * scale, -0.05 * scale, 0, 0.9 * scale);
-      ctx.bezierCurveTo(-1.25 * scale, -0.05 * scale, -0.55 * scale, -0.95 * scale, 0, -0.35 * scale);
-      ctx.closePath();
-      ctx.globalAlpha = a;
-      ctx.fillStyle = fill;
-      ctx.fill();
-      ctx.restore();
-      ctx.globalAlpha = 1;
-    };
 
     const draw = () => {
       ctx.clearRect(0, 0, W, H);
 
-      // softer connection lines (only between "dot" particles)
       for (let i = 0; i < particles.length; i++) {
-        if (particles[i].kind !== "dot") continue;
         for (let j = i + 1; j < particles.length; j++) {
-          if (particles[j].kind !== "dot") continue;
           const dx = particles[i].x - particles[j].x;
           const dy = particles[i].y - particles[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 140) {
+          if (dist < 130) {
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(148,163,184,${((1 - dist / 140) * 0.2).toFixed(2)})`;
+            ctx.strokeStyle = `rgba(148,163,184,${((1 - dist / 130) * 0.25).toFixed(2)})`;
             ctx.lineWidth = 0.8;
             ctx.stroke();
           }
@@ -112,29 +79,17 @@ function AnimatedBackground() {
 
       particles.forEach((p) => {
         p.pulse += p.pulseSpeed;
-        p.rot += p.rotSpeed;
-
         const a = Math.max(0, Math.min(1, p.alpha + Math.sin(p.pulse) * 0.12));
-        const wobble = Math.sin(p.pulse) * 0.4;
-
-        if (p.kind === "dot") {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.r + wobble, 0, Math.PI * 2);
-          ctx.fillStyle = `${p.color}${a.toFixed(2)})`;
-          ctx.fill();
-        } else {
-          // hearts: slightly larger + blur-like softness via alpha
-          const heartFill = `${p.color}${Math.max(0.06, a * 0.55).toFixed(2)})`;
-          drawHeart(p.x, p.y, p.r * 2.6 + wobble, 1, p.rot, heartFill);
-        }
-
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r + Math.sin(p.pulse) * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${a.toFixed(2)})`;
+        ctx.fill();
         p.x += p.vx;
         p.y += p.vy;
-
-        if (p.x < -20) p.x = W + 20;
-        if (p.x > W + 20) p.x = -20;
-        if (p.y < -20) p.y = H + 20;
-        if (p.y > H + 20) p.y = -20;
+        if (p.x < -10) p.x = W + 10;
+        if (p.x > W + 10) p.x = -10;
+        if (p.y < -10) p.y = H + 10;
+        if (p.y > H + 10) p.y = -10;
       });
 
       animId = requestAnimationFrame(draw);
@@ -150,48 +105,33 @@ function AnimatedBackground() {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       {/* Base color layer */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-indigo-50/35 to-rose-50/25 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950" />
-
-      {/* Life layer */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-rose-50/20 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950" />
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ opacity: 1 }} />
-
-      {/* Big soft orbs */}
       <motion.div
-        className="absolute -top-52 -left-52 h-[760px] w-[760px] rounded-full"
-        style={{
-          background: "radial-gradient(circle, rgba(129,140,248,0.38) 0%, transparent 66%)",
-        }}
-        animate={{ x: [0, 40, -20, 0], y: [0, 25, 55, 0], scale: [1, 1.12, 0.96, 1] }}
+        className="absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(129,140,248,0.35) 0%, transparent 65%)" }}
+        animate={{ x: [0, 40, -20, 0], y: [0, 25, 50, 0], scale: [1, 1.1, 0.95, 1] }}
         transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute top-1/3 -right-56 h-[680px] w-[680px] rounded-full"
-        style={{
-          background: "radial-gradient(circle, rgba(244,114,182,0.34) 0%, transparent 66%)",
-        }}
-        animate={{ x: [0, -35, 12, 0], y: [0, 50, -24, 0], scale: [1, 0.92, 1.1, 1] }}
-        transition={{ duration: 19, repeat: Infinity, ease: "easeInOut", delay: 2.2 }}
+        className="absolute top-1/3 -right-48 h-[600px] w-[600px] rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(244,114,182,0.3) 0%, transparent 65%)" }}
+        animate={{ x: [0, -35, 10, 0], y: [0, 45, -20, 0], scale: [1, 0.93, 1.08, 1] }}
+        transition={{ duration: 19, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
       />
       <motion.div
-        className="absolute bottom-[-140px] left-1/4 h-[560px] w-[560px] rounded-full"
-        style={{
-          background: "radial-gradient(circle, rgba(52,211,153,0.18) 0%, transparent 64%)",
-        }}
-        animate={{ x: [0, 32, -15, 0], y: [0, -26, 18, 0], scale: [1, 1.08, 0.98, 1] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut", delay: 4.5 }}
+        className="absolute bottom-0 left-1/4 h-[500px] w-[500px] rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(139,92,246,0.28) 0%, transparent 65%)" }}
+        animate={{ x: [0, 30, -15, 0], y: [0, -30, 20, 0], scale: [1, 1.07, 0.97, 1] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut", delay: 5 }}
       />
-
-      {/* soft bokeh dots */}
-      <div className="absolute inset-0 opacity-[0.35] dark:opacity-[0.22]">
-        <div className="absolute left-[12%] top-[18%] h-2 w-2 rounded-full bg-indigo-300/60 blur-[1px]" />
-        <div className="absolute left-[22%] top-[72%] h-3 w-3 rounded-full bg-rose-300/60 blur-[1px]" />
-        <div className="absolute left-[76%] top-[22%] h-2.5 w-2.5 rounded-full bg-violet-300/60 blur-[1px]" />
-        <div className="absolute left-[88%] top-[58%] h-3 w-3 rounded-full bg-emerald-300/55 blur-[1px]" />
-        <div className="absolute left-[46%] top-[40%] h-2 w-2 rounded-full bg-indigo-200/60 blur-[1px]" />
-      </div>
-
-      {/* Grain */}
-      <svg className="absolute inset-0 h-full w-full opacity-[0.02]" xmlns="http://www.w3.org/2000/svg">
+      <motion.div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(196,181,253,0.22) 0%, transparent 65%)" }}
+        animate={{ scale: [1, 1.15, 0.9, 1], opacity: [0.6, 1, 0.7, 0.6] }}
+        transition={{ duration: 13, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+      />
+      <svg className="absolute inset-0 h-full w-full opacity-[0.022]" xmlns="http://www.w3.org/2000/svg">
         <filter id="bg-noise">
           <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" stitchTiles="stitch" />
           <feColorMatrix type="saturate" values="0" />
@@ -258,97 +198,98 @@ function DiagramCard({
   );
 }
 
-// ─── Diagram 1: Your Pattern ──────────────────────────────────────────────────
-function PatternSVG() {
+// ─── Diagram 1: Signal Field ──────────────────────────────────────────────────
+function SignalFieldSVG() {
   return (
     <svg viewBox="0 0 520 260" className="w-full">
       <defs>
-        <linearGradient id="pG" x1="0" x2="1" y1="0" y2="1">
+        <linearGradient id="sfG" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0" stopColor="rgba(99,102,241,0.95)" />
           <stop offset="0.5" stopColor="rgba(139,92,246,0.9)" />
           <stop offset="1" stopColor="rgba(244,114,182,0.9)" />
         </linearGradient>
-        <radialGradient id="pRG" cx="50%" cy="50%" r="70%">
-          <stop offset="0" stopColor="rgba(244,114,182,0.10)" />
+        <radialGradient id="sfRG" cx="50%" cy="50%" r="68%">
+          <stop offset="0" stopColor="rgba(99,102,241,0.12)" />
           <stop offset="1" stopColor="rgba(99,102,241,0)" />
         </radialGradient>
-        <filter id="pSoft" x="-30%" y="-30%" width="160%" height="160%">
+        <filter id="sfSoft" x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="7" result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <filter id="sfGlow">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
-
-      <rect x="0" y="0" width="520" height="260" rx="18" fill="url(#pRG)" />
-
-      {/* soft wave ribbon */}
-      <path
-        d="M24,160 C85,120 120,220 180,150 C240,80 295,210 350,130 C410,65 455,170 496,112"
-        fill="none"
-        stroke="url(#pG)"
-        strokeWidth="5"
-        strokeLinecap="round"
-        filter="url(#pSoft)"
-        opacity="0.95"
-      />
-
-      {/* gentle “moments” bubbles */}
-      {[
-        [88, 132],
-        [165, 176],
-        [230, 138],
-        [305, 170],
-        [385, 110],
-        [452, 148],
-      ].map(([x, y], i) => (
-        <g key={i}>
-          <circle cx={x} cy={y} r="12" fill="rgba(99,102,241,0.07)" />
-          <circle cx={x} cy={y} r="6.5" fill="rgba(255,255,255,0.95)" stroke="rgba(99,102,241,0.8)" strokeWidth="2" />
-        </g>
-      ))}
-
-      {/* small hearts */}
-      <g opacity="0.55">
-        <path
-          d="M110 78
-             C110 68, 122 64, 130 72
-             C138 64, 150 68, 150 78
-             C150 90, 130 104, 130 104
-             C130 104, 110 90, 110 78 Z"
-          fill="rgba(244,114,182,0.22)"
-        />
-        <path
-          d="M370 66
-             C370 58, 380 55, 387 61
-             C394 55, 404 58, 404 66
-             C404 76, 387 88, 387 88
-             C387 88, 370 76, 370 66 Z"
-          fill="rgba(129,140,248,0.18)"
-        />
+      <rect x="0" y="0" width="520" height="260" rx="18" fill="url(#sfRG)" />
+      <g stroke="rgba(148,163,184,0.22)" strokeWidth="1">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <line key={i} x1={40 + i * 55} y1="30" x2={40 + i * 55} y2="235" />
+        ))}
+        {Array.from({ length: 7 }).map((_, i) => (
+          <line key={i} x1="24" y1={40 + i * 28} x2="496" y2={40 + i * 28} />
+        ))}
       </g>
-
+      <g stroke="rgba(148,163,184,0.4)" strokeWidth="1.2">
+        <line x1="260" y1="30" x2="260" y2="235" />
+        <line x1="24" y1="132" x2="496" y2="132" />
+      </g>
+      <path
+        d="M60,165 C120,70 170,210 220,115 C270,15 325,225 370,120 C420,45 470,190 496,105"
+        fill="none"
+        stroke="url(#sfG)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        filter="url(#sfSoft)"
+      />
+      <g>
+        {[
+          [105, 98],
+          [175, 178],
+          [240, 120],
+          [310, 158],
+          [385, 92],
+          [455, 140],
+        ].map(([x, y], i) => (
+          <g key={i} filter="url(#sfGlow)">
+            <circle cx={x} cy={y} r="8" fill="rgba(99,102,241,0.1)" />
+            <circle
+              cx={x}
+              cy={y}
+              r="5"
+              fill="rgba(255,255,255,0.95)"
+              stroke="rgba(99,102,241,0.85)"
+              strokeWidth="2"
+            />
+          </g>
+        ))}
+      </g>
       <g fill="rgba(100,116,139,0.75)" fontSize="11" fontFamily="inherit">
-        <text x="26" y="22">your vibe pattern (from conversation)</text>
-        <text x="330" y="22">steady signals highlighted</text>
-        <text x="26" y="252">we keep what stays true</text>
+        <text x="26" y="20">latent signal field (normalized)</text>
+        <text x="350" y="20">posterior trace</text>
+        <text x="26" y="252">invariant features emphasized</text>
       </g>
     </svg>
   );
 }
 
-// ─── Diagram 2: Consistency ───────────────────────────────────────────────────
-function ConsistencySVG() {
+// ─── Diagram 2: Calibration ───────────────────────────────────────────────────
+function CalibrationSVG() {
   return (
     <svg viewBox="0 0 520 260" className="w-full">
       <defs>
-        <linearGradient id="cG" x1="0" x2="1" y1="0" y2="0">
+        <linearGradient id="calG" x1="0" x2="1" y1="0" y2="0">
           <stop offset="0" stopColor="rgba(99,102,241,0.9)" />
           <stop offset="0.55" stopColor="rgba(139,92,246,0.9)" />
-          <stop offset="1" stopColor="rgba(52,211,153,0.78)" />
+          <stop offset="1" stopColor="rgba(244,114,182,0.85)" />
         </linearGradient>
-        <filter id="cSoft" x="-30%" y="-30%" width="160%" height="160%">
+        <filter id="calSoft" x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="6" result="b" />
           <feMerge>
             <feMergeNode in="b" />
@@ -356,156 +297,127 @@ function ConsistencySVG() {
           </feMerge>
         </filter>
       </defs>
-
       <rect x="0" y="0" width="520" height="260" rx="18" fill="rgba(148,163,184,0.06)" />
-
-      <g transform="translate(50,32)">
-        <rect x="0" y="0" width="440" height="196" rx="14" fill="rgba(15,23,42,0.02)" />
-
-        {/* soft grid */}
-        <g stroke="rgba(148,163,184,0.16)" strokeWidth="1">
+      <g transform="translate(50,30)">
+        <rect x="0" y="0" width="440" height="200" rx="14" fill="rgba(15,23,42,0.02)" />
+        <g stroke="rgba(148,163,184,0.2)" strokeWidth="1">
           {Array.from({ length: 6 }).map((_, i) => (
-            <line key={`h${i}`} x1="0" y1={i * 39.2} x2="440" y2={i * 39.2} />
+            <line key={`h${i}`} x1="0" y1={i * 40} x2="440" y2={i * 40} />
           ))}
           {Array.from({ length: 8 }).map((_, i) => (
-            <line key={`v${i}`} x1={i * 62.857} y1="0" x2={i * 62.857} y2="196" />
+            <line key={`v${i}`} x1={i * 62.857} y1="0" x2={i * 62.857} y2="200" />
           ))}
         </g>
-
-        {/* “ideal” diagonal (dashed) */}
         <line
-          x1="0"
-          y1="196"
-          x2="440"
-          y2="0"
-          stroke="rgba(148,163,184,0.45)"
+          x1="0" y1="200" x2="440" y2="0"
+          stroke="rgba(148,163,184,0.55)"
           strokeWidth="2"
           strokeDasharray="6 6"
         />
-
-        {/* smooth curve */}
         <path
-          d="M0,182 C62,160 100,132 140,120 C190,104 238,98 290,70 C334,46 382,30 440,20"
+          d="M0,192 C60,170 95,140 130,125 C175,105 220,95 275,70 C330,45 385,30 440,18"
           fill="none"
-          stroke="url(#cG)"
-          strokeWidth="4.2"
+          stroke="url(#calG)"
+          strokeWidth="4"
           strokeLinecap="round"
-          filter="url(#cSoft)"
+          filter="url(#calSoft)"
         />
-
-        {/* points */}
-        {[
-          [48, 168],
-          [118, 135],
-          [182, 112],
-          [252, 90],
-          [320, 60],
-          [394, 34],
-        ].map(([x, y], i) => (
-          <g key={i}>
-            <circle cx={x} cy={y} r="9" fill="rgba(99,102,241,0.08)" />
-            <circle cx={x} cy={y} r="6" fill="rgba(255,255,255,0.95)" stroke="rgba(99,102,241,0.82)" strokeWidth="2" />
-          </g>
-        ))}
-
+        <g>
+          {[
+            [40, 178],
+            [110, 138],
+            [170, 112],
+            [240, 92],
+            [310, 60],
+            [390, 32],
+          ].map(([x, y], i) => (
+            <g key={i}>
+              <circle cx={x} cy={y} r="9" fill="rgba(99,102,241,0.1)" />
+              <circle
+                cx={x} cy={y} r="6"
+                fill="rgba(255,255,255,0.95)"
+                stroke="rgba(99,102,241,0.85)"
+                strokeWidth="2"
+              />
+            </g>
+          ))}
+        </g>
         <g fill="rgba(100,116,139,0.75)" fontSize="11">
-          <text x="0" y="218">confidence →</text>
-          <text x="-10" y="-10">↑ consistency</text>
+          <text x="0" y="222">confidence →</text>
+          <text x="-10" y="-10">↑ reliability</text>
         </g>
       </g>
-
       <g fill="rgba(100,116,139,0.75)" fontSize="11">
-        <text x="26" y="22">consistency checks (no “random vibe shifts”)</text>
-        <text x="338" y="22">keeps results sane</text>
-        <text x="26" y="252">goal: fewer mismatches</text>
+        <text x="26" y="20">calibration curve (reliability check)</text>
+        <text x="335" y="20">stability validated</text>
+        <text x="26" y="252">goal: reduce "random match" behavior</text>
       </g>
     </svg>
   );
 }
 
-// ─── Diagram 3: Neighborhoods ─────────────────────────────────────────
-function NeighborhoodSVG() {
+// ─── Diagram 3: Graph ─────────────────────────────────────────────────────────
+function GraphSVG() {
   const nodes = [
-    { x: 92, y: 88 },
-    { x: 168, y: 128 },
-    { x: 242, y: 86 },
-    { x: 312, y: 145 },
-    { x: 388, y: 96 },
-    { x: 452, y: 146 },
-    { x: 134, y: 178 },
-    { x: 224, y: 170 },
-    { x: 338, y: 188 },
+    { x: 90, y: 80 },
+    { x: 165, y: 125 },
+    { x: 240, y: 80 },
+    { x: 310, y: 140 },
+    { x: 385, y: 90 },
+    { x: 450, y: 145 },
+    { x: 130, y: 175 },
+    { x: 220, y: 170 },
+    { x: 335, y: 185 },
   ];
   const edges: [number, number][] = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 4],
-    [4, 5],
-    [1, 6],
-    [6, 7],
-    [7, 3],
-    [3, 8],
-    [8, 5],
-    [2, 7],
-    [4, 8],
+    [0, 1], [1, 2], [2, 3], [3, 4], [4, 5],
+    [1, 6], [6, 7], [7, 3], [3, 8], [8, 5],
+    [2, 7], [4, 8],
   ];
-
   return (
     <svg viewBox="0 0 520 260" className="w-full">
       <defs>
-        <linearGradient id="nG" x1="0" x2="1" y1="0" y2="1">
+        <linearGradient id="gg" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0" stopColor="rgba(99,102,241,0.9)" />
           <stop offset="0.5" stopColor="rgba(139,92,246,0.9)" />
-          <stop offset="1" stopColor="rgba(244,114,182,0.88)" />
+          <stop offset="1" stopColor="rgba(244,114,182,0.9)" />
         </linearGradient>
-        <filter id="nSoft" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="6" result="b" />
-          <feMerge>
-            <feMergeNode in="b" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
-
       <rect x="0" y="0" width="520" height="260" rx="18" fill="rgba(148,163,184,0.06)" />
-
-      {/* soft “neighborhood blobs” */}
-      <g opacity="0.9" filter="url(#nSoft)">
-        <circle cx="140" cy="150" r="64" fill="rgba(99,102,241,0.08)" />
-        <circle cx="260" cy="120" r="78" fill="rgba(139,92,246,0.07)" />
-        <circle cx="380" cy="150" r="66" fill="rgba(244,114,182,0.06)" />
-      </g>
-
-      <g stroke="rgba(148,163,184,0.33)" strokeWidth="1.2" strokeLinecap="round">
+      <g stroke="rgba(148,163,184,0.35)" strokeWidth="1.2" strokeLinecap="round">
         {edges.map(([a, b], i) => (
-          <line key={i} x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y} />
+          <line
+            key={i}
+            x1={nodes[a].x} y1={nodes[a].y}
+            x2={nodes[b].x} y2={nodes[b].y}
+          />
         ))}
       </g>
-
-      {/* highlighted “path” */}
       <path
-        d="M92,88 C150,54 220,54 242,86 C276,132 330,46 388,96 C420,120 438,136 452,146"
+        d="M90,80 C150,42 220,45 240,80 C275,135 330,40 385,90 C420,120 436,135 450,145"
         fill="none"
-        stroke="url(#nG)"
+        stroke="url(#gg)"
         strokeWidth="4"
         strokeLinecap="round"
         opacity="0.95"
       />
-
       <g>
         {nodes.map((n, i) => (
           <g key={i}>
-            <circle cx={n.x} cy={n.y} r="12" fill="rgba(99,102,241,0.09)" />
-            <circle cx={n.x} cy={n.y} r="6.5" fill="rgba(255,255,255,0.95)" stroke="rgba(99,102,241,0.86)" strokeWidth="2" />
+            <circle cx={n.x} cy={n.y} r="12" fill="rgba(99,102,241,0.1)" />
+            <circle
+              cx={n.x} cy={n.y} r="6.5"
+              fill="rgba(255,255,255,0.95)"
+              stroke="rgba(99,102,241,0.9)"
+              strokeWidth="2"
+            />
           </g>
         ))}
       </g>
-
       <g fill="rgba(100,116,139,0.75)" fontSize="11">
-        <text x="26" y="22">compatibility neighborhoods</text>
-        <text x="350" y="22">small world, better fit</text>
-        <text x="26" y="252">you’re placed with your people</text>
+        <text x="26" y="20">neighborhood matching (graph topology)</text>
+        <text x="352" y="20">stable clusters</text>
+        <text x="26" y="252">clusters ~~ scores</text>
       </g>
     </svg>
   );
@@ -551,17 +463,17 @@ function SocialProofPill({ count, avatars }: { count: number; avatars: string[] 
 // ─── Testimonial cards ────────────────────────────────────────────────────────
 const testimonials = [
   {
-    text: "Finally, a dating app that doesn’t feel like I’m playing roulette.",
+    text: "Finally, a dating app that doesn't make me feel like I'm gambling.",
     name: "Yasmine, 31",
     tag: "Product designer",
   },
   {
-    text: "It feels intentional. Like it’s trying to understand me, not hook me.",
+    text: "I've been on every app. This is the first one that felt like it actually listened.",
     name: "Marcus, 34",
     tag: "Software engineer",
   },
   {
-    text: "The questions felt human. Calm. Not cringe, not intense.",
+    text: "The assessment felt like a real conversation, not an interrogation.",
     name: "Léa, 28",
     tag: "Researcher",
   },
@@ -633,9 +545,7 @@ export default function LandingPage() {
         if (mounted) setCountError(true);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const displayCount = waitlistCount ?? 0;
@@ -665,18 +575,24 @@ export default function LandingPage() {
           {/* ─── 1) WAITLIST ─────────────────────────────────────────────── */}
           <SectionShell id="waitlist">
             <div className="mx-auto max-w-3xl text-center">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55 }}
+              >
                 {/* Social proof pill */}
-                {!countError && <SocialProofPill count={displayCount} avatars={avatars} />}
+                {!countError && (
+                  <SocialProofPill count={displayCount} avatars={avatars} />
+                )}
                 {countError && (
                   <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
                     <span className="font-semibold text-slate-900 dark:text-slate-50">{displayCount.toLocaleString()}</span>
-                    people waiting
+                    potential matches
                     <span className="ml-2 text-[10px] text-rose-600 dark:text-rose-300">unavailable</span>
                   </div>
                 )}
                 {!countError && waitlistCount === null && (
-                  <span className="block mt-1 text-[10px] text-slate-500 dark:text-slate-400">loading…</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">loading…</span>
                 )}
 
                 {/* Kicker line */}
@@ -688,7 +604,7 @@ export default function LandingPage() {
                 >
                   <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
                   <span className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-500 dark:text-indigo-300">
-                    Intentional matching
+                    Intelligent matching
                   </span>
                   <Sparkles className="h-3.5 w-3.5 text-rose-400" />
                 </motion.div>
@@ -716,17 +632,17 @@ export default function LandingPage() {
                   , not a game.
                 </motion.h1>
 
-                {/* Sub-headline — warmer + less “engineer” */}
+                {/* Sub-headline — with human warmth */}
                 <motion.p
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                   className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300"
                 >
-                  A short, calm conversation — then we match you with people who actually make sense.
+                  Short conversation → stable representation → neighborhood-based matches.
                   <br className="hidden sm:block" />
                   <span className="mt-1 block text-slate-500 dark:text-slate-400 text-sm">
-                    Less chaos. Less swiping. More “this feels right.”
+                    Less randomness. More signal. Someone who actually fits.
                   </span>
                 </motion.p>
 
@@ -742,7 +658,10 @@ export default function LandingPage() {
                     className="group relative inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-300/40 dark:shadow-violet-900/40 hover:brightness-110 active:scale-95 transition-all duration-200"
                   >
                     <span>Start your conversation</span>
-                    <motion.span animate={{ x: [0, 4, 0] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}>
+                    <motion.span
+                      animate={{ x: [0, 4, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    >
                       →
                     </motion.span>
                     {/* Glow on hover */}
@@ -756,7 +675,11 @@ export default function LandingPage() {
                 </motion.div>
 
                 {/* Testimonials */}
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.55 }}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.55 }}
+                >
                   <TestimonialStrip />
                 </motion.div>
 
@@ -781,44 +704,42 @@ export default function LandingPage() {
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
                   <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500 dark:text-indigo-300">
-                    How it works
+                    Matching engine
                   </span>
                 </div>
-
                 <h2 className="mt-3 text-2xl font-semibold leading-tight sm:text-3xl tracking-tight">
-                  Built for real people:{" "}
+                  Built like a real system:{" "}
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                    steady, respectful, hard to game.
+                    evaluated, calibrated, stable.
                   </span>
                 </h2>
-
                 <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  You’re not “ranked.” You’re placed into a compatibility neighborhood — a smaller world where your odds of clicking
-                  are naturally higher.
+                  You don't get "a score." You get placed into a neighborhood where alignment is high
+                  and volatility is low — so the people you meet are actually compatible with who you are.
                 </p>
               </motion.div>
 
               <div className="mt-8 grid gap-5 lg:grid-cols-3">
                 {[
                   {
-                    title: "Your pattern",
-                    subtitle: "We pull out the themes that keep showing up",
-                    footer: "Goal: keep the real you — not one clever message.",
-                    Diagram: PatternSVG,
+                    title: "Signal field",
+                    subtitle: "Latent representation derived from structured prompts",
+                    footer: "Goal: isolate invariant behavior under different wording.",
+                    Diagram: SignalFieldSVG,
                     delay: 0,
                   },
                   {
-                    title: "Consistency",
-                    subtitle: "We check if your answers stay true across prompts",
-                    footer: "Goal: fewer mismatches from “random” vibes.",
-                    Diagram: ConsistencySVG,
+                    title: "Calibration",
+                    subtitle: "Reliability check: confidence vs observed stability",
+                    footer: "Goal: reduce noisy outputs and random matches.",
+                    Diagram: CalibrationSVG,
                     delay: 0.07,
                   },
                   {
-                    title: "Neighborhoods",
-                    subtitle: "We match you inside a cluster that fits your style",
-                    footer: "Goal: better fit zones, not endless scrolling.",
-                    Diagram: NeighborhoodSVG,
+                    title: "Neighborhood matching",
+                    subtitle: "Graph topology: clusters represent human-fit zones",
+                    footer: "Goal: clusters over ranks; stability over hype.",
+                    Diagram: GraphSVG,
                     delay: 0.14,
                   },
                 ].map(({ title, subtitle, footer, Diagram, delay }) => (
@@ -829,7 +750,7 @@ export default function LandingPage() {
                     viewport={{ once: true, amount: 0.25 }}
                     transition={{ duration: 0.45, delay }}
                   >
-                    <DiagramCard title={title} subtitle={subtitle} footer={footer} badge="Simple view">
+                    <DiagramCard title={title} subtitle={subtitle} footer={footer}>
                       <Diagram />
                     </DiagramCard>
                   </motion.div>
@@ -849,8 +770,8 @@ export default function LandingPage() {
                   <div>
                     <div className="font-semibold text-slate-900 dark:text-slate-50">Trust posture</div>
                     <div className="mt-1 leading-relaxed">
-                      Gated access helps cut spam. We keep outputs compact, focus on stable signals,
-                      and avoid “hooky” mechanics — so it feels calmer and more human.
+                      Gated access reduces spam. We prefer compact outputs, stability checks,
+                      and neighborhood logic so the system stays hard to game — and your matches stay real.
                     </div>
                   </div>
                 </div>
@@ -877,40 +798,39 @@ export default function LandingPage() {
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 dark:bg-violet-950/40 px-3 py-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
                     <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-500 dark:text-violet-300">
-                      The conversation
+                      The assessment layer
                     </span>
                   </div>
 
                   <h2 className="mt-3 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl">
-                    A guided chat that feels{" "}
+                    A calm conversation designed for{" "}
                     <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                      calm
+                      real connection.
                     </span>
-                    , not like an interview.
                   </h2>
 
                   <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                    It’s not therapy, and it’s not a test. It’s a thoughtful set of prompts that helps the system understand what you
-                    actually want — without putting your whole life on display.
+                    Not therapy. Not vibes. Structured prompting that tests the same idea multiple ways —
+                    so only what's genuinely stable about you gets passed forward.
                   </p>
 
-                  {/* Feature list — warmer */}
+                  {/* Feature list — redesigned as callouts */}
                   <div className="mt-8 space-y-3">
                     {[
                       {
-                        icon: "🫶",
-                        label: "Private by default",
-                        desc: "We don’t publish your story. We keep what matters, safely.",
+                        icon: "🔒",
+                        label: "Compact representation",
+                        desc: "Not a public transcript — your words stay private.",
                       },
                       {
-                        icon: "🧭",
-                        label: "Steady signals",
-                        desc: "We look for patterns that hold up — not one perfect answer.",
+                        icon: "🎯",
+                        label: "Consistency scoring",
+                        desc: "We check the same trait across different prompts.",
                       },
                       {
-                        icon: "🌙",
-                        label: "Less pressure",
-                        desc: "The flow is designed to feel slow, clean, and human.",
+                        icon: "🌐",
+                        label: "Neighborhood matching",
+                        desc: "You're placed, not ranked.",
                       },
                     ].map(({ icon, label, desc }) => (
                       <div
@@ -919,8 +839,12 @@ export default function LandingPage() {
                       >
                         <span className="text-lg leading-none mt-0.5">{icon}</span>
                         <div>
-                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">{label}</div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{desc}</div>
+                          <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                            {label}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                            {desc}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -951,7 +875,7 @@ export default function LandingPage() {
                             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           </span>
-                          Calm onboarding · active
+                          Assessment chat · active
                         </div>
                       </div>
                     </div>
@@ -965,7 +889,7 @@ export default function LandingPage() {
                         transition={{ duration: 0.4, delay: 0.3 }}
                         className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 leading-relaxed"
                       >
-                        When you feel misunderstood, what usually helps you most: explaining gently, taking space, or talking it out right away?
+                        If you feel misunderstood, what do you do first: clarify calmly, shut down, or push harder?
                       </motion.div>
 
                       <motion.div
@@ -975,7 +899,7 @@ export default function LandingPage() {
                         transition={{ duration: 0.4, delay: 0.5 }}
                         className="ml-auto w-fit rounded-2xl bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-3 text-white shadow-md shadow-violet-300/30 dark:shadow-violet-900/30 leading-relaxed"
                       >
-                        I explain once. If it keeps happening, I take a breath and reset.
+                        I clarify once. If it keeps happening, I go quiet and reset.
                       </motion.div>
 
                       <motion.div
@@ -985,7 +909,8 @@ export default function LandingPage() {
                         transition={{ duration: 0.4, delay: 0.7 }}
                         className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 leading-relaxed"
                       >
-                        Got it. That tells us you value calm repair — not constant intensity.
+                        That response stays consistent across prompts. We treat it as a stable signal
+                        and reduce matches that demand constant intensity.
                       </motion.div>
 
                       <motion.div
@@ -998,7 +923,7 @@ export default function LandingPage() {
                         <div className="flex items-center gap-2">
                           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
                           <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                            Output: a small “compatibility signature” (private)
+                            Output: compact representation + stability score
                           </span>
                         </div>
                       </motion.div>
