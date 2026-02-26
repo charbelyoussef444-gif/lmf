@@ -3,12 +3,14 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ================= BASE ================= */
+
 @layer base {
   :root {
     color-scheme: light;
 
-    /* Defaults (ThemeProvider overrides these at runtime) */
-    --app-bg: #f9fafb;
+    /* ThemeProvider overrides these */
+    --app-bg: #f4f4ff;
     --app-text: #111827;
 
     --blob-opacity: 0.8;
@@ -32,13 +34,12 @@
     height: 100%;
   }
 
-  /* ✅ Paint base background on HTML (NOT body) */
+  /* background lives on html so blobs are never hidden */
   html {
     background: var(--app-bg);
     color: var(--app-text);
   }
 
-  /* ✅ Keep body transparent so it can’t hide the blobs */
   body {
     background: transparent;
     color: var(--app-text);
@@ -46,7 +47,6 @@
     overflow-x: hidden;
   }
 
-  /* App content always above background layers */
   #root {
     position: relative;
     z-index: 1;
@@ -56,17 +56,15 @@
     @apply text-gray-700 no-underline hover:text-rose-600;
   }
 
-  a:visited {
-    @apply text-gray-700;
-  }
-
   html.dark a,
   html.dark a:visited {
     @apply text-gray-200;
   }
 }
 
-/* ✅ Aurora blobs on html (never hidden by body background) */
+/* ================= AURORA BLOBS ================= */
+
+/* main glow */
 html::before {
   content: "";
   position: fixed;
@@ -75,12 +73,13 @@ html::before {
   pointer-events: none;
 
   background:
-    radial-gradient(900px 650px at 12% 16%, var(--blob-2), transparent 62%),
-    radial-gradient(980px 740px at 86% 10%, var(--blob-1), transparent 63%),
-    radial-gradient(980px 760px at 76% 86%, var(--blob-3), transparent 62%),
-    radial-gradient(900px 700px at 16% 90%, var(--blob-4), transparent 64%);
+    radial-gradient(900px 650px at 12% 16%, var(--blob-2), transparent 52%),
+    radial-gradient(980px 740px at 86% 10%, var(--blob-1), transparent 52%),
+    radial-gradient(980px 760px at 76% 86%, var(--blob-3), transparent 52%),
+    radial-gradient(900px 700px at 16% 90%, var(--blob-4), transparent 52%);
 
-  filter: blur(var(--blob-blur)) saturate(1.25);
+  /* tighter glow + richer bloom */
+  filter: blur(var(--blob-blur)) saturate(1.35) brightness(1.15);
   opacity: var(--blob-opacity);
 
   transform: translateZ(0);
@@ -88,7 +87,7 @@ html::before {
   animation: blobsFloat 18s ease-in-out infinite;
 }
 
-/* ✅ Grain layer */
+/* premium grain depth */
 html::after {
   content: "";
   position: fixed;
@@ -97,24 +96,23 @@ html::after {
   pointer-events: none;
 
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.08) 0.6px, transparent 0.7px),
-    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.06) 0.6px, transparent 0.7px),
-    radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.05) 0.6px, transparent 0.7px);
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0.6px, transparent 0.7px),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.06) 0.6px, transparent 0.7px),
+    radial-gradient(circle at 40% 80%, rgba(255,255,255,0.05) 0.6px, transparent 0.7px);
 
   background-size: 140px 140px, 180px 180px, 220px 220px;
   background-position: 0 0, 40px 70px, 90px 20px;
 
   opacity: var(--grain-opacity);
   mix-blend-mode: overlay;
-
-  transform: translateZ(0);
 }
 
+/* subtle floating motion */
 @keyframes blobsFloat {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
-  25%  { transform: translate3d(2.5vw, -1.5vh, 0) scale(1.03); }
+  25%  { transform: translate3d(2vw, -1vh, 0) scale(1.03); }
   50%  { transform: translate3d(-2vw, 2vh, 0) scale(1.02); }
-  75%  { transform: translate3d(1vw, 2.5vh, 0) scale(1.04); }
+  75%  { transform: translate3d(1vw, 2vh, 0) scale(1.04); }
   100% { transform: translate3d(0, 0, 0) scale(1); }
 }
 
@@ -123,6 +121,8 @@ html::after {
     animation: none;
   }
 }
+
+/* ================= ACCESSIBILITY ================= */
 
 @media (forced-colors: active) {
   :where(html, body, #root, main, nav, header, footer, section, div, button, a) {
