@@ -375,7 +375,7 @@ export default function LoginPage() {
         redirectTo,
       });
       if (error) throw error;
-      setNotice("Password reset link sent. Check your email.");
+      setNotice("If an account exists for this email, you’ll receive a reset link shortly.");
     } catch (e: any) {
       setError(e?.message || "Could not send reset link.");
     } finally {
