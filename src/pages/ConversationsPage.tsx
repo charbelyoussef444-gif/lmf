@@ -789,7 +789,7 @@ export default function ConversationsPage() {
             // Replace temp message if it was ours
             if (role === "me") {
               const idx = [...t].reverse().findIndex(
-                (m) => m.role === "me" && (m as any).id.startsWith("temp-")
+                (m) => m.role === "me" && String((m as any).id).startsWith("temp-")
               );
 
               if (idx !== -1) {
@@ -1231,14 +1231,7 @@ export default function ConversationsPage() {
     }
 
     return null;
-  }, [
-    activeId,
-    active,
-    thread,
-    matchedAtMsByCid,
-    loadMatchedAtForCid,
-    saveMatchedAtForCid,
-  ]);
+  }, [activeId, active, thread, matchedAtMsByCid, loadMatchedAtForCid, saveMatchedAtForCid]);
 
   const photoUnlockAtMs = useMemo(() => {
     if (!activeMatchedAtMs) return null;
@@ -1256,6 +1249,23 @@ export default function ConversationsPage() {
   }, [photoRemainingMs]);
 
   const photosShouldBeUnlockedByTime = photoRemainingMs != null && photoRemainingMs === 0;
+
+  // ✅ FIX: when the timer hits 0, auto-show the Yes/No prompt (unless already answered)
+  useEffect(() => {
+    if (!activeId) return;
+
+    // already answered => never show prompt
+    const pin = pinnedFeedback[activeId];
+    if (pin === "yes" || pin === "no") return;
+
+    // only once time passed
+    if (!photosShouldBeUnlockedByTime) return;
+
+    // don't spam updates
+    if (showFeedbackPrompt) return;
+
+    setShowFeedbackPrompt(true);
+  }, [activeId, pinnedFeedback, photosShouldBeUnlockedByTime, showFeedbackPrompt]);
 
   // -----------------------------------------------
 
@@ -1546,7 +1556,8 @@ export default function ConversationsPage() {
                               <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
                               {atChatLimit ? (
                                 <span>
-                                  Limit reached: {MAX_ACTIVE_CHATS} active chats. End one to match again.
+                                  Limit reached: {MAX_ACTIVE_CHATS} active chats. End one to match
+                                  again.
                                 </span>
                               ) : canMatch ? (
                                 <span>You can request a new match now.</span>
