@@ -8,14 +8,42 @@
 
 /* Global light theme + base typography */
 @layer base {
-  :root { color-scheme: light; }
+  :root {
+    color-scheme: light;
 
-  html, body, #root {
+    /* Defaults (ThemeProvider overrides these at runtime) */
+    --app-bg: #f9fafb;
+    --app-text: #111827;
+
+    --blob-opacity: 0.55;
+    --blob-blur: 70px;
+
+    --blob-1: rgba(168, 85, 247, 0.55); /* purple */
+    --blob-2: rgba(236, 72, 153, 0.45); /* pink */
+    --blob-3: rgba(99, 102, 241, 0.35); /* indigo */
+    --blob-4: rgba(244, 63, 94, 0.28);  /* rose */
+
+    --grain-opacity: 0.06;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
     height: 100%;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    /* IMPORTANT: use vars so ThemeProvider can control light/dark bg */
+    background: var(--app-bg);
+    color: var(--app-text);
+
+    @apply antialiased;
+    overflow-x: hidden;
+    position: relative;
   }
 
   /* Neutral link styling (override browser blue/purple) */
@@ -25,6 +53,70 @@
 
   a:visited {
     @apply text-gray-700;
+  }
+
+  /* Optional: make links readable in dark */
+  html.dark a,
+  html.dark a:visited {
+    @apply text-gray-200;
+  }
+}
+
+/* ✅ Aurora blobs (global background) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20vh -20vw; /* prevents blur clipping */
+  z-index: -2;
+  pointer-events: none;
+
+  background:
+    radial-gradient(900px 650px at 12% 16%, var(--blob-2), transparent 62%),
+    radial-gradient(980px 740px at 86% 10%, var(--blob-1), transparent 63%),
+    radial-gradient(980px 760px at 76% 86%, var(--blob-3), transparent 62%),
+    radial-gradient(900px 700px at 16% 90%, var(--blob-4), transparent 64%);
+
+  filter: blur(var(--blob-blur)) saturate(1.18);
+  opacity: var(--blob-opacity);
+
+  transform: translateZ(0);
+  will-change: transform;
+  animation: blobsFloat 18s ease-in-out infinite;
+}
+
+/* ✅ Premium subtle grain */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0.6px, transparent 0.7px),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.06) 0.6px, transparent 0.7px),
+    radial-gradient(circle at 40% 80%, rgba(255,255,255,0.05) 0.6px, transparent 0.7px);
+
+  background-size: 140px 140px, 180px 180px, 220px 220px;
+  background-position: 0 0, 40px 70px, 90px 20px;
+
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  transform: translateZ(0);
+}
+
+@keyframes blobsFloat {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  25%  { transform: translate3d(2.5vw, -1.5vh, 0) scale(1.03); }
+  50%  { transform: translate3d(-2vw, 2vh, 0) scale(1.02); }
+  75%  { transform: translate3d(1vw, 2.5vh, 0) scale(1.04); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* accessibility */
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
   }
 }
 
