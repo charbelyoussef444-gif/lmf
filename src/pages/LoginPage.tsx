@@ -1,17 +1,7 @@
 // lmf/src/pages/LoginPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  ShieldCheck,
-  Mail,
-  Lock,
-  User2,
-  LogIn,
-  UserPlus,
-  X,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { ShieldCheck, Mail, Lock, User2, LogIn, UserPlus, X, Eye, EyeOff } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../auth/AuthProvider";
@@ -268,12 +258,8 @@ export default function LoginPage() {
   const [prefMin, setPrefMin] = useState("");
   const [prefMax, setPrefMax] = useState("");
 
-  const [prefGender, setPrefGender] = useState<
-    "women" | "men" | "everyone" | null
-  >(null);
-  const [selfGender, setSelfGender] = useState<
-    "woman" | "man" | "nonbinary" | null
-  >(null);
+  const [prefGender, setPrefGender] = useState<"women" | "men" | "everyone" | null>(null);
+  const [selfGender, setSelfGender] = useState<"woman" | "man" | "nonbinary" | null>(null);
 
   function clearMsgs() {
     setNotice(null);
@@ -342,24 +328,6 @@ export default function LoginPage() {
     writeDraft({ age, cityId, prefMin, prefMax, prefGender, selfGender });
   }, [phase, age, cityId, prefMin, prefMax, prefGender, selfGender]);
 
-  async function signInWithGoogle() {
-    clearMsgs();
-    setBusy(true);
-    try {
-      sessionStorage.setItem("post_login_redirect", from);
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) throw error;
-    } catch (e: any) {
-      setError(e?.message || "Google sign-in failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function onSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     clearMsgs();
@@ -387,7 +355,8 @@ export default function LoginPage() {
     }
     setBusy(true);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      // IMPORTANT: this should be your reset-password route (see section 3)
+      const redirectTo = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(emailIn, {
         redirectTo,
       });
@@ -426,6 +395,8 @@ export default function LoginPage() {
         properties: { method: "email" },
       });
 
+      // Keep your existing callback if you use it for email confirmation.
+      // For password reset, we use /reset-password above.
       const redirectTo = `${window.location.origin}/auth/callback`;
       const { data, error } = await supabase.auth.signUp({
         email: emailUp,
@@ -455,9 +426,7 @@ export default function LoginPage() {
     }
   }
 
-  async function onCompleteOnboarding(
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> {
+  async function onCompleteOnboarding(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     clearMsgs();
 
@@ -524,11 +493,7 @@ export default function LoginPage() {
           <AppHeader />
 
           <main className="flex flex-1 items-center justify-center py-10">
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full max-w-md"
-            >
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
               <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-300">
                   <ShieldCheck className="h-5 w-5" />
@@ -537,15 +502,11 @@ export default function LoginPage() {
 
                 <div className="mt-4 space-y-1 text-sm text-slate-600 dark:text-slate-300">
                   <div>
-                    <span className="font-medium text-slate-800 dark:text-slate-100">
-                      Name:
-                    </span>{" "}
+                    <span className="font-medium text-slate-800 dark:text-slate-100">Name:</span>{" "}
                     {user.name || "—"}
                   </div>
                   <div>
-                    <span className="font-medium text-slate-800 dark:text-slate-100">
-                      Email:
-                    </span>{" "}
+                    <span className="font-medium text-slate-800 dark:text-slate-100">Email:</span>{" "}
                     {user.email || "—"}
                   </div>
                 </div>
@@ -601,8 +562,7 @@ export default function LoginPage() {
                     Welcome back to LikeMinded
                   </h1>
                   <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    Use your email or Google. We’ll only use this to manage your
-                    account and matches.
+                    Use your email to sign in. We’ll only use this to manage your account and matches.
                   </p>
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500">
@@ -654,10 +614,7 @@ export default function LoginPage() {
                       exit={{ x: -24, opacity: 0 }}
                       transition={{ duration: 0.22 }}
                     >
-                      <form
-                        onSubmit={onSignIn}
-                        className="space-y-3 pt-4 text-sm"
-                      >
+                      <form onSubmit={onSignIn} className="space-y-3 pt-4 text-sm">
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
                           Email address
                         </label>
@@ -690,16 +647,10 @@ export default function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setShowPasswordIn((v) => !v)}
-                            aria-label={
-                              showPasswordIn ? "Hide password" : "Show password"
-                            }
+                            aria-label={showPasswordIn ? "Hide password" : "Show password"}
                             className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                           >
-                            {showPasswordIn ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
+                            {showPasswordIn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
 
@@ -739,10 +690,7 @@ export default function LoginPage() {
                       exit={{ x: 24, opacity: 0 }}
                       transition={{ duration: 0.22 }}
                     >
-                      <form
-                        onSubmit={onSignUp}
-                        className="space-y-3 pt-4 text-sm"
-                      >
+                      <form onSubmit={onSignUp} className="space-y-3 pt-4 text-sm">
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
                           Full name
                         </label>
@@ -789,16 +737,10 @@ export default function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setShowPasswordUp((v) => !v)}
-                            aria-label={
-                              showPasswordUp ? "Hide password" : "Show password"
-                            }
+                            aria-label={showPasswordUp ? "Hide password" : "Show password"}
                             className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                           >
-                            {showPasswordUp ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
+                            {showPasswordUp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
 
@@ -819,16 +761,10 @@ export default function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setShowConfirmUp((v) => !v)}
-                            aria-label={
-                              showConfirmUp ? "Hide password" : "Show password"
-                            }
+                            aria-label={showConfirmUp ? "Hide password" : "Show password"}
                             className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                           >
-                            {showConfirmUp ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
+                            {showConfirmUp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
 
@@ -845,28 +781,6 @@ export default function LoginPage() {
                   )}
                 </AnimatePresence>
               </div>
-
-              <div className="my-5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
-                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                  or
-                </div>
-                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-700" />
-              </div>
-
-              <button
-                onClick={signInWithGoogle}
-                disabled={busy}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
-                title="Sign in with Google"
-              >
-                <img
-                  src="https://www.svgrepo.com/show/475656/google-color.svg"
-                  alt=""
-                  className="h-4 w-4 rounded-[2px] bg-white"
-                />
-                Continue with Google
-              </button>
 
               {notice && (
                 <div className="mt-4 text-xs text-emerald-600 dark:text-emerald-300">
@@ -925,18 +839,12 @@ export default function LoginPage() {
                   Set up your profile
                 </h2>
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  This helps us match you with people who actually fit your pace
-                  and preferences.
+                  This helps us match you with people who actually fit your pace and preferences.
                 </p>
               </div>
-
-              
             </div>
 
-            <form
-              onSubmit={onCompleteOnboarding}
-              className="mt-4 space-y-3 text-sm"
-            >
+            <form onSubmit={onCompleteOnboarding} className="mt-4 space-y-3 text-sm">
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
                   Your age
