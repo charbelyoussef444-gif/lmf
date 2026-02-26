@@ -4,16 +4,12 @@ import type { ReactNode } from "react";
 
 export type Theme = "light" | "dark";
 
+/**
+ * Dark mode is muted for now:
+ * - We always render "light"
+ * - We still keep the cookie so you can re-enable later without migrations
+ */
 function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-
-  const match = document.cookie.match(/(?:^|;\s*)theme=(dark|light)/);
-  if (match) return match[1] as Theme;
-
-  if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    return "dark";
-  }
-
   return "light";
 }
 
@@ -33,21 +29,35 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const root = document.documentElement;
 
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+    // ✅ Hard force light mode (mute dark)
+    root.classList.remove("dark");
 
+    // Keep cookie consistent (always light for now)
     const maxAge = 60 * 60 * 24 * 365;
-    document.cookie = `theme=${theme}; path=/; max-age=${maxAge}`;
-  }, [theme]);
+    document.cookie = `theme=light; path=/; max-age=${maxAge}`;
 
-  const toggleTheme = () =>
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
+    // Also keep state consistent
+    if (theme !== "light") setThemeState("light");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setTheme = (_t: Theme) => {
+    // muted — always light
+    setThemeState("light");
+    if (typeof window !== "undefined") {
+      document.documentElement.classList.remove("dark");
+      const maxAge = 60 * 60 * 24 * 365;
+      document.cookie = `theme=light; path=/; max-age=${maxAge}`;
+    }
+  };
+
+  const toggleTheme = () => {
+    // muted — no-op (stays light)
+    setTheme("light");
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme: setThemeState }}>
+    <ThemeContext.Provider value={{ theme: "light", toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
