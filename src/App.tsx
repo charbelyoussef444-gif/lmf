@@ -7,6 +7,7 @@ import ConversationsPage from "./pages/ConversationsPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
 import AuthCallback from "./pages/AuthCallback";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminPage from "./pages/Admin";
 import AdminUserJourneyPage from "./pages/AdminUserJourneyPage";
 
@@ -34,6 +35,7 @@ function AuthedAppShell() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* PROTECTED ROUTES */}
         <Route element={<ProtectedRoute />}>
