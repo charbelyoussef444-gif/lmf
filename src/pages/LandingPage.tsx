@@ -34,7 +34,7 @@ function DiagramCard({
   footer?: string;
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/75 dark:shadow-black/40">
+    <div className="rounded-3xl border border-slate-200 bg-white/75 p-5 shadow-lg shadow-slate-200/60 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/55 dark:shadow-black/40">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -339,7 +339,6 @@ function GraphSVG() {
 }
 
 export default function LandingPage() {
-  // ✅ real count
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
   const [countError, setCountError] = useState(false);
 
@@ -374,16 +373,11 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
-      {/* glow */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 left-0 right-0 mx-auto h-96 w-96 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
-      </div>
-
+    // ✅ IMPORTANT: remove opaque gradient so the global blobs can show
+    <div className="min-h-screen text-slate-900 dark:text-slate-50 transition-colors duration-300">
       <div className="mx-auto min-h-screen max-w-6xl px-6 sm:px-10 lg:px-20">
-        {/* ✅ STICKY APP HEADER (replaces hardcoded header) */}
-        <div className="sticky top-0 z-50 -mx-6 sm:-mx-10 lg:-mx-20 px-6 sm:px-10 lg:px-20 backdrop-blur-md bg-white/70 dark:bg-slate-950/60 border-b border-slate-200/60 dark:border-slate-800/60">
+        {/* Sticky header stays glass */}
+        <div className="sticky top-0 z-50 -mx-6 sm:-mx-10 lg:-mx-20 px-6 sm:px-10 lg:px-20 backdrop-blur-xl bg-white/65 dark:bg-slate-950/45 border-b border-slate-200/50 dark:border-slate-800/50">
           <AppHeader />
         </div>
 
@@ -396,12 +390,11 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
               >
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/50">
                   <span className="font-semibold text-slate-900 dark:text-slate-50">
                     {displayCount.toLocaleString()}
                   </span>
-                  potential matches 
-
+                  potential matches
                   {countError ? (
                     <span className="ml-2 text-[10px] text-rose-600 dark:text-rose-300">
                       unavailable
@@ -419,7 +412,7 @@ export default function LandingPage() {
                       key={i}
                       src={src}
                       alt=""
-                      className="h-9 w-9 rounded-full border border-white bg-white shadow-sm dark:border-slate-950"
+                      className="h-9 w-9 rounded-full border border-white/70 bg-white/70 shadow-sm dark:border-slate-950/60"
                     />
                   ))}
                 </div>
@@ -450,9 +443,12 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* ✅ Scroll cue: arrow only (no border) */}
                 <div className="mt-14 flex justify-center">
-                  <a href="#matching" aria-label="Scroll to next section" className="inline-flex items-center justify-center">
+                  <a
+                    href="#matching"
+                    aria-label="Scroll to next section"
+                    className="inline-flex items-center justify-center"
+                  >
                     <motion.div
                       initial={{ y: 0, opacity: 0.9 }}
                       animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
@@ -532,7 +528,7 @@ export default function LandingPage() {
                 </motion.div>
               </div>
 
-              <div className="mt-8 rounded-3xl border border-slate-200 bg-white/70 p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/55 dark:text-slate-300">
+              <div className="mt-8 rounded-3xl border border-slate-200 bg-white/65 p-6 text-sm text-slate-600 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-300">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-500 dark:text-emerald-300" />
                   <div>
@@ -549,7 +545,6 @@ export default function LandingPage() {
             </div>
           </SectionShell>
 
-          {/* Scroll cue: matching → chat */}
           <div className="mt-[-50px] flex justify-center">
             <a href="#chat" aria-label="Scroll to next section">
               <motion.div
@@ -584,7 +579,7 @@ export default function LandingPage() {
                     under different wording.
                   </p>
 
-                  <div className="mt-8 rounded-3xl border border-slate-200 bg-white/70 p-6 text-base dark:border-slate-700 dark:bg-slate-900/60">
+                  <div className="mt-8 rounded-3xl border border-slate-200 bg-white/65 p-6 text-base backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45">
                     <div className="font-semibold text-slate-900 dark:text-slate-50">
                       Output philosophy
                     </div>
@@ -601,7 +596,7 @@ export default function LandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.45 }}
-                  className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl dark:border-slate-700 dark:bg-slate-900/80"
+                  className="rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/55"
                 >
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4 text-sm dark:border-slate-700">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 text-white font-semibold">
@@ -614,7 +609,7 @@ export default function LandingPage() {
                   </div>
 
                   <div className="mt-6 space-y-4 text-sm">
-                    <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
+                    <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
                       If you feel misunderstood, what do you do first: clarify calmly, shut down, or push harder?
                     </div>
 
@@ -622,11 +617,11 @@ export default function LandingPage() {
                       I clarify once. If it keeps happening, I go quiet and reset.
                     </div>
 
-                    <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
+                    <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
                       That response stays consistent across prompts. We treat it as a stable signal and reduce matches that demand constant intensity.
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-300">
+                    <div className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
                       Output: compact representation + stability score (preview)
                     </div>
                   </div>
@@ -635,7 +630,6 @@ export default function LandingPage() {
             </div>
           </SectionShell>
 
-          {/* ✅ APP FOOTER (replaces hardcoded footer) */}
           <AppFooter />
         </main>
       </div>
