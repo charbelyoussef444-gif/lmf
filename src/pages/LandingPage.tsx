@@ -1,7 +1,7 @@
 // LandingPage.tsx
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { ShieldCheck, ChevronDown, Sparkles, Heart } from "lucide-react";
 import { api } from "../lib/api"; // ✅ adjust if your api.ts path differs
 
