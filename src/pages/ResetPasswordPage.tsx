@@ -1,14 +1,20 @@
 // src/pages/ResetPasswordPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Eye, EyeOff, CheckCircle2, AlertTriangle, LogIn } from "lucide-react";
+import {
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertTriangle,
+  LogIn,
+} from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
 
 function getHashParam(key: string): string | null {
-  // Supabase recovery links often come with tokens in the URL hash (#...)
   const raw = window.location.hash.startsWith("#")
     ? window.location.hash.slice(1)
     : window.location.hash;
@@ -45,21 +51,15 @@ export default function ResetPasswordPage() {
       setError(null);
       setNotice(null);
 
-      // Detect recovery intent from URL hash
       const type = getHashParam("type");
-      const hasToken = !!getHashParam("access_token") || !!getHashParam("refresh_token");
+      const hasToken =
+        !!getHashParam("access_token") || !!getHashParam("refresh_token");
 
-      // Even if tokens are present, supabase-js v2 will usually auto-detect and set session.
-      // But on some setups it may require a short moment; we also listen to auth changes.
       const { data } = await supabase.auth.getSession();
       const sessionExists = !!data.session;
 
       if (!alive) return;
 
-      // We consider "recovery mode" if:
-      // - type=recovery is present OR
-      // - tokens are present OR
-      // - session exists (Supabase set it from URL)
       const recovery = type === "recovery" || hasToken || sessionExists;
 
       setHasRecovery(recovery);
@@ -69,11 +69,8 @@ export default function ResetPasswordPage() {
     init();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      // If user landed here from reset email, session may appear after parsing URL
       if (!alive) return;
-      if (session) {
-        setHasRecovery(true);
-      }
+      if (session) setHasRecovery(true);
     });
 
     return () => {
@@ -82,7 +79,7 @@ export default function ResetPasswordPage() {
     };
   }, []);
 
-  async function onSetPassword(e: React.FormEvent<HTMLFormElement>) {
+  async function onSetPassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setNotice(null);
@@ -105,11 +102,9 @@ export default function ResetPasswordPage() {
       setPassword("");
       setConfirm("");
 
-      // Optional but recommended: sign out so next login is clean
       await supabase.auth.signOut();
 
-      // Small delay so user sees success message
-      setTimeout(() => navigate("/login", { replace: true }), 650);
+      window.setTimeout(() => navigate("/login", { replace: true }), 650);
     } catch (e: any) {
       setError(e?.message || "Could not update password.");
     } finally {
@@ -189,7 +184,11 @@ export default function ResetPasswordPage() {
                     className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     aria-label={showPass ? "Hide password" : "Show password"}
                   >
-                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPass ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
 
@@ -213,7 +212,11 @@ export default function ResetPasswordPage() {
                     className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     aria-label={showConfirm ? "Hide password" : "Show password"}
                   >
-                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showConfirm ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
 
