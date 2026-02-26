@@ -1,12 +1,8 @@
 /* src/index.css */
 
-/* 1. Import Tailwind */
 @import "tailwindcss";
-
-/* 2. Tell Tailwind what "dark" means in v4: use the .dark class */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Global light theme + base typography */
 @layer base {
   :root {
     color-scheme: light;
@@ -15,13 +11,13 @@
     --app-bg: #f9fafb;
     --app-text: #111827;
 
-    --blob-opacity: 0.55;
-    --blob-blur: 70px;
+    --blob-opacity: 0.8;
+    --blob-blur: 85px;
 
-    --blob-1: rgba(168, 85, 247, 0.55); /* purple */
-    --blob-2: rgba(236, 72, 153, 0.45); /* pink */
-    --blob-3: rgba(99, 102, 241, 0.35); /* indigo */
-    --blob-4: rgba(244, 63, 94, 0.28);  /* rose */
+    --blob-1: rgba(139, 92, 246, 0.75);
+    --blob-2: rgba(236, 72, 153, 0.65);
+    --blob-3: rgba(99, 102, 241, 0.55);
+    --blob-4: rgba(244, 63, 94, 0.45);
 
     --grain-opacity: 0.06;
   }
@@ -36,17 +32,26 @@
     height: 100%;
   }
 
-  body {
-    /* IMPORTANT: use vars so ThemeProvider can control light/dark bg */
+  /* ✅ Paint base background on HTML (NOT body) */
+  html {
     background: var(--app-bg);
     color: var(--app-text);
-
-    @apply antialiased;
-    overflow-x: hidden;
-    position: relative;
   }
 
-  /* Neutral link styling (override browser blue/purple) */
+  /* ✅ Keep body transparent so it can’t hide the blobs */
+  body {
+    background: transparent;
+    color: var(--app-text);
+    @apply antialiased;
+    overflow-x: hidden;
+  }
+
+  /* App content always above background layers */
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
   a {
     @apply text-gray-700 no-underline hover:text-rose-600;
   }
@@ -55,19 +60,18 @@
     @apply text-gray-700;
   }
 
-  /* Optional: make links readable in dark */
   html.dark a,
   html.dark a:visited {
     @apply text-gray-200;
   }
 }
 
-/* ✅ Aurora blobs (global background) */
-body::before {
+/* ✅ Aurora blobs on html (never hidden by body background) */
+html::before {
   content: "";
   position: fixed;
-  inset: -20vh -20vw; /* prevents blur clipping */
-  z-index: -2;
+  inset: -20vh -20vw;
+  z-index: 0;
   pointer-events: none;
 
   background:
@@ -76,7 +80,7 @@ body::before {
     radial-gradient(980px 760px at 76% 86%, var(--blob-3), transparent 62%),
     radial-gradient(900px 700px at 16% 90%, var(--blob-4), transparent 64%);
 
-  filter: blur(var(--blob-blur)) saturate(1.18);
+  filter: blur(var(--blob-blur)) saturate(1.25);
   opacity: var(--blob-opacity);
 
   transform: translateZ(0);
@@ -84,24 +88,25 @@ body::before {
   animation: blobsFloat 18s ease-in-out infinite;
 }
 
-/* ✅ Premium subtle grain */
-body::after {
+/* ✅ Grain layer */
+html::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
 
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0.6px, transparent 0.7px),
-    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.06) 0.6px, transparent 0.7px),
-    radial-gradient(circle at 40% 80%, rgba(255,255,255,0.05) 0.6px, transparent 0.7px);
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.08) 0.6px, transparent 0.7px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.06) 0.6px, transparent 0.7px),
+    radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.05) 0.6px, transparent 0.7px);
 
   background-size: 140px 140px, 180px 180px, 220px 220px;
   background-position: 0 0, 40px 70px, 90px 20px;
 
   opacity: var(--grain-opacity);
   mix-blend-mode: overlay;
+
   transform: translateZ(0);
 }
 
@@ -113,24 +118,19 @@ body::after {
   100% { transform: translate3d(0, 0, 0) scale(1); }
 }
 
-/* accessibility */
 @media (prefers-reduced-motion: reduce) {
-  body::before {
+  html::before {
     animation: none;
   }
 }
 
-/* Prevent Windows High Contrast or extensions from overriding colors */
 @media (forced-colors: active) {
   :where(html, body, #root, main, nav, header, footer, section, div, button, a) {
     forced-color-adjust: none;
   }
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
-
-  /* 🔥 Global UI scale (safe & responsive) */
   font-size: 125%;
 }
