@@ -426,14 +426,6 @@ function fmtMsgTimeFromSec(tsSec?: number) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// NOTE: kept for potential reuse elsewhere, but no longer used in header UI
-function isActiveNow(lastActiveIso?: string | null, windowMs = 45_000) {
-  if (!lastActiveIso) return false;
-  const t = Date.parse(lastActiveIso);
-  if (Number.isNaN(t)) return false;
-  return Date.now() - t <= windowMs;
-}
-
 function TypingDots() {
   const dot = "h-1.5 w-1.5 rounded-full";
   return (
