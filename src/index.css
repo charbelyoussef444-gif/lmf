@@ -6,16 +6,26 @@
 /* 2. Tell Tailwind what "dark" means in v4: use the .dark class */
 @custom-variant dark (&:where(.dark, .dark *));
 
-
 /* Global light theme + base typography */
 @layer base {
   :root { color-scheme: light; }
-  html, body, #root { height: 100%; }
-  body { @apply bg-gray-50 text-gray-900 antialiased; }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
 
   /* Neutral link styling (override browser blue/purple) */
-  a { @apply text-gray-700 no-underline hover:text-rose-600; }
-  a:visited { @apply text-gray-700; }
+  a {
+    @apply text-gray-700 no-underline hover:text-rose-600;
+  }
+
+  a:visited {
+    @apply text-gray-700;
+  }
 }
 
 /* Prevent Windows High Contrast or extensions from overriding colors */
@@ -25,6 +35,10 @@
   }
 }
 
+/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+
+  /* 🔥 Global UI scale (safe & responsive) */
+  font-size: 125%;
 }
