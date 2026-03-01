@@ -7,7 +7,7 @@ export default function AuthStatus() {
   return (
     <button
       onClick={signOut}
-      className="flex items-center gap-1 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 transition"
+      className="flex items-center gap-1 cursor-pointer text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 transition"
     >
       <LogOut size={14} />
       Sign out
