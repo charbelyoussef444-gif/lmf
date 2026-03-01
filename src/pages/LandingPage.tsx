@@ -2,7 +2,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ShieldCheck, ChevronDown, Star, MessageSquareHeart, Sparkles } from "lucide-react";
+import {
+  ShieldCheck,
+  ChevronDown,
+  Star,
+  MessageSquareHeart,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
 import { api } from "../lib/api"; // ✅ adjust if your api.ts path differs
 
 import AppHeader from "../components/AppHeader";
@@ -369,61 +376,48 @@ export default function LandingPage() {
     };
   }, []);
 
-  const displayCount = waitlistCount ?? 0;
-
-  const avatars = useMemo(
-    () => [
-      "https://api.dicebear.com/7.x/thumbs/svg?seed=lm1",
-      "https://api.dicebear.com/7.x/thumbs/svg?seed=lm2",
-      "https://api.dicebear.com/7.x/thumbs/svg?seed=lm3",
-      "https://api.dicebear.com/7.x/thumbs/svg?seed=lm4",
-      "https://api.dicebear.com/7.x/thumbs/svg?seed=lm5",
-    ],
-    []
-  );
-
   const testimonials = useMemo(
     () => [
       {
         name: "Maya",
         meta: "23 • Beirut",
         text:
-          "It feels… calm. No pressure to “perform”. The questions actually filter people who want the same pace.",
+          "It feels calm. The questions actually filter people who want the same pace.",
         tag: "Less noise",
       },
       {
         name: "Karim",
         meta: "27 • Tripoli",
         text:
-          "The matches make sense. Not perfect, but the randomness is way lower than typical apps.",
+          "The matches make sense. The randomness is way lower than typical apps.",
         tag: "More signal",
       },
       {
         name: "Lina",
         meta: "21 • Byblos",
         text:
-          "I liked the privacy approach. The whole vibe is premium without being cold or corporate.",
+          "The privacy approach is solid. Premium vibe without feeling cold.",
         tag: "Trust-first",
       },
       {
         name: "Hadi",
         meta: "25 • Saida",
         text:
-          "The chat feels structured, not cringe. You can tell it’s trying to understand patterns, not just keywords.",
-        tag: "Actually thoughtful",
+          "The chat is structured, not cringe. It’s pattern-based, not keyword-based.",
+        tag: "Thoughtful",
       },
       {
         name: "Nour",
         meta: "24 • Zahle",
         text:
-          "Best part: it doesn’t push you to swipe for hours. It feels like it respects your time.",
+          "It doesn’t push you to swipe for hours. It respects your time.",
         tag: "Time-respect",
       },
       {
         name: "Jad",
         meta: "29 • Jounieh",
         text:
-          "The UI is clean and alive. I don’t feel like I’m using a spreadsheet with profiles.",
+          "Clean UI but still alive. Doesn’t feel like a spreadsheet with profiles.",
         tag: "Feels human",
       },
     ],
@@ -431,7 +425,6 @@ export default function LandingPage() {
   );
 
   return (
-    // ✅ IMPORTANT: remove opaque gradient so the global blobs can show
     <div className="min-h-screen text-slate-900 dark:text-slate-50 transition-colors duration-300">
       <div className="mx-auto min-h-screen max-w-6xl px-6 sm:px-10 lg:px-20">
         {/* Sticky header stays glass */}
@@ -440,7 +433,7 @@ export default function LandingPage() {
         </div>
 
         <main style={{ scrollSnapType: "y proximity" }}>
-          {/* 1) WAITLIST */}
+          {/* 1) HERO */}
           <SectionShell id="waitlist">
             <div className="mx-auto max-w-3xl text-center">
               <motion.div
@@ -448,123 +441,153 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
               >
-                {/* Livelier floating accents */}
-                <div className="pointer-events-none relative mx-auto mb-4 h-0 w-full">
-                  <motion.div
-                    className="absolute left-1/2 top-0 -translate-x-[180px] -translate-y-6 rounded-2xl border border-slate-200/70 bg-white/60 px-3 py-2 text-[11px] text-slate-700 shadow-sm backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/45 dark:text-slate-200"
-                    animate={{ y: [0, -6, 0], rotate: [0, -1.2, 0] }}
-                    transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                      calmer matches
-                    </span>
-                  </motion.div>
-
-                  <motion.div
-                    className="absolute left-1/2 top-0 -translate-x-[-110px] -translate-y-2 rounded-2xl border border-slate-200/70 bg-white/60 px-3 py-2 text-[11px] text-slate-700 shadow-sm backdrop-blur-xl dark:border-slate-700/60 dark:bg-slate-900/45 dark:text-slate-200"
-                    animate={{ y: [0, 6, 0], rotate: [0, 1.1, 0] }}
-                    transition={{ duration: 3.0, repeat: Infinity, ease: "easeInOut", delay: 0.25 }}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <MessageSquareHeart className="h-3.5 w-3.5 text-rose-500" />
-                      less performative
-                    </span>
-                  </motion.div>
-                </div>
-
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/50">
-                  <span className="font-semibold text-slate-900 dark:text-slate-50">
-                    {/* Keep your real count, but make the message human */}
-                    {displayCount.toLocaleString()}
-                  </span>
-                  people are in the pool
-                  {countError ? (
-                    <span className="ml-2 text-[10px] text-rose-600 dark:text-rose-300">
-                      unavailable
-                    </span>
-                  ) : waitlistCount === null ? (
-                    <span className="ml-2 text-[10px] text-slate-500 dark:text-slate-400">
-                      loading…
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 flex justify-center -space-x-2">
-                  {avatars.map((src, i) => (
-                    <img
-                      key={i}
-                      src={src}
-                      alt=""
-                      className="h-9 w-9 rounded-full border border-white/70 bg-white/70 shadow-sm dark:border-slate-950/60"
-                    />
-                  ))}
-                </div>
-
-                {/* Guarantee pill (replaces “potential matches”) */}
-                <div className="mt-5 flex justify-center">
+                {/* Guarantee pill */}
+                <div className="flex justify-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm backdrop-blur-xl dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-200">
                     <ShieldCheck className="h-4 w-4" />
                     we guarantee at least 1 match a day
+                    {countError ? (
+                      <span className="ml-2 text-[10px] text-rose-700/90 dark:text-rose-200">
+                        (count unavailable)
+                      </span>
+                    ) : waitlistCount === null ? (
+                      <span className="ml-2 text-[10px] text-emerald-700/70 dark:text-emerald-200/70">
+                        (loading…)
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
                 <h1 className="mt-6 text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">
-                  Matching that behaves like a{" "}
+                  No swiping.
+                  <br />
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                    system
-                  </span>
-                  , not a game.
+                    Meeting like-minded people
+                  </span>{" "}
+                  one at a time.
                 </h1>
 
                 <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                  A short, calm assessment → stable representation → neighborhood matches.
-                  Less chaos. More “this actually makes sense”.
+                  You don’t browse humans. You do a quick assessment, set preferences, and we deliver matches with calm pacing.
                 </p>
 
                 <div className="mt-8 flex flex-col items-center gap-3">
                   <Link
                     to="/chatbot"
-                    className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-8 py-3 text-sm font-semibold text-white shadow-md hover:brightness-110"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-8 py-3 text-sm font-semibold text-white shadow-md hover:brightness-110"
                   >
                     Start Now
-                    <motion.span
-                      className="inline-flex"
-                      initial={{ x: 0 }}
-                      whileHover={{ x: 2 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Sparkles className="h-4 w-4 opacity-90" />
-                    </motion.span>
+                    <Sparkles className="h-4 w-4 opacity-90" />
                   </Link>
 
                   <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                     <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                    Gated access • privacy-first • stability-checked
+                    Gated access • privacy-first • one match at a time
                   </div>
                 </div>
 
-                <div className="mt-10 grid gap-3 sm:grid-cols-3">
-                  {[
-                    { k: "No swipe addiction", v: "Neighborhoods > endless ranks" },
-                    { k: "Less weirdness", v: "Spam-resistant + gated access" },
-                    { k: "Better pacing", v: "Designed to feel calm" },
-                  ].map((b, i) => (
+                {/* Steps (square) + arrows */}
+                <div className="mt-10">
+                  <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
+                    {/* Step 1 */}
                     <motion.div
-                      key={i}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.35, delay: 0.08 + i * 0.05 }}
-                      className="rounded-2xl border border-slate-200 bg-white/60 p-4 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                      transition={{ duration: 0.35, delay: 0.05 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                        {b.k}
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Step 1
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Assessment
+                        </span>
                       </div>
-                      <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                        {b.v}
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Short, structured chat
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        We test the same idea in different ways to extract stable signal — not a public transcript.
+                      </div>
+                      <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        No swiping. No profile grinding.
                       </div>
                     </motion.div>
-                  ))}
+
+                    {/* Arrow */}
+                    <div className="hidden md:flex items-center justify-center">
+                      <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
+                        <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.1 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Step 2
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Preferences
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Set what you actually want
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        Pace, boundaries, intentions, and deal-breakers. You’re not “liking faces”, you’re defining fit.
+                      </div>
+                      <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        Filters that feel human.
+                      </div>
+                    </motion.div>
+
+                    {/* Arrow */}
+                    <div className="hidden md:flex items-center justify-center">
+                      <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
+                        <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.15 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Step 3
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Match
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        One match at a time
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        We deliver a match you can focus on — not a feed. Quality > quantity.
+                      </div>
+                      <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        Guaranteed at least 1 match/day.
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Mobile arrows */}
+                  <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
+                    <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
+                    <ArrowRight className="h-4 w-4 text-slate-500 dark:text-slate-300" />
+                    <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
+                  </div>
                 </div>
 
                 <div className="mt-12 flex justify-center">
@@ -595,14 +618,13 @@ export default function LandingPage() {
                   Matching engine
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">
-                  Built like a real system —{" "}
+                  Built like a system — but it{" "}
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                    checked, tuned, stable.
+                    feels human.
                   </span>
                 </h2>
                 <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                  You’re not chasing scores. You land in a neighborhood where alignment is high and volatility stays low.
-                  The vibe is human — the engine is strict.
+                  Stability checks, calibration, and neighborhood matching — so you stop wasting time on random people.
                 </p>
               </div>
 
@@ -645,7 +667,7 @@ export default function LandingPage() {
                 >
                   <DiagramCard
                     title="Neighborhood matching"
-                    subtitle="Graph clusters: human-fit zones, not ranks"
+                    subtitle="Graph clusters: fit-zones, not ranks"
                     footer="Goal: clusters over hype; stability over dopamine."
                   >
                     <GraphSVG />
@@ -689,17 +711,13 @@ export default function LandingPage() {
               <div className="grid gap-10 lg:grid-cols-2 lg:items-end">
                 <div className="max-w-2xl">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500 dark:text-indigo-300">
-                    People, not metrics
+                    People, not a feed
                   </div>
                   <h2 className="mt-3 text-4xl font-semibold leading-[1.08] sm:text-5xl">
-                    What it feels like to use{" "}
-                    <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                      LikeMinded
-                    </span>
-                    .
+                    What it feels like
                   </h2>
                   <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                    Real feedback (short + direct). The goal is simple: calmer matching, less nonsense, better pacing.
+                    Short, direct feedback. The goal: calm pacing, less nonsense, better alignment.
                   </p>
 
                   <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -853,7 +871,7 @@ export default function LandingPage() {
                   <h2 className="mt-3 text-4xl font-semibold leading-[1.08] sm:text-5xl">
                     A calm conversation built for{" "}
                     <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                      signal extraction
+                      stable signal
                     </span>
                     .
                   </h2>
@@ -898,7 +916,6 @@ export default function LandingPage() {
                   transition={{ duration: 0.45 }}
                   className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-xl backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/55"
                 >
-                  {/* Subtle lively glow */}
                   <div className="pointer-events-none absolute inset-0">
                     <div className="absolute -left-24 -top-24 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
                     <div className="absolute -right-20 -bottom-24 h-60 w-60 rounded-full bg-rose-500/10 blur-3xl" />
@@ -949,7 +966,7 @@ export default function LandingPage() {
                           <Sparkles className="h-4 w-4" />
                         </Link>
                         <div className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
-                          You can stop anytime. This is built to feel calm, not intense.
+                          You can stop anytime. Built to feel calm, not intense.
                         </div>
                       </div>
                     </div>
