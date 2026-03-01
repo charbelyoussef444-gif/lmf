@@ -468,7 +468,7 @@ export default function LandingPage() {
                 </h1>
 
                 <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                  You don’t browse humans. You do a quick assessment, set preferences, and we deliver matches with calm pacing.
+                  Where you can find someone that speaks your language. So you don't hate to spend a lifetime translating yourself.
                 </p>
 
                 <div className="mt-8 flex flex-col items-center gap-3">
@@ -505,14 +505,12 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Short, structured chat
+                        Short, structured assessment
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        We test the same idea in different ways to extract stable signal — not a public transcript.
+                       No swiping. No profile grinding.
                       </div>
-                      <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
-                        No swiping. No profile grinding.
-                      </div>
+                     
                     </motion.div>
 
                     {/* Arrow */}
@@ -543,9 +541,7 @@ export default function LandingPage() {
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                         Pace, boundaries, intentions, and deal-breakers. You’re not “liking faces”, you’re defining fit.
                       </div>
-                      <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
-                        Filters that feel human.
-                      </div>
+                     
                     </motion.div>
 
                     {/* Arrow */}
@@ -576,9 +572,7 @@ export default function LandingPage() {
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                         We deliver a match you can focus on  not a feed. Quality over quantity.
                       </div>
-                      <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
-                        Guaranteed at least 1 match/day.
-                      </div>
+                     
                     </motion.div>
                   </div>
 
