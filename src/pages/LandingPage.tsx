@@ -468,7 +468,7 @@ export default function LandingPage() {
                 </h1>
 
                 <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                  Where you can find someone that speaks your language. So you don't hate to spend a lifetime translating yourself.
+                  Where you can find someone that speaks your language. So you don't have to spend a lifetime translating yourself.
                 </p>
 
                 <div className="mt-8 flex flex-col items-center gap-3">
