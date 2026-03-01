@@ -14,6 +14,7 @@ import {
   Filter,
   Plus,
   MoreVertical,
+  ChevronDown,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -41,6 +42,114 @@ const MAX_ACTIVE_CHATS = 3;
 
 const LS_FEEDBACK_PREFIX = "lm_feedback_choice_v1:"; // + cid
 const LS_MATCHEDAT_PREFIX = "lm_matched_at_v1:"; // + cid
+
+/** ---------------- Boot loading overlay (site visit) ---------------- */
+function BootLoadingOverlay({
+  open,
+  subtitle,
+}: {
+  open: boolean;
+  subtitle?: string;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4"
+          role="dialog"
+          aria-modal="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="relative w-full max-w-md overflow-hidden rounded-[30px] border border-white/10 bg-slate-950/70 p-6 shadow-2xl backdrop-blur-xl"
+            initial={{ y: 18, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 14, opacity: 0, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 260, damping: 22 }}
+          >
+            {/* soft drifting glows */}
+            <div className="pointer-events-none absolute inset-0">
+              <motion.div
+                className="absolute -top-24 left-1/2 h-60 w-60 -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.32),_transparent_60%)] blur-3xl"
+                animate={{ scale: [1, 1.08, 1], opacity: [0.85, 1, 0.85] }}
+                transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <motion.div
+                className="absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.26),_transparent_60%)] blur-3xl"
+                animate={{ scale: [1, 1.06, 1], opacity: [0.8, 1, 0.8] }}
+                transition={{ duration: 2.3, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <motion.div
+                className="absolute -bottom-10 -left-10 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(139,92,246,0.22),_transparent_60%)] blur-3xl"
+                animate={{ scale: [1, 1.1, 1], opacity: [0.78, 1, 0.78] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
+
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/5">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Loader2 className="h-5 w-5 text-white/80" />
+                  </motion.div>
+                </div>
+
+                <div className="min-w-0">
+                  <div className="text-base font-semibold text-white">
+                    Loading your workspace…
+                  </div>
+                  <div className="mt-0.5 text-xs text-white/70">
+                    {subtitle || "Syncing profile, matches, and conversations"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <motion.div
+                  className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500"
+                  animate={{ x: ["-40%", "220%"] }}
+                  transition={{ duration: 1.05, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </div>
+
+              <div className="mt-3 grid gap-2">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-10 w-full rounded-2xl border border-white/10 bg-white/5"
+                  >
+                    <motion.div
+                      className="h-full w-1/2 rounded-2xl bg-white/10"
+                      animate={{ x: ["-10%", "120%"] }}
+                      transition={{
+                        duration: 1.35 + i * 0.18,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between text-[11px] text-white/55">
+                <span>Usually quick.</span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold text-white/75">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Live
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 /** ---------------- Match popup (dopamine animation) ---------------- */
 function useElapsedMs(enabled: boolean, startAt: number | null, tick = 80) {
@@ -579,19 +688,37 @@ export default function ConversationsPage() {
     };
   }, []);
 
+  // -------- boot loading (site visit) --------
+  const [bootAuthDone, setBootAuthDone] = useState(false);
+  const [bootConvosDone, setBootConvosDone] = useState(false);
+  const [bootStatusDone, setBootStatusDone] = useState(false);
+
+  const bootLoading = !(bootAuthDone && bootConvosDone && bootStatusDone);
+
   useEffect(() => {
+    let alive = true;
     (async () => {
-      const [{ data: u }, { data: s }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.auth.getSession(),
-      ]);
-      setMeId(u.user?.id ?? null);
-      setToken(s.session?.access_token ?? null);
-    })().catch(() => {
-      setMeId(null);
-      setToken(null);
-    });
+      try {
+        const [{ data: u }, { data: s }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
+        if (!alive) return;
+        setMeId(u.user?.id ?? null);
+        setToken(s.session?.access_token ?? null);
+      } catch {
+        if (!alive) return;
+        setMeId(null);
+        setToken(null);
+      } finally {
+        if (alive) setBootAuthDone(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
+  // -----------------------------------------
 
   const [matchStatus, setMatchStatus] = useState<MatchStatus | null>(null);
   const [matchAllowed, setMatchAllowed] = useState<boolean>(false);
@@ -618,6 +745,13 @@ export default function ConversationsPage() {
 
   // matchedAt (UI-only, persisted fallback) for cooldown
   const [matchedAtMsByCid, setMatchedAtMsByCid] = useState<Record<string, number>>({});
+
+  // fold photos section (per active convo, default collapsed)
+  const [photosExpanded, setPhotosExpanded] = useState(false);
+  useEffect(() => {
+    // each conversation starts collapsed to save space
+    setPhotosExpanded(false);
+  }, [activeId]);
 
   // Load pinned feedback map lazily from LS for active convo on open
   const loadPinnedForCid = useCallback((cid: string) => {
@@ -675,6 +809,8 @@ export default function ConversationsPage() {
         });
       } catch (e) {
         console.error(e);
+      } finally {
+        if (alive) setBootConvosDone(true);
       }
     })();
     return () => {
@@ -708,6 +844,8 @@ export default function ConversationsPage() {
         } as any);
         setMatchAllowed(false);
         setNextEligibleAt(null);
+      } finally {
+        if (alive) setBootStatusDone(true);
       }
     })();
     return () => {
@@ -722,7 +860,7 @@ export default function ConversationsPage() {
   const matchStartedAtRef = useRef<number | null>(null);
 
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState(false);
-  const [feedbackChoice, setFeedbackChoice] = useState<"" | "yes" | "no">("");
+  const [feedbackChoice, setFeedbackChoice] = useState<"" | "yes" | "no">>("");
   const [feedbackSaving, setFeedbackSaving] = useState(false);
 
   const [unlockedPhotos, setUnlockedPhotos] = useState<string[] | null>(null);
@@ -1269,8 +1407,18 @@ export default function ConversationsPage() {
 
   // -----------------------------------------------
 
+  const photosSummary = useMemo(() => {
+    const n = unlockedPhotos?.length ?? 0;
+    if (n > 0) return `Unlocked photos: ${n}`;
+    if (photoCountdown) return photosShouldBeUnlockedByTime ? "Time passed" : `Unlocks in ${photoCountdown}`;
+    return "Photos locked";
+  }, [unlockedPhotos, photoCountdown, photosShouldBeUnlockedByTime]);
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
+      {/* site visit loader */}
+      <BootLoadingOverlay open={bootLoading} />
+
       <MatchFindingModal open={showCuratingModal} startedAt={matchStartedAtRef.current} />
 
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -1721,92 +1869,154 @@ export default function ConversationsPage() {
                     </div>
                   )}
 
+                  {/* ✅ Foldable photos section (saves space) */}
                   {active && (
-                    <>
-                      {unlockedPhotos && unlockedPhotos.length > 0 ? (
-                        <div className={`mx-4 mt-3 flex gap-2 overflow-x-auto pb-1 ${scrollNice}`}>
-                          {unlockedPhotos.map((u) => (
-                            <button
-                              key={u}
-                              type="button"
-                              onClick={() => setPhotoViewerUrl(u)}
-                              className="shrink-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                              title="Open photo"
-                            >
-                              <img
-                                src={u}
-                                className="h-24 w-24 rounded-2xl object-cover"
-                                alt="Unlocked"
-                                loading="lazy"
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mx-4 mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
-                          <div className="flex items-start gap-2">
-                            <div className="mt-0.5 grid h-7 w-7 place-items-center rounded-xl bg-white/70 shadow-sm dark:bg-slate-950/60">
-                              <ShieldCheck className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
+                    <div className="mx-4 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setPhotosExpanded((v) => !v)}
+                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/70 px-3 py-2 text-left text-xs text-slate-700 shadow-sm hover:bg-white dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-900/80"
+                        aria-expanded={photosExpanded}
+                        aria-controls="photos-panel"
+                        title={photosExpanded ? "Collapse" : "Expand"}
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <div className="grid h-7 w-7 place-items-center rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
+                            <ShieldCheck className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-slate-900 dark:text-slate-50">
+                              Photos
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="font-semibold">Photos locked</div>
-
-                                {/* ✅ countdown pill */}
-                                {photoCountdown && (
-                                  <span
-                                    className={
-                                      "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold " +
-                                      (photosShouldBeUnlockedByTime
-                                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
-                                        : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200")
-                                    }
-                                    title="Time remaining"
-                                  >
-                                    {photosShouldBeUnlockedByTime
-                                      ? "Time passed"
-                                      : `Unlocks in ${photoCountdown}`}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                                {PHOTO_UNLOCK_NOTE}
-                              </div>
-
-                              {/* ✅ tiny progress bar (optional, looks good) */}
-                              {activeMatchedAtMs && photoUnlockAtMs && (
-                                <div className="mt-2">
-                                  <div className="h-2 w-full overflow-hidden rounded-full bg-white/60 dark:bg-white/10">
-                                    <motion.div
-                                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500"
-                                      initial={false}
-                                      animate={{
-                                        width: `${Math.max(
-                                          0,
-                                          Math.min(
-                                            100,
-                                            ((now - activeMatchedAtMs) /
-                                              (photoUnlockAtMs - activeMatchedAtMs)) *
-                                              100
-                                          )
-                                        )}%`,
-                                      }}
-                                      transition={{ duration: 0.25 }}
-                                    />
-                                  </div>
-                                  <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                                    {photosShouldBeUnlockedByTime
-                                      ? "24 hours passed. Still requires mutual consent."
-                                      : "Countdown is time-based. Consent still required."}
-                                  </div>
-                                </div>
-                              )}
+                            <div className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                              {photosSummary}
                             </div>
                           </div>
                         </div>
-                      )}
-                    </>
+
+                        <div className="flex items-center gap-2">
+                          {/* compact pill (still visible even collapsed) */}
+                          {photoCountdown && (!unlockedPhotos || unlockedPhotos.length === 0) && (
+                            <span
+                              className={
+                                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold " +
+                                (photosShouldBeUnlockedByTime
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200")
+                              }
+                              title="Time remaining"
+                            >
+                              {photosShouldBeUnlockedByTime ? "Time passed" : `Unlocks in ${photoCountdown}`}
+                            </span>
+                          )}
+
+                          <motion.span
+                            animate={{ rotate: photosExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.18 }}
+                            className="grid h-7 w-7 place-items-center rounded-xl bg-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200"
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </motion.span>
+                        </div>
+                      </button>
+
+                      <AnimatePresence initial={false}>
+                        {photosExpanded && (
+                          <motion.div
+                            id="photos-panel"
+                            initial={{ height: 0, opacity: 0, y: -4 }}
+                            animate={{ height: "auto", opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -4 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            {unlockedPhotos && unlockedPhotos.length > 0 ? (
+                              <div className={`mt-2 flex gap-2 overflow-x-auto pb-1 ${scrollNice}`}>
+                                {unlockedPhotos.map((u) => (
+                                  <button
+                                    key={u}
+                                    type="button"
+                                    onClick={() => setPhotoViewerUrl(u)}
+                                    className="shrink-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    title="Open photo"
+                                  >
+                                    <img
+                                      src={u}
+                                      className="h-24 w-24 rounded-2xl object-cover"
+                                      alt="Unlocked"
+                                      loading="lazy"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200">
+                                <div className="flex items-start gap-2">
+                                  <div className="mt-0.5 grid h-7 w-7 place-items-center rounded-xl bg-white/70 shadow-sm dark:bg-slate-950/60">
+                                    <ShieldCheck className="h-4 w-4 text-indigo-500 dark:text-indigo-300" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="font-semibold">Photos locked</div>
+
+                                      {/* ✅ countdown pill */}
+                                      {photoCountdown && (
+                                        <span
+                                          className={
+                                            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold " +
+                                            (photosShouldBeUnlockedByTime
+                                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                                              : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200")
+                                          }
+                                          title="Time remaining"
+                                        >
+                                          {photosShouldBeUnlockedByTime
+                                            ? "Time passed"
+                                            : `Unlocks in ${photoCountdown}`}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                      {PHOTO_UNLOCK_NOTE}
+                                    </div>
+
+                                    {/* ✅ tiny progress bar (optional, looks good) */}
+                                    {activeMatchedAtMs && photoUnlockAtMs && (
+                                      <div className="mt-2">
+                                        <div className="h-2 w-full overflow-hidden rounded-full bg-white/60 dark:bg-white/10">
+                                          <motion.div
+                                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500"
+                                            initial={false}
+                                            animate={{
+                                              width: `${Math.max(
+                                                0,
+                                                Math.min(
+                                                  100,
+                                                  ((now - activeMatchedAtMs) /
+                                                    (photoUnlockAtMs - activeMatchedAtMs)) *
+                                                    100
+                                                )
+                                              )}%`,
+                                            }}
+                                            transition={{ duration: 0.25 }}
+                                          />
+                                        </div>
+                                        <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                          {photosShouldBeUnlockedByTime
+                                            ? "24 hours passed. Still requires mutual consent."
+                                            : "Countdown is time-based. Consent still required."}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   )}
 
                   {/* ✅ main scrolling thread area */}
