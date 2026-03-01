@@ -574,7 +574,7 @@ export default function LandingPage() {
                         One match at a time
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        We deliver a match you can focus on — not a feed. Quality > quantity.
+                        We deliver a match you can focus on  not a feed. Quality over quantity.
                       </div>
                       <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
                         Guaranteed at least 1 match/day.
@@ -618,7 +618,7 @@ export default function LandingPage() {
                   Matching engine
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">
-                  Built like a system — but it{" "}
+                  Built like a system  but it{" "}
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
                     feels human.
                   </span>
