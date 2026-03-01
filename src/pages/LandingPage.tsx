@@ -355,60 +355,6 @@ function StarsRow({ n = 5 }: { n?: number }) {
   );
 }
 
-function MiniRecoCard({
-  name,
-  meta,
-  text,
-  tag,
-  align = "left",
-}: {
-  name: string;
-  meta: string;
-  text: string;
-  tag: string;
-  align?: "left" | "right";
-}) {
-  return (
-    <div
-      className={[
-        "rounded-3xl border border-slate-200 bg-white/65 p-5 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45",
-        align === "right" ? "lg:mt-16" : "lg:mt-6",
-      ].join(" ")}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-              {name}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">{meta}</div>
-          </div>
-          <div className="mt-1">
-            <StarsRow />
-          </div>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/35 dark:text-slate-200">
-          {tag}
-        </span>
-      </div>
-
-      <div className="mt-4 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-        “{text}”
-      </div>
-
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-        <span className="inline-flex items-center gap-1">
-          <MessageSquareHeart className="h-4 w-4 text-rose-500/80" />
-          early feedback
-        </span>
-        <span className="font-semibold bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-          feels human
-        </span>
-      </div>
-    </div>
-  );
-}
-
 export default function LandingPage() {
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
   const [countError, setCountError] = useState(false);
@@ -430,19 +376,49 @@ export default function LandingPage() {
     };
   }, []);
 
-  const heroRecos = useMemo(
+  const testimonials = useMemo(
     () => [
       {
         name: "Maya",
         meta: "23 • Beirut",
-        text: "It feels calm. The questions actually filter people who want the same pace.",
+        text:
+          "It feels calm. The questions actually filter people who want the same pace.",
         tag: "Less noise",
       },
       {
         name: "Karim",
         meta: "27 • Tripoli",
-        text: "The matches make sense. It’s not the usual ‘how did we even get paired?’",
+        text:
+          "The matches make sense. It’s not the usual ‘how did we even get paired?’",
         tag: "More signal",
+      },
+      {
+        name: "Lina",
+        meta: "21 • Byblos",
+        text:
+          "The privacy approach is solid. Premium vibe without feeling cold.",
+        tag: "Trust-first",
+      },
+      {
+        name: "Hadi",
+        meta: "25 • Saida",
+        text:
+          "The chat feels guided, not cringe. It asks the right things.",
+        tag: "Thoughtful",
+      },
+      {
+        name: "Nour",
+        meta: "24 • Zahle",
+        text:
+          "It doesn’t try to trap you into scrolling. It respects your time.",
+        tag: "Time-respect",
+      },
+      {
+        name: "Jad",
+        meta: "29 • Jounieh",
+        text:
+          "Clean UI but still alive. Finally something that doesn’t feel like a swipe factory.",
+        tag: "Feels human",
       },
     ],
     []
@@ -459,185 +435,170 @@ export default function LandingPage() {
         <main style={{ scrollSnapType: "y proximity" }}>
           {/* 1) HERO */}
           <SectionShell id="waitlist">
-            <div className="mx-auto w-full max-w-6xl">
-              <div className="grid items-center gap-8 lg:grid-cols-[1fr_2fr_1fr]">
-                {/* Left reco (desktop only) */}
-                <div className="hidden lg:block">
-                  <MiniRecoCard {...heroRecos[0]} align="left" />
+            <div className="mx-auto max-w-3xl text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+              >
+                {/* Guarantee pill */}
+                <div className="flex justify-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm backdrop-blur-xl dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-200">
+                    <ShieldCheck className="h-4 w-4" />
+                    we guarantee at least 1 match a day
+                    {countError ? (
+                      <span className="ml-2 text-[10px] text-rose-700/90 dark:text-rose-200">
+                        (count unavailable)
+                      </span>
+                    ) : waitlistCount === null ? (
+                      <span className="ml-2 text-[10px] text-emerald-700/70 dark:text-emerald-200/70">
+                        (loading…)
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
-                {/* Center hero */}
-                <div className="text-center">
-                  <motion.div
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45 }}
+                <h1 className="mt-6 text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">
+                  No swiping.
+                  <br />
+                  <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
+                    Meet like-minded people
+                  </span>{" "}
+                  one at a time.
+                </h1>
+
+                <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
+                  Find someone who gets you, without the exhausting explaining.
+                  A slower pace. A clearer connection.
+                </p>
+
+                <div className="mt-8 flex flex-col items-center gap-3">
+                  <Link
+                    to="/chatbot"
+                    className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-8 py-3 text-sm font-semibold text-white shadow-md hover:brightness-110"
                   >
-                    {/* Guarantee pill */}
-                    <div className="flex justify-center">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm backdrop-blur-xl dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-200">
-                        <ShieldCheck className="h-4 w-4" />
-                        we guarantee at least 1 match a day
-                        {countError ? (
-                          <span className="ml-2 text-[10px] text-rose-700/90 dark:text-rose-200">
-                            (count unavailable)
-                          </span>
-                        ) : waitlistCount === null ? (
-                          <span className="ml-2 text-[10px] text-emerald-700/70 dark:text-emerald-200/70">
-                            (loading…)
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
+                    Start Now
+                    <Sparkles className="h-4 w-4 opacity-90" />
+                  </Link>
 
-                    <h1 className="mt-6 text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">
-                      No swiping.
-                      <br />
-                      <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                        Meet like-minded people
-                      </span>{" "}
-                      one at a time.
-                    </h1>
-
-                    <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                      Find someone who gets you, without the exhausting explaining.
-                      A slower pace. A clearer connection.
-                    </p>
-
-                    <div className="mt-8 flex flex-col items-center gap-3">
-                      <Link
-                        to="/chatbot"
-                        className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-8 py-3 text-sm font-semibold text-white shadow-md hover:brightness-110"
-                      >
-                        Start Now
-                        <Sparkles className="h-4 w-4 opacity-90" />
-                      </Link>
-
-                      <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                        <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                        Gated access • privacy-first • one match at a time
-                      </div>
-                    </div>
-
-                    {/* Steps (square) + arrows */}
-                    <div className="mt-10">
-                      <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
-                        {/* Step 1 */}
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35, delay: 0.05 }}
-                          className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                              Step 1
-                            </div>
-                            <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                              Quick start
-                            </span>
-                          </div>
-                          <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                            Answer a few real questions
-                          </div>
-                          <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                            No swiping. No profile performance. Just you, clearly.
-                          </div>
-                        </motion.div>
-
-                        {/* Arrow */}
-                        <div className="hidden md:flex items-center justify-center">
-                          <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
-                            <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                          </div>
-                        </div>
-
-                        {/* Step 2 */}
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35, delay: 0.1 }}
-                          className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                              Step 2
-                            </div>
-                            <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                              Your vibe
-                            </span>
-                          </div>
-                          <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                            Set what matters to you
-                          </div>
-                          <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                            Pace, boundaries, intentions, deal-breakers. You’re not liking faces, you’re choosing a direction.
-                          </div>
-                        </motion.div>
-
-                        {/* Arrow */}
-                        <div className="hidden md:flex items-center justify-center">
-                          <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
-                            <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                          </div>
-                        </div>
-
-                        {/* Step 3 */}
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35, delay: 0.15 }}
-                          className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                              Step 3
-                            </div>
-                            <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                              One match
-                            </span>
-                          </div>
-                          <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                            Get one person worth your time
-                          </div>
-                          <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                            We give you someone to actually focus on, not a feed to doom-scroll.
-                          </div>
-                        </motion.div>
-                      </div>
-
-                      {/* Mobile arrows */}
-                      <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
-                        <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
-                        <ArrowRight className="h-4 w-4 text-slate-500 dark:text-slate-300" />
-                        <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
-                      </div>
-                    </div>
-
-                    <div className="mt-12 flex justify-center">
-                      <a
-                        href="#matching"
-                        aria-label="Scroll to next section"
-                        className="inline-flex items-center justify-center"
-                      >
-                        <motion.div
-                          initial={{ y: 0, opacity: 0.9 }}
-                          animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
-                          transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                          className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
-                        >
-                          <ChevronDown className="h-8 w-8" />
-                        </motion.div>
-                      </a>
-                    </div>
-                  </motion.div>
+                  <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                    Gated access • privacy-first • one match at a time
+                  </div>
                 </div>
 
-                {/* Right reco (desktop only) */}
-                <div className="hidden lg:block">
-                  <MiniRecoCard {...heroRecos[1]} align="right" />
+                {/* Steps (square) + arrows */}
+                <div className="mt-10">
+                  <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
+                    {/* Step 1 */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.05 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Step 1
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Quick start
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Answer a few real questions
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        No swiping. No profile performance. Just you, clearly.
+                      </div>
+                    </motion.div>
+
+                    {/* Arrow */}
+                    <div className="hidden md:flex items-center justify-center">
+                      <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
+                        <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.1 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Step 2
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Your vibe
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Set what matters to you
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        Pace, boundaries, intentions, deal-breakers. You’re not liking faces, you’re choosing a direction.
+                      </div>
+                    </motion.div>
+
+                    {/* Arrow */}
+                    <div className="hidden md:flex items-center justify-center">
+                      <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
+                        <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.15 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Step 3
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          One match
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Get one person worth your time
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        We give you someone to actually focus on, not a feed to doom-scroll.
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Mobile arrows */}
+                  <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
+                    <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
+                    <ArrowRight className="h-4 w-4 text-slate-500 dark:text-slate-300" />
+                    <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
+                  </div>
                 </div>
-              </div>
+
+                <div className="mt-12 flex justify-center">
+                  <a
+                    href="#matching"
+                    aria-label="Scroll to next section"
+                    className="inline-flex items-center justify-center"
+                  >
+                    <motion.div
+                      initial={{ y: 0, opacity: 0.9 }}
+                      animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                      className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+                    >
+                      <ChevronDown className="h-8 w-8" />
+                    </motion.div>
+                  </a>
+                </div>
+              </motion.div>
             </div>
           </SectionShell>
 
@@ -724,6 +685,160 @@ export default function LandingPage() {
           </SectionShell>
 
           <div className="mt-[-50px] flex justify-center">
+            <a href="#voices" aria-label="Scroll to next section">
+              <motion.div
+                initial={{ y: 0, opacity: 0.9 }}
+                animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+              >
+                <ChevronDown className="h-8 w-8" />
+              </motion.div>
+            </a>
+          </div>
+
+          {/* 3) TESTIMONIALS */}
+          <SectionShell id="voices">
+            <div className="mx-auto max-w-6xl">
+              <div className="grid gap-10 lg:grid-cols-2 lg:items-end">
+                <div className="max-w-2xl">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500 dark:text-indigo-300">
+                    People, not a feed
+                  </div>
+                  <h2 className="mt-3 text-4xl font-semibold leading-[1.08] sm:text-5xl">
+                    What it feels like
+                  </h2>
+                  <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
+                    Calm pacing. Less nonsense. Better alignment. The kind of experience that doesn’t leave you tired.
+                  </p>
+
+                  <div className="mt-7 flex flex-wrap items-center gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white/65 px-4 py-3 text-sm shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45">
+                      <div className="flex items-center gap-2">
+                        <StarsRow />
+                        <span className="text-xs text-slate-600 dark:text-slate-300">
+                          early users rating
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        (alpha feedback, not an app-store rating)
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm shadow-sm backdrop-blur-xl dark:border-rose-900/50 dark:bg-rose-950/25">
+                      <div className="flex items-center gap-2 font-semibold text-rose-700 dark:text-rose-200">
+                        <MessageSquareHeart className="h-4 w-4" />
+                        “Feels human”
+                      </div>
+                      <div className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">
+                        The most common comment
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.25 }}
+                  transition={{ duration: 0.45 }}
+                  className="rounded-3xl border border-slate-200 bg-white/65 p-6 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Community notes
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      quick highlights
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {[
+                      { t: "Pacing", d: "Less pressure. More clarity." },
+                      { t: "Quality", d: "Fewer weird matches." },
+                      { t: "Privacy", d: "Trust comes first." },
+                      { t: "Energy", d: "Clean, but not lifeless." },
+                    ].map((x, i) => (
+                      <div
+                        key={i}
+                        className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-950/30"
+                      >
+                        <div className="font-semibold text-slate-900 dark:text-slate-50">
+                          {x.t}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                          {x.d}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              </div>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {testimonials.map((t, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 12 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{ duration: 0.35, delay: i * 0.04 }}
+                    className="group rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-semibold text-slate-900 dark:text-slate-50">
+                            {t.name}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">
+                            {t.meta}
+                          </div>
+                        </div>
+                        <div className="mt-1">
+                          <StarsRow />
+                        </div>
+                      </div>
+
+                      <span className="rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/35 dark:text-slate-200">
+                        {t.tag}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                      “{t.text}”
+                    </div>
+
+                    <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-slate-200/70 to-transparent dark:via-slate-700/70" />
+
+                    <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span className="inline-flex items-center gap-1">
+                        <MessageSquareHeart className="h-4 w-4 text-rose-500/80" />
+                        feedback
+                      </span>
+                      <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent font-semibold">
+                          loved by early users
+                        </span>
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="mt-10 flex justify-center">
+                <Link
+                  to="/chatbot"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/65 px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm backdrop-blur-xl hover:bg-white/80 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-50 dark:hover:bg-slate-900/55"
+                >
+                  Try the assessment
+                  <Sparkles className="h-4 w-4 text-indigo-500" />
+                </Link>
+              </div>
+            </div>
+          </SectionShell>
+
+          <div className="mt-[-50px] flex justify-center">
             <a href="#chat" aria-label="Scroll to next section">
               <motion.div
                 initial={{ y: 0, opacity: 0.9 }}
@@ -736,7 +851,7 @@ export default function LandingPage() {
             </a>
           </div>
 
-          {/* 3) CHATBOT */}
+          {/* 4) CHATBOT */}
           <SectionShell id="chat">
             <div className="mx-auto max-w-6xl">
               <div className="grid gap-14 lg:grid-cols-2 lg:items-center">
