@@ -753,6 +753,10 @@ export default function ConversationsPage() {
   const [feedbackChoice, setFeedbackChoice] = useState<"" | "yes" | "no">("");
   const [feedbackSaving, setFeedbackSaving] = useState(false);
 
+  // 🔥 IMPORTANT:
+  // - null   => locked/unknown (not unlocked yet or fetch failed)
+  // - []     => unlocked but empty
+  // - [urls] => unlocked + has photos
   const [unlockedPhotos, setUnlockedPhotos] = useState<string[] | null>(null);
   const [photoViewerUrl, setPhotoViewerUrl] = useState<string | null>(null);
 
@@ -857,7 +861,7 @@ export default function ConversationsPage() {
 
           api
             .conversationPhotos(activeId)
-            .then((urls) => setUnlockedPhotos(urls))
+            .then((urls) => setUnlockedPhotos(Array.isArray(urls) ? urls : []))
             .catch(() => {});
           break;
         }
@@ -965,7 +969,7 @@ export default function ConversationsPage() {
       try {
         const urls = await api.conversationPhotos(id);
         if (openSeq.current !== seq) return;
-        setUnlockedPhotos(urls);
+        setUnlockedPhotos(Array.isArray(urls) ? urls : []);
       } catch {
         if (openSeq.current !== seq) return;
         setUnlockedPhotos(null);
@@ -984,13 +988,14 @@ export default function ConversationsPage() {
 
     setFeedbackSaving(true);
     try {
-      const res = await api.submitMatchFeedback(activeId, feedbackChoice === "yes");
+      await api.submitMatchFeedback(activeId, feedbackChoice === "yes");
       setShowFeedbackPrompt(false);
 
-      if ((res as any).photos_unlocked) {
+      // ✅ Always try to fetch photos after submit (don't depend on WS or a specific flag)
+      try {
         const urls = await api.conversationPhotos(activeId);
-        setUnlockedPhotos(urls);
-      }
+        setUnlockedPhotos(Array.isArray(urls) ? urls : []);
+      } catch {}
     } catch (e) {
       console.error(e);
       alert("Could not save your answer. Try again.");
@@ -1127,7 +1132,7 @@ export default function ConversationsPage() {
 
           try {
             const urls = await api.conversationPhotos(cid);
-            setUnlockedPhotos(urls);
+            setUnlockedPhotos(Array.isArray(urls) ? urls : []);
           } catch {
             setUnlockedPhotos(null);
           } finally {
@@ -1265,6 +1270,55 @@ export default function ConversationsPage() {
 
     setShowFeedbackPrompt(true);
   }, [activeId, pinnedFeedback, photosShouldBeUnlockedByTime, showFeedbackPrompt]);
+
+  // ✅ FIX: don't rely on WS "photos-unlocked".
+  // When:
+  // - time passed
+  // - you already answered YES
+  // - and we don't have photos yet
+  // keep refetching conversationPhotos until photos appear or user leaves convo.
+  useEffect(() => {
+    if (!activeId) return;
+    if (!photosShouldBeUnlockedByTime) return;
+    if (pinnedFeedback[activeId] !== "yes") return;
+
+    let alive = true;
+    let t: number | null = null;
+
+    async function pull() {
+      try {
+        const urls = await api.conversationPhotos(activeId);
+        if (!alive) return;
+
+        const list = Array.isArray(urls) ? urls : [];
+
+        // If photos exist, show and stop polling
+        if (list.length > 0) {
+          setUnlockedPhotos(list);
+          return;
+        }
+
+        // If empty, still set [] (unlocked but empty) then keep polling
+        // because other user's consent / server unlock might happen slightly later.
+        setUnlockedPhotos((prev) => (prev === null ? [] : prev));
+        t = window.setTimeout(pull, 2500);
+      } catch {
+        t = window.setTimeout(pull, 3500);
+      }
+    }
+
+    if (!unlockedPhotos || unlockedPhotos.length === 0) {
+      pull();
+    }
+
+    return () => {
+      alive = false;
+      if (t) window.clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, photosShouldBeUnlockedByTime, pinnedFeedback]);
+
+  const photosAreUnlocked = unlockedPhotos !== null;
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
@@ -1814,11 +1868,13 @@ export default function ConversationsPage() {
                           </div>
                           <div className="text-left">
                             <div className="font-semibold">
-                              {unlockedPhotos && unlockedPhotos.length > 0 ? "Photos unlocked" : "Photos locked"}
+                              {photosAreUnlocked ? "Photos unlocked" : "Photos locked"}
                             </div>
                             <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {unlockedPhotos && unlockedPhotos.length > 0
-                                ? "Tap to view. Collapse to save space."
+                              {photosAreUnlocked
+                                ? unlockedPhotos && unlockedPhotos.length > 0
+                                  ? "Tap to view. Collapse to save space."
+                                  : "Unlocked, but no photos are available."
                                 : PHOTO_UNLOCK_NOTE}
                             </div>
                           </div>
@@ -1843,7 +1899,7 @@ export default function ConversationsPage() {
                             className="overflow-hidden"
                           >
                             <div className="mt-3">
-                              {unlockedPhotos && unlockedPhotos.length > 0 ? (
+                              {photosAreUnlocked && unlockedPhotos && unlockedPhotos.length > 0 ? (
                                 <div className={`flex gap-2 overflow-x-auto pb-1 ${scrollNice}`}>
                                   {unlockedPhotos.map((u) => (
                                     <button
@@ -1904,7 +1960,9 @@ export default function ConversationsPage() {
                                       </div>
                                       <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
                                         {photosShouldBeUnlockedByTime
-                                          ? "24 hours passed. Still requires mutual consent."
+                                          ? pinnedForActive === "yes"
+                                            ? "Time passed and you approved. Waiting on the other person (or photos may be empty)."
+                                            : "24 hours passed. Still requires mutual consent."
                                           : "Countdown is time-based. Consent still required."}
                                       </div>
                                     </div>
