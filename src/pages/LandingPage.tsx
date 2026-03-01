@@ -135,9 +135,9 @@ function SignalFieldSVG() {
       </g>
 
       <g fill="rgba(100,116,139,0.9)" fontSize="11">
-        <text x="26" y="20">latent signal field (normalized)</text>
-        <text x="350" y="20">posterior trace</text>
-        <text x="26" y="252">invariant features emphasized</text>
+        <text x="26" y="20">what stays true about you</text>
+        <text x="360" y="20">clearer direction</text>
+        <text x="26" y="252">less guessing, more “this fits”</text>
       </g>
     </svg>
   );
@@ -238,14 +238,14 @@ function CalibrationSVG() {
 
         <g fill="rgba(100,116,139,0.9)" fontSize="11">
           <text x="0" y="222">confidence →</text>
-          <text x="-10" y="-10">↑ reliability</text>
+          <text x="-10" y="-10">↑ trust</text>
         </g>
       </g>
 
       <g fill="rgba(100,116,139,0.9)" fontSize="11">
-        <text x="26" y="20">calibration curve (reliability check)</text>
-        <text x="335" y="20">stability validated</text>
-        <text x="26" y="252">goal: reduce “random match” behavior</text>
+        <text x="26" y="20">sanity-checks before we match you</text>
+        <text x="345" y="20">less randomness</text>
+        <text x="26" y="252">so your time doesn’t get wasted</text>
       </g>
     </svg>
   );
@@ -337,9 +337,9 @@ function GraphSVG() {
       </g>
 
       <g fill="rgba(100,116,139,0.9)" fontSize="11">
-        <text x="26" y="20">neighborhood matching (graph topology)</text>
-        <text x="352" y="20">stable clusters</text>
-        <text x="26" y="252">clusters ~~ scores</text>
+        <text x="26" y="20">finding your “people”</text>
+        <text x="360" y="20">natural groups</text>
+        <text x="26" y="252">good fit beats endless options</text>
       </g>
     </svg>
   );
@@ -389,7 +389,7 @@ export default function LandingPage() {
         name: "Karim",
         meta: "27 • Tripoli",
         text:
-          "The matches make sense. The randomness is way lower than typical apps.",
+          "The matches make sense. It’s not the usual ‘how did we even get paired?’",
         tag: "More signal",
       },
       {
@@ -403,21 +403,21 @@ export default function LandingPage() {
         name: "Hadi",
         meta: "25 • Saida",
         text:
-          "The chat is structured, not cringe. It’s pattern-based, not keyword-based.",
+          "The chat feels guided, not cringe. It asks the right things.",
         tag: "Thoughtful",
       },
       {
         name: "Nour",
         meta: "24 • Zahle",
         text:
-          "It doesn’t push you to swipe for hours. It respects your time.",
+          "It doesn’t try to trap you into scrolling. It respects your time.",
         tag: "Time-respect",
       },
       {
         name: "Jad",
         meta: "29 • Jounieh",
         text:
-          "Clean UI but still alive. Doesn’t feel like a spreadsheet with profiles.",
+          "Clean UI but still alive. Finally something that doesn’t feel like a swipe factory.",
         tag: "Feels human",
       },
     ],
@@ -462,13 +462,14 @@ export default function LandingPage() {
                   No swiping.
                   <br />
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                    Meeting like-minded people
+                    Meet like-minded people
                   </span>{" "}
                   one at a time.
                 </h1>
 
                 <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                  Where you can find someone that speaks your language. So you don't have to spend a lifetime translating yourself.
+                  Find someone who gets you, without the exhausting explaining.
+                  A slower pace. A clearer connection.
                 </p>
 
                 <div className="mt-8 flex flex-col items-center gap-3">
@@ -501,16 +502,15 @@ export default function LandingPage() {
                           Step 1
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Assessment
+                          Quick start
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Short, structured assessment
+                        Answer a few real questions
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                       No swiping. No profile grinding.
+                        No swiping. No profile performance. Just you, clearly.
                       </div>
-                     
                     </motion.div>
 
                     {/* Arrow */}
@@ -532,16 +532,15 @@ export default function LandingPage() {
                           Step 2
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Preferences
+                          Your vibe
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Set what you actually want
+                        Set what matters to you
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        Pace, boundaries, intentions, and deal-breakers. You’re not “liking faces”, you’re defining fit.
+                        Pace, boundaries, intentions, deal-breakers. You’re not liking faces, you’re choosing a direction.
                       </div>
-                     
                     </motion.div>
 
                     {/* Arrow */}
@@ -563,16 +562,15 @@ export default function LandingPage() {
                           Step 3
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Match
+                          One match
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        One match at a time
+                        Get one person worth your time
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        We deliver a match you can focus on  not a feed. Quality over quantity.
+                        We give you someone to actually focus on, not a feed to doom-scroll.
                       </div>
-                     
                     </motion.div>
                   </div>
 
@@ -609,16 +607,17 @@ export default function LandingPage() {
             <div className="mx-auto w-full max-w-6xl">
               <div className="max-w-3xl">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500 dark:text-indigo-300">
-                  Matching engine
+                  The matching
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">
-                  Built like a system  but it{" "}
+                  Built to help you{" "}
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                    feels human.
-                  </span>
+                    find the right person,
+                  </span>{" "}
+                  not burn out.
                 </h2>
                 <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                  Stability checks, calibration, and neighborhood matching — so you stop wasting time on random people.
+                  Less “how did we match?” and more “okay… this makes sense.”
                 </p>
               </div>
 
@@ -630,9 +629,9 @@ export default function LandingPage() {
                   transition={{ duration: 0.45 }}
                 >
                   <DiagramCard
-                    title="Signal field"
-                    subtitle="Stable patterns extracted from structured prompts"
-                    footer="Goal: isolate what stays true under different wording."
+                    title="What matters"
+                    subtitle="We look for the patterns that actually describe you"
+                    footer="Less noise. More clarity."
                   >
                     <SignalFieldSVG />
                   </DiagramCard>
@@ -645,9 +644,9 @@ export default function LandingPage() {
                   transition={{ duration: 0.45, delay: 0.05 }}
                 >
                   <DiagramCard
-                    title="Calibration"
-                    subtitle="Reliability check: confidence vs stability"
-                    footer="Goal: reduce noisy outputs and random matches."
+                    title="Less randomness"
+                    subtitle="We sanity-check before we match you"
+                    footer="So your time goes to people who fit."
                   >
                     <CalibrationSVG />
                   </DiagramCard>
@@ -660,9 +659,9 @@ export default function LandingPage() {
                   transition={{ duration: 0.45, delay: 0.1 }}
                 >
                   <DiagramCard
-                    title="Neighborhood matching"
-                    subtitle="Graph clusters: fit-zones, not ranks"
-                    footer="Goal: clusters over hype; stability over dopamine."
+                    title="Your people"
+                    subtitle="We connect you with the right circle, not the loudest option"
+                    footer="Good fit beats endless options."
                   >
                     <GraphSVG />
                   </DiagramCard>
@@ -674,11 +673,10 @@ export default function LandingPage() {
                   <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-500 dark:text-emerald-300" />
                   <div>
                     <div className="font-semibold text-slate-900 dark:text-slate-50">
-                      Trust posture
+                      Built for trust
                     </div>
                     <div className="mt-1">
-                      Gated access reduces spam. We keep outputs compact, apply stability checks,
-                      and use neighborhood logic so the system is hard to game.
+                      Gated access keeps things cleaner. Privacy stays first. And the experience stays focused, so it’s harder to game and easier to feel safe.
                     </div>
                   </div>
                 </div>
@@ -711,7 +709,7 @@ export default function LandingPage() {
                     What it feels like
                   </h2>
                   <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                    Short, direct feedback. The goal: calm pacing, less nonsense, better alignment.
+                    Calm pacing. Less nonsense. Better alignment. The kind of experience that doesn’t leave you tired.
                   </p>
 
                   <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -723,7 +721,7 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        (internal alpha — not an app-store rating)
+                        (alpha feedback, not an app-store rating)
                       </div>
                     </div>
 
@@ -733,7 +731,7 @@ export default function LandingPage() {
                         “Feels human”
                       </div>
                       <div className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">
-                        Most common comment
+                        The most common comment
                       </div>
                     </div>
                   </div>
@@ -751,15 +749,15 @@ export default function LandingPage() {
                       Community notes
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      curated highlights
+                      quick highlights
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {[
-                      { t: "Pacing", d: "Less pressure, more clarity." },
+                      { t: "Pacing", d: "Less pressure. More clarity." },
                       { t: "Quality", d: "Fewer weird matches." },
-                      { t: "Privacy", d: "Trust-first approach." },
-                      { t: "Energy", d: "Clean UI but still alive." },
+                      { t: "Privacy", d: "Trust comes first." },
+                      { t: "Energy", d: "Clean, but not lifeless." },
                     ].map((x, i) => (
                       <div
                         key={i}
@@ -820,7 +818,7 @@ export default function LandingPage() {
                       </span>
                       <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent font-semibold">
-                          liked by the community
+                          loved by early users
                         </span>
                       </span>
                     </div>
@@ -859,30 +857,29 @@ export default function LandingPage() {
               <div className="grid gap-14 lg:grid-cols-2 lg:items-center">
                 <div className="max-w-2xl">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-500">
-                    The assessment layer
+                    The conversation
                   </div>
 
                   <h2 className="mt-3 text-4xl font-semibold leading-[1.08] sm:text-5xl">
-                    A calm conversation built for{" "}
+                    A calm chat that helps us{" "}
                     <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                      stable signal
+                      understand you
                     </span>
                     .
                   </h2>
 
                   <p className="mt-6 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                    Not therapy. Not vibes. It’s structured prompting: the same idea is tested multiple ways to find what stays stable
-                    under different wording.
+                    It’s not therapy. It’s not random icebreakers. It’s a short conversation designed to capture what matters to you, without forcing you to perform.
                   </p>
 
                   <div className="mt-8 rounded-3xl border border-slate-200 bg-white/65 p-6 text-base backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45">
                     <div className="font-semibold text-slate-900 dark:text-slate-50">
-                      Output philosophy
+                      What we care about
                     </div>
                     <ul className="mt-4 space-y-3 text-slate-600 dark:text-slate-300">
-                      <li>• Compact representation — not a public transcript</li>
-                      <li>• Consistency scoring across prompts</li>
-                      <li>• Neighborhood-based matching, not ranking</li>
+                      <li>• Keep it private, always</li>
+                      <li>• Look for consistency, not perfection</li>
+                      <li>• Match by fit, not by hype</li>
                     </ul>
 
                     <div className="mt-6 flex flex-wrap gap-2">
@@ -935,20 +932,19 @@ export default function LandingPage() {
 
                     <div className="mt-6 space-y-4 text-sm">
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        If you feel misunderstood, what do you do first: clarify calmly, shut down, or push harder?
+                        When you feel misunderstood, what do you usually do first: explain calmly, go quiet, or push harder?
                       </div>
 
                       <div className="ml-auto w-fit rounded-2xl bg-indigo-500 px-4 py-3 text-white">
-                        I clarify once. If it keeps happening, I go quiet and reset.
+                        I explain once. If it keeps happening, I go quiet and reset.
                       </div>
 
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        That response stays consistent across prompts. We treat it as stable signal — and we avoid pairing you
-                        with people who demand constant intensity.
+                        That’s a real pattern. It helps us avoid matching you with people who demand constant intensity.
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
-                        Output: compact representation + stability score (preview)
+                        Private summary saved, not the full conversation.
                       </div>
 
                       <div className="pt-2">
