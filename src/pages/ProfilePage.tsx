@@ -191,13 +191,10 @@ function kmToMiles(km: number): number {
 }
 
 export default function ProfilePage() {
-  const MAX_INTERESTS = 5;
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [interests, setInterests] = useState<Interest[]>([]);
-  void interests;
   const [allInterests, setAllInterests] = useState<Interest[]>([]);
   const [pendingInterests, setPendingInterests] = useState<Interest[]>([]);
   const [updatingInterests, setUpdatingInterests] = useState(false);
@@ -290,7 +287,8 @@ export default function ProfilePage() {
         setProfile(pp);
 
         setInterests(ints);
-        setPendingInterests(ints.slice(0, MAX_INTERESTS));
+        // NO LIMIT: keep all returned interests as pending
+        setPendingInterests(ints);
 
         // backend returns fixed 3 slots; still guard
         setPhotos(Array.isArray(ph) ? (ph.length === 3 ? ph : ["", "", ""]) : ["", "", ""]);
@@ -318,11 +316,7 @@ export default function ProfilePage() {
     setPendingInterests((prev) => {
       const exists = prev.some((i) => i.id === int.id);
       if (exists) return prev.filter((i) => i.id !== int.id);
-
-      if (prev.length >= MAX_INTERESTS) {
-        alert(`You can select up to ${MAX_INTERESTS} interests.`);
-        return prev;
-      }
+      // NO LIMIT: allow adding any number
       return [...prev, int];
     });
   }
@@ -337,7 +331,8 @@ export default function ProfilePage() {
       const names = pendingInterests.map((i) => i.name);
       const updated = await api.putInterests(names);
       setInterests(updated);
-      setPendingInterests(updated.slice(0, MAX_INTERESTS));
+      // NO LIMIT: keep all updated returned interests as pending
+      setPendingInterests(updated);
       flashSaved("interests");
     } catch (err) {
       console.error(err);
@@ -917,7 +912,7 @@ export default function ProfilePage() {
 
               <span className="ml-auto inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900">
-                  {pendingInterests.length}/{MAX_INTERESTS}
+                  {pendingInterests.length} selected
                 </span>
                 {interestsSaved && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
@@ -927,8 +922,7 @@ export default function ProfilePage() {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Pick everything that feels like you. You can select up to {MAX_INTERESTS}. Your
-              selections are only saved when you click “Save interests”.
+              Pick everything that feels like you. Your selections are only saved when you click “Save interests”.
             </p>
 
             <div className="mt-4">
@@ -999,19 +993,17 @@ export default function ProfilePage() {
                       <div className="flex flex-wrap gap-2">
                         {items.map((int) => {
                           const active = selectedInterestIds.has(int.id);
-                          const atLimit = !active && pendingInterests.length >= MAX_INTERESTS;
                           return (
                             <button
                               key={int.id}
                               type="button"
                               onClick={() => toggleInterest(int)}
-                              disabled={updatingInterests || atLimit}
+                              disabled={updatingInterests}
                               className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition disabled:opacity-50 ${
                                 active
                                   ? "border-slate-900 bg-slate-900 text-slate-50 dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
                                   : "border-slate-300 bg-white text-slate-700 hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400"
                               }`}
-                              title={atLimit ? `Limit: ${MAX_INTERESTS}` : undefined}
                             >
                               {int.name}
                             </button>
