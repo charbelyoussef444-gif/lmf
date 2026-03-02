@@ -199,7 +199,6 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [interests, setInterests] = useState<Interest[]>([]);
   const [allInterests, setAllInterests] = useState<Interest[]>([]);
   const [pendingInterests, setPendingInterests] = useState<Interest[]>([]);
   const [updatingInterests, setUpdatingInterests] = useState(false);
@@ -221,7 +220,7 @@ export default function ProfilePage() {
   >(null);
   const [kycBusy, setKycBusy] = useState(false);
 
-  // ✅ NEW: 3 required KYC slots with previews (in this exact order)
+  // 3 required KYC slots with previews (in this exact order)
   // 1) ID / Passport
   // 2) Clear face selfie
   // 3) Selfie holding ID next to face
@@ -306,7 +305,6 @@ export default function ProfilePage() {
 
         setProfile(pp);
 
-        setInterests(ints);
         // NO LIMIT: keep all returned interests as pending
         setPendingInterests(ints);
 
@@ -325,8 +323,6 @@ export default function ProfilePage() {
           });
         }
       } catch (e) {
-        // api.ts already redirects to /login on errors (per your request),
-        // so just log.
         console.error(e);
       } finally {
         setLoading(false);
@@ -352,7 +348,6 @@ export default function ProfilePage() {
     try {
       const names = pendingInterests.map((i) => i.name);
       const updated = await api.putInterests(names);
-      setInterests(updated);
       // NO LIMIT: keep all updated returned interests as pending
       setPendingInterests(updated);
       flashSaved("interests");
@@ -379,7 +374,6 @@ export default function ProfilePage() {
       console.error(err);
       alert("Failed to upload photo.");
     } finally {
-      // allow selecting same file again
       e.target.value = "";
       setUploading(false);
       setUploadingPos(null);
@@ -401,20 +395,17 @@ export default function ProfilePage() {
     }
   }
 
-  // ✅ NEW: pick KYC file per slot (1..3) with preview
   function onPickKycFile(e: ChangeEvent<HTMLInputElement>, idx: 0 | 1 | 2) {
     const file = e.target.files?.[0] || null;
     if (!file) return;
 
     setKycSlots((prev) => {
       const next = [...prev];
-      // cleanup old preview URL
       if (next[idx]?.preview) URL.revokeObjectURL(next[idx]!.preview!);
       next[idx] = { file, preview: URL.createObjectURL(file) };
       return next;
     });
 
-    // allow selecting same file again later
     e.target.value = "";
   }
 
@@ -427,7 +418,6 @@ export default function ProfilePage() {
     });
   }
 
-  // cleanup previews on unmount
   useEffect(() => {
     return () => {
       for (const s of kycSlots) {
@@ -449,13 +439,11 @@ export default function ProfilePage() {
 
     setKycBusy(true);
     try {
-      // IMPORTANT: order matters (ID, selfie, selfie-with-ID)
       await api.meKycUpload([f1, f2, f3]);
       const kyc = await api.meKycStatus();
       setKycStatus(kyc);
       flashSaved("kyc");
 
-      // reset local selection after submit
       setKycSlots((prev) => {
         prev.forEach((s) => {
           if (s.preview) URL.revokeObjectURL(s.preview);
@@ -505,7 +493,7 @@ export default function ProfilePage() {
         preferred_min_age: profile.preferred_min_age ?? null,
         preferred_max_age: profile.preferred_max_age ?? null,
         preferred_gender: profile.preferred_gender ?? null,
-        preferred_max_distance_km: dist, // REQUIRED
+        preferred_max_distance_km: dist,
       };
 
       const updated = await api.updateMatchPreferences(payload);
@@ -565,10 +553,8 @@ export default function ProfilePage() {
   if (ageMin > maxLimit - 1) ageMin = maxLimit - 1;
   if (ageMax <= ageMin) ageMax = Math.min(maxLimit, ageMin + 1);
 
-  // Distance slider: "sane" UI range + recommended band
-  // NOTE: backend supports 1..500; UI is intentionally capped at 200 for sanity.
   const distanceMin = 1;
-  const distanceMax = 200; // sane for most users; still validated/saved as km
+  const distanceMax = 200;
   const recommendedMinKm = 60;
   const recommendedMaxKm = 90;
 
@@ -617,13 +603,12 @@ export default function ProfilePage() {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
       <style>{`
-        /* Distance slider: slim like age one (h-1 / 4px) + gradient fill to value */
         input.distance-range[type="range"]{
           -webkit-appearance:none;
           appearance:none;
           height:4px;
           border-radius:9999px;
-          background-color: rgb(226 232 240); /* slate-200 */
+          background-color: rgb(226 232 240);
           background-image: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%);
           background-repeat: no-repeat;
           background-size: var(--pct) 100%;
@@ -631,17 +616,16 @@ export default function ProfilePage() {
         }
 
         .dark input.distance-range[type="range"]{
-          background-color: rgb(30 41 59); /* slate-800 */
+          background-color: rgb(30 41 59);
         }
 
-        /* Thumb */
         input.distance-range[type="range"]::-webkit-slider-thumb{
           -webkit-appearance:none;
           appearance:none;
           width:16px;
           height:16px;
           border-radius:9999px;
-          background:#0f172a; /* slate-900 */
+          background:#0f172a;
           border:2px solid #ffffff;
           box-shadow:0 1px 2px rgba(0,0,0,0.25);
           cursor:pointer;
@@ -664,7 +648,7 @@ export default function ProfilePage() {
         }
 
         .dark input.distance-range[type="range"]::-webkit-slider-thumb{
-          background:#f8fafc; /* slate-50 */
+          background:#f8fafc;
           border-color:#0f172a;
         }
         .dark input.distance-range[type="range"]::-moz-range-thumb{
@@ -682,6 +666,7 @@ export default function ProfilePage() {
         <AppHeader />
 
         <main className="flex-1 py-8 space-y-8">
+          {/* Profile */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -745,7 +730,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* ✅ UPDATED VERIFICATION UI (3 REQUIRED IMAGES) */}
+          {/* Verification */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-rose-500 dark:text-rose-300" />
@@ -930,6 +915,7 @@ export default function ProfilePage() {
             )}
           </section>
 
+          {/* Match preferences */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
@@ -1088,6 +1074,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
+          {/* Interests */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-violet-500 dark:text-violet-300" />
@@ -1223,6 +1210,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
+          {/* Gallery */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-rose-500 dark:text-rose-300" />
@@ -1261,7 +1249,6 @@ export default function ProfilePage() {
                       <span className="text-xs text-slate-400">Empty slot {p}</span>
                     )}
 
-                    {/* REMOVE (X) - must be above overlay */}
                     {hasPhoto && (
                       <button
                         type="button"
@@ -1279,10 +1266,6 @@ export default function ProfilePage() {
                       </button>
                     )}
 
-                    {/* UPLOAD overlay:
-                        - If slot is empty: overlay is clickable always.
-                        - If slot has photo: overlay is NOT clickable until hover, so it won't block X.
-                    */}
                     <label
                       className={[
                         "absolute inset-0 z-10 flex cursor-pointer items-center justify-center text-xs font-medium text-white backdrop-blur-[1px] transition",
