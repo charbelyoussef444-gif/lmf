@@ -190,6 +190,11 @@ function kmToMiles(km: number): number {
   return km * 0.621371;
 }
 
+type KycSlot = {
+  file: File | null;
+  preview: string | null;
+};
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -215,7 +220,16 @@ export default function ProfilePage() {
     | null
   >(null);
   const [kycBusy, setKycBusy] = useState(false);
-  const kycInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ✅ NEW: 3 required KYC slots with previews (in this exact order)
+  // 1) ID / Passport
+  // 2) Clear face selfie
+  // 3) Selfie holding ID next to face
+  const [kycSlots, setKycSlots] = useState<KycSlot[]>([
+    { file: null, preview: null },
+    { file: null, preview: null },
+    { file: null, preview: null },
+  ]);
 
   // saved indicators
   const [prefsSaved, setPrefsSaved] = useState(false);
@@ -228,7 +242,10 @@ export default function ProfilePage() {
   const photosSavedTimer = useRef<number | null>(null);
   const kycSavedTimer = useRef<number | null>(null);
 
-  function flashSaved(which: "prefs" | "interests" | "photos" | "kyc", ms = 2200) {
+  function flashSaved(
+    which: "prefs" | "interests" | "photos" | "kyc",
+    ms = 2200
+  ) {
     const clear = (ref: React.MutableRefObject<number | null>) => {
       if (ref.current) window.clearTimeout(ref.current);
       ref.current = window.setTimeout(() => {
@@ -260,8 +277,10 @@ export default function ProfilePage() {
   useEffect(() => {
     return () => {
       if (prefsSavedTimer.current) window.clearTimeout(prefsSavedTimer.current);
-      if (interestsSavedTimer.current) window.clearTimeout(interestsSavedTimer.current);
-      if (photosSavedTimer.current) window.clearTimeout(photosSavedTimer.current);
+      if (interestsSavedTimer.current)
+        window.clearTimeout(interestsSavedTimer.current);
+      if (photosSavedTimer.current)
+        window.clearTimeout(photosSavedTimer.current);
       if (kycSavedTimer.current) window.clearTimeout(kycSavedTimer.current);
     };
   }, []);
@@ -282,7 +301,8 @@ export default function ProfilePage() {
         const pp = normalizeProfile(p);
 
         // sane default if missing
-        if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
+        if (pp.preferred_max_distance_km == null)
+          pp.preferred_max_distance_km = 80;
 
         setProfile(pp);
 
@@ -291,7 +311,9 @@ export default function ProfilePage() {
         setPendingInterests(ints);
 
         // backend returns fixed 3 slots; still guard
-        setPhotos(Array.isArray(ph) ? (ph.length === 3 ? ph : ["", "", ""]) : ["", "", ""]);
+        setPhotos(
+          Array.isArray(ph) ? (ph.length === 3 ? ph : ["", "", ""]) : ["", "", ""]
+        );
         setAllInterests(allInts);
 
         if (kyc) {
@@ -379,20 +401,75 @@ export default function ProfilePage() {
     }
   }
 
-  async function onUploadKycFiles(e: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  // ✅ NEW: pick KYC file per slot (1..3) with preview
+  function onPickKycFile(e: ChangeEvent<HTMLInputElement>, idx: 0 | 1 | 2) {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+
+    setKycSlots((prev) => {
+      const next = [...prev];
+      // cleanup old preview URL
+      if (next[idx]?.preview) URL.revokeObjectURL(next[idx]!.preview!);
+      next[idx] = { file, preview: URL.createObjectURL(file) };
+      return next;
+    });
+
+    // allow selecting same file again later
+    e.target.value = "";
+  }
+
+  function clearKycSlot(idx: 0 | 1 | 2) {
+    setKycSlots((prev) => {
+      const next = [...prev];
+      if (next[idx]?.preview) URL.revokeObjectURL(next[idx]!.preview!);
+      next[idx] = { file: null, preview: null };
+      return next;
+    });
+  }
+
+  // cleanup previews on unmount
+  useEffect(() => {
+    return () => {
+      for (const s of kycSlots) {
+        if (s.preview) URL.revokeObjectURL(s.preview);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submitKycTriplet() {
+    const f1 = kycSlots[0]?.file;
+    const f2 = kycSlots[1]?.file;
+    const f3 = kycSlots[2]?.file;
+
+    if (!f1 || !f2 || !f3) {
+      alert("Please upload all 3 verification images.");
+      return;
+    }
+
     setKycBusy(true);
     try {
-      await api.meKycUpload(files);
+      // IMPORTANT: order matters (ID, selfie, selfie-with-ID)
+      await api.meKycUpload([f1, f2, f3]);
       const kyc = await api.meKycStatus();
       setKycStatus(kyc);
       flashSaved("kyc");
+
+      // reset local selection after submit
+      setKycSlots((prev) => {
+        prev.forEach((s) => {
+          if (s.preview) URL.revokeObjectURL(s.preview);
+        });
+        return [
+          { file: null, preview: null },
+          { file: null, preview: null },
+          { file: null, preview: null },
+        ];
+      });
     } catch (err) {
       console.error(err);
       alert("Failed to upload verification images.");
     } finally {
-      if (kycInputRef.current) kycInputRef.current.value = "";
       setKycBusy(false);
     }
   }
@@ -511,6 +588,31 @@ export default function ProfilePage() {
   const milesValue = kmToMiles(distanceValue);
   const recMinMi = kmToMiles(recommendedMinKm);
   const recMaxMi = kmToMiles(recommendedMaxKm);
+
+  const kycAllSelected =
+    !!kycSlots[0]?.file && !!kycSlots[1]?.file && !!kycSlots[2]?.file;
+
+  const kycCards: Array<{
+    title: string;
+    subtitle: string;
+    hint: string;
+  }> = [
+    {
+      title: "1) ID / Passport",
+      subtitle: "Your identification document",
+      hint: "Must match your profile name, age, and gender.",
+    },
+    {
+      title: "2) Face selfie",
+      subtitle: "A clear photo of your face",
+      hint: "Good lighting, no filters, face fully visible.",
+    },
+    {
+      title: "3) Selfie + ID",
+      subtitle: "You holding your ID next to your face",
+      hint: "Face + ID visible in the same photo.",
+    },
+  ];
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
@@ -643,6 +745,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
+          {/* ✅ UPDATED VERIFICATION UI (3 REQUIRED IMAGES) */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-rose-500 dark:text-rose-300" />
@@ -689,11 +792,10 @@ export default function ProfilePage() {
             )}
 
             {kycStatus?.status === "unverified" && (
-              <div className="mt-4 space-y-3 text-xs text-slate-600 dark:text-slate-300">
+              <div className="mt-4 space-y-4 text-xs text-slate-600 dark:text-slate-300">
                 <p>
-                  Upload verification images so we can confirm you’re a real person. If your
-                  status becomes <span className="font-medium">Unverified</span> again, your
-                  request was denied — check the reasons and re-upload.
+                  Upload the <span className="font-medium">three required images</span> below.
+                  If your request was denied, check the reasons and re-upload.
                 </p>
 
                 {!!kycStatus?.reasons?.length && (
@@ -714,32 +816,115 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3 pt-1">
-                  <label
-                    className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white ${
-                      kycBusy ? "opacity-70 pointer-events-none" : ""
-                    }`}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {([0, 1, 2] as const).map((idx) => {
+                    const slot = kycSlots[idx];
+                    const meta = kycCards[idx];
+                    const has = !!slot.file;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/70"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-[11px] font-semibold text-slate-800 dark:text-slate-100">
+                              {meta.title}
+                            </div>
+                            <div className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                              {meta.subtitle}
+                            </div>
+                          </div>
+
+                          {has && (
+                            <button
+                              type="button"
+                              onClick={() => clearKycSlot(idx)}
+                              disabled={kycBusy}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/70 disabled:opacity-60"
+                              title="Remove"
+                              aria-label={`Remove KYC image ${idx + 1}`}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
+                          <div className="relative flex h-28 items-center justify-center">
+                            {slot.preview ? (
+                              <img
+                                src={slot.preview}
+                                alt={`kyc-${idx + 1}`}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                                <ImageIcon className="h-6 w-6" />
+                                <span className="text-[10px]">No image selected</span>
+                              </div>
+                            )}
+
+                            <label
+                              className={[
+                                "absolute inset-0 flex cursor-pointer items-center justify-center text-[11px] font-medium text-white backdrop-blur-[1px] transition",
+                                slot.preview
+                                  ? "bg-slate-900/35 opacity-0 hover:opacity-100"
+                                  : "bg-slate-900/25 opacity-100",
+                                kycBusy ? "pointer-events-none opacity-100" : "",
+                              ].join(" ")}
+                            >
+                              <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5">
+                                <Upload className="h-4 w-4" />
+                                {slot.preview ? "Replace" : "Upload"}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => onPickKycFile(e, idx)}
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+                          {meta.hint}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {kycAllSelected ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                        All 3 images selected. Ready to submit.
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 text-rose-500 dark:text-rose-300" />
+                        Please select all 3 images to submit.
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={submitKycTriplet}
+                    disabled={kycBusy || !kycAllSelected}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                   >
                     {kycBusy ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <ImageIcon className="h-4 w-4" />
+                      <ShieldCheck className="h-4 w-4" />
                     )}
-                    {kycBusy ? "Uploading…" : "Choose images"}
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      className="hidden"
-                      ref={kycInputRef}
-                      onChange={onUploadKycFiles}
-                    />
-                  </label>
-                  {kycBusy && (
-                    <span className="inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…
-                    </span>
-                  )}
+                    {kycBusy ? "Submitting…" : "Submit verification"}
+                  </button>
                 </div>
               </div>
             )}
