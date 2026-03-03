@@ -10,7 +10,7 @@ import {
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import { api } from "../lib/api"; // ✅ adjust if your api.ts path differs
+import { api } from "../lib/api";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
@@ -376,49 +376,26 @@ export default function LandingPage() {
     };
   }, []);
 
+  // ✅ simplified to 3 only
   const testimonials = useMemo(
     () => [
       {
         name: "Maya",
         meta: "23 • Beirut",
-        text:
-          "It feels calm. The questions actually filter people who want the same pace.",
-        tag: "Less noise",
+        text: "The pace is calm. It doesn’t feel like a swipe game.",
+        tag: "Calm",
       },
       {
         name: "Karim",
         meta: "27 • Tripoli",
-        text:
-          "The matches make sense. It’s not the usual ‘how did we even get paired?’",
-        tag: "More signal",
+        text: "Matches make sense. You can actually focus on one person.",
+        tag: "Focused",
       },
       {
         name: "Lina",
         meta: "21 • Byblos",
-        text:
-          "The privacy approach is solid. Premium vibe without feeling cold.",
-        tag: "Trust-first",
-      },
-      {
-        name: "Hadi",
-        meta: "25 • Saida",
-        text:
-          "The chat feels guided, not cringe. It asks the right things.",
-        tag: "Thoughtful",
-      },
-      {
-        name: "Nour",
-        meta: "24 • Zahle",
-        text:
-          "It doesn’t try to trap you into scrolling. It respects your time.",
-        tag: "Time-respect",
-      },
-      {
-        name: "Jad",
-        meta: "29 • Jounieh",
-        text:
-          "Clean UI but still alive. Finally something that doesn’t feel like a swipe factory.",
-        tag: "Feels human",
+        text: "Privacy feels real. The app doesn’t push you to show off.",
+        tag: "Private",
       },
     ],
     []
@@ -427,7 +404,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-50 transition-colors duration-300">
       <div className="mx-auto min-h-screen max-w-6xl px-6 sm:px-10 lg:px-20">
-        {/* Sticky header stays glass */}
         <div className="sticky top-0 z-50 -mx-6 sm:-mx-10 lg:-mx-20 px-6 sm:px-10 lg:px-20 backdrop-blur-xl bg-white/65 dark:bg-slate-950/45 border-b border-slate-200/50 dark:border-slate-800/50">
           <AppHeader />
         </div>
@@ -468,8 +444,7 @@ export default function LandingPage() {
                 </h1>
 
                 <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                  Find someone who gets you, without the exhausting explaining.
-                  A slower pace. A clearer connection.
+                  A slower, calmer way to meet someone who fits. No endless feeds.
                 </p>
 
                 <div className="mt-8 flex flex-col items-center gap-3">
@@ -483,14 +458,14 @@ export default function LandingPage() {
 
                   <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                     <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                    Gated access • privacy-first • one match at a time
+                    Privacy-first • one match at a time
                   </div>
                 </div>
 
-                {/* Steps (square) + arrows */}
+                {/* ✅ 3 Pillars (replaces steps) */}
                 <div className="mt-10">
                   <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
-                    {/* Step 1 */}
+                    {/* Pillar 1 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -499,17 +474,17 @@ export default function LandingPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                          Step 1
+                          Pillar 1
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Quick start
+                          Always
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Answer a few real questions
+                        Free. Now and later.
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        No swiping. No profile performance. Just you, clearly.
+                        Everyone deserves a real chance to find someone like-minded.
                       </div>
                     </motion.div>
 
@@ -520,7 +495,7 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* Step 2 */}
+                    {/* Pillar 2 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -529,17 +504,17 @@ export default function LandingPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                          Step 2
+                          Pillar 2
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Your vibe
+                          Deep fit
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Set what matters to you
+                        Personality first.
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        Pace, boundaries, intentions, deal-breakers. You’re not liking faces, you’re choosing a direction.
+                        We prioritize deep compatibility, not surface-level profiles.
                       </div>
                     </motion.div>
 
@@ -550,7 +525,7 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* Step 3 */}
+                    {/* Pillar 3 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -559,17 +534,17 @@ export default function LandingPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                          Step 3
+                          Pillar 3
                         </div>
                         <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          One match
+                          Daily
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Get one person worth your time
+                        No swiping. One match at a time.
                       </div>
                       <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        We give you someone to actually focus on, not a feed to doom-scroll.
+                        Calculated matches, delivered daily. Guaranteed.
                       </div>
                     </motion.div>
                   </div>
@@ -591,7 +566,11 @@ export default function LandingPage() {
                     <motion.div
                       initial={{ y: 0, opacity: 0.9 }}
                       animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
-                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                       className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
                     >
                       <ChevronDown className="h-8 w-8" />
@@ -610,14 +589,14 @@ export default function LandingPage() {
                   The matching
                 </div>
                 <h2 className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">
-                  Built to help you{" "}
+                  Built for{" "}
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">
-                    find the right person,
+                    deep fit,
                   </span>{" "}
-                  not burn out.
+                  not endless choice.
                 </h2>
                 <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-                  Less “how did we match?” and more “okay… this makes sense.”
+                  Less randomness. More “this actually makes sense.”
                 </p>
               </div>
 
@@ -630,8 +609,8 @@ export default function LandingPage() {
                 >
                   <DiagramCard
                     title="What matters"
-                    subtitle="We look for the patterns that actually describe you"
-                    footer="Less noise. More clarity."
+                    subtitle="Patterns that describe you"
+                    footer="More clarity. Less noise."
                   >
                     <SignalFieldSVG />
                   </DiagramCard>
@@ -645,8 +624,8 @@ export default function LandingPage() {
                 >
                   <DiagramCard
                     title="Less randomness"
-                    subtitle="We sanity-check before we match you"
-                    footer="So your time goes to people who fit."
+                    subtitle="Checks before we match"
+                    footer="So your time isn’t wasted."
                   >
                     <CalibrationSVG />
                   </DiagramCard>
@@ -660,7 +639,7 @@ export default function LandingPage() {
                 >
                   <DiagramCard
                     title="Your people"
-                    subtitle="We connect you with the right circle, not the loudest option"
+                    subtitle="Natural groups, better fit"
                     footer="Good fit beats endless options."
                   >
                     <GraphSVG />
@@ -673,10 +652,10 @@ export default function LandingPage() {
                   <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-500 dark:text-emerald-300" />
                   <div>
                     <div className="font-semibold text-slate-900 dark:text-slate-50">
-                      Built for trust
+                      Privacy-first
                     </div>
                     <div className="mt-1">
-                      Gated access keeps things cleaner. Privacy stays first. And the experience stays focused, so it’s harder to game and easier to feel safe.
+                      The goal is simple: fewer games, better people, safer experience.
                     </div>
                   </div>
                 </div>
@@ -709,7 +688,7 @@ export default function LandingPage() {
                     What it feels like
                   </h2>
                   <p className="mt-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                    Calm pacing. Less nonsense. Better alignment. The kind of experience that doesn’t leave you tired.
+                    Calm pacing. Less nonsense. Better alignment.
                   </p>
 
                   <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -721,7 +700,7 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        (alpha feedback, not an app-store rating)
+                        (alpha feedback)
                       </div>
                     </div>
 
@@ -731,7 +710,7 @@ export default function LandingPage() {
                         “Feels human”
                       </div>
                       <div className="mt-1 text-xs text-rose-700/80 dark:text-rose-200/80">
-                        The most common comment
+                        Most common comment
                       </div>
                     </div>
                   </div>
@@ -746,18 +725,18 @@ export default function LandingPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      Community notes
+                      Quick notes
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      quick highlights
+                      what people say
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {[
-                      { t: "Pacing", d: "Less pressure. More clarity." },
-                      { t: "Quality", d: "Fewer weird matches." },
-                      { t: "Privacy", d: "Trust comes first." },
-                      { t: "Energy", d: "Clean, but not lifeless." },
+                      { t: "Pacing", d: "Less pressure." },
+                      { t: "Quality", d: "Better matches." },
+                      { t: "Privacy", d: "Feels safer." },
+                      { t: "Focus", d: "One person at a time." },
                     ].map((x, i) => (
                       <div
                         key={i}
@@ -775,14 +754,15 @@ export default function LandingPage() {
                 </motion.div>
               </div>
 
-              <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/* ✅ only 3 testimonial boxes */}
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
                 {testimonials.map((t, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0, y: 12 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.2 }}
-                    transition={{ duration: 0.35, delay: i * 0.04 }}
+                    transition={{ duration: 0.35, delay: i * 0.05 }}
                     className="group rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45"
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -818,7 +798,7 @@ export default function LandingPage() {
                       </span>
                       <span className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent font-semibold">
-                          loved by early users
+                          early users
                         </span>
                       </span>
                     </div>
@@ -869,7 +849,7 @@ export default function LandingPage() {
                   </h2>
 
                   <p className="mt-6 text-base leading-relaxed text-slate-600 dark:text-slate-300">
-                    It’s not therapy. It’s not random icebreakers. It’s a short conversation designed to capture what matters to you, without forcing you to perform.
+                    Short, private, and built to capture what matters.
                   </p>
 
                   <div className="mt-8 rounded-3xl border border-slate-200 bg-white/65 p-6 text-base backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/45">
@@ -877,16 +857,27 @@ export default function LandingPage() {
                       What we care about
                     </div>
                     <ul className="mt-4 space-y-3 text-slate-600 dark:text-slate-300">
-                      <li>• Keep it private, always</li>
-                      <li>• Look for consistency, not perfection</li>
-                      <li>• Match by fit, not by hype</li>
+                      <li>• Keep it private</li>
+                      <li>• Match by fit</li>
+                      <li>• Keep it calm</li>
                     </ul>
 
                     <div className="mt-6 flex flex-wrap gap-2">
                       {[
-                        { icon: <ShieldCheck className="h-4 w-4 text-emerald-500" />, t: "Privacy-first" },
-                        { icon: <Sparkles className="h-4 w-4 text-indigo-500" />, t: "Calm UX" },
-                        { icon: <MessageSquareHeart className="h-4 w-4 text-rose-500" />, t: "Human pacing" },
+                        {
+                          icon: <ShieldCheck className="h-4 w-4 text-emerald-500" />,
+                          t: "Privacy-first",
+                        },
+                        {
+                          icon: <Sparkles className="h-4 w-4 text-indigo-500" />,
+                          t: "Personality-based",
+                        },
+                        {
+                          icon: (
+                            <MessageSquareHeart className="h-4 w-4 text-rose-500" />
+                          ),
+                          t: "One-at-a-time",
+                        },
                       ].map((x, i) => (
                         <div
                           key={i}
@@ -919,7 +910,9 @@ export default function LandingPage() {
                       </div>
                       <div>
                         <div className="font-semibold">LikeMinded guide</div>
-                        <div className="text-xs text-slate-500">Assessment chat</div>
+                        <div className="text-xs text-slate-500">
+                          Assessment chat
+                        </div>
                       </div>
 
                       <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
@@ -932,7 +925,8 @@ export default function LandingPage() {
 
                     <div className="mt-6 space-y-4 text-sm">
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        When you feel misunderstood, what do you usually do first: explain calmly, go quiet, or push harder?
+                        When you feel misunderstood, what do you do first: explain
+                        calmly, go quiet, or push harder?
                       </div>
 
                       <div className="ml-auto w-fit rounded-2xl bg-indigo-500 px-4 py-3 text-white">
@@ -940,11 +934,11 @@ export default function LandingPage() {
                       </div>
 
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        That’s a real pattern. It helps us avoid matching you with people who demand constant intensity.
+                        That helps us avoid matching you with people who demand constant intensity.
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
-                        Private summary saved, not the full conversation.
+                        We save a private summary, not the full chat.
                       </div>
 
                       <div className="pt-2">
@@ -956,7 +950,7 @@ export default function LandingPage() {
                           <Sparkles className="h-4 w-4" />
                         </Link>
                         <div className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
-                          You can stop anytime. Built to feel calm, not intense.
+                          You can stop anytime.
                         </div>
                       </div>
                     </div>
