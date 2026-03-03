@@ -9,20 +9,34 @@ import logoMark from "../assets/likeminded-mark.png";
 type Props = {
   className?: string;
   showNav?: boolean;
+
+  // ✅ new prop name
   showUserBadge?: boolean;
+
+  // ✅ backwards compatibility with old usage
+  showVerifiedBadge?: boolean;
+
   signInPath?: string; // default "/login"
 };
 
 export default function AppHeader({
   className,
   showNav = true,
-  showUserBadge = true,
+  showUserBadge,
+  showVerifiedBadge,
   signInPath = "/login",
 }: Props) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
 
   const [fullName, setFullName] = useState<string | null>(null);
+
+  // ✅ decide what to show:
+  // - if showUserBadge is provided, use it
+  // - else fall back to showVerifiedBadge (old prop)
+  // - else default true
+  const shouldShowUserBadge =
+    showUserBadge ?? (showVerifiedBadge ?? true);
 
   useEffect(() => {
     let alive = true;
@@ -110,7 +124,7 @@ export default function AppHeader({
 
       {/* RIGHT SIDE */}
       <div className="flex items-center gap-3">
-        {showUserBadge && (
+        {shouldShowUserBadge && (
           <>
             {fullName ? (
               <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-200">
