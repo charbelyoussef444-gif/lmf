@@ -1,5 +1,11 @@
 // src/pages/ProfilePage.tsx
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type MutableRefObject,
+} from "react";
 import {
   Loader2,
   Sparkles,
@@ -12,7 +18,10 @@ import {
   Image as ImageIcon,
   XCircle,
   Check,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { api, type ProfileResponse } from "../lib/api";
 
 import AppHeader from "../components/AppHeader";
@@ -196,6 +205,8 @@ type KycSlot = {
 };
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -221,9 +232,6 @@ export default function ProfilePage() {
   const [kycBusy, setKycBusy] = useState(false);
 
   // 3 required KYC slots with previews (in this exact order)
-  // 1) ID / Passport
-  // 2) Clear face selfie
-  // 3) Selfie holding ID next to face
   const [kycSlots, setKycSlots] = useState<KycSlot[]>([
     { file: null, preview: null },
     { file: null, preview: null },
@@ -245,7 +253,7 @@ export default function ProfilePage() {
     which: "prefs" | "interests" | "photos" | "kyc",
     ms = 2200
   ) {
-    const clear = (ref: React.MutableRefObject<number | null>) => {
+    const clear = (ref: MutableRefObject<number | null>) => {
       if (ref.current) window.clearTimeout(ref.current);
       ref.current = window.setTimeout(() => {
         if (which === "prefs") setPrefsSaved(false);
@@ -300,8 +308,7 @@ export default function ProfilePage() {
         const pp = normalizeProfile(p);
 
         // sane default if missing
-        if (pp.preferred_max_distance_km == null)
-          pp.preferred_max_distance_km = 80;
+        if (pp.preferred_max_distance_km == null) pp.preferred_max_distance_km = 80;
 
         setProfile(pp);
 
@@ -334,7 +341,6 @@ export default function ProfilePage() {
     setPendingInterests((prev) => {
       const exists = prev.some((i) => i.id === int.id);
       if (exists) return prev.filter((i) => i.id !== int.id);
-      // NO LIMIT: allow adding any number
       return [...prev, int];
     });
   }
@@ -348,7 +354,6 @@ export default function ProfilePage() {
     try {
       const names = pendingInterests.map((i) => i.name);
       const updated = await api.putInterests(names);
-      // NO LIMIT: keep all updated returned interests as pending
       setPendingInterests(updated);
       flashSaved("interests");
     } catch (err) {
@@ -745,20 +750,45 @@ export default function ProfilePage() {
               )}
             </div>
 
+            {/* ✅ VERIFIED: show CTA to conversations */}
             {kycStatus?.status === "verified" && (
-              <p className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
-                <ShieldCheck className="h-4 w-4" />
-                Your account is verified.
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                  <ShieldCheck className="h-4 w-4" />
+                  Your account is verified.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/conversations")}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                >
+                  Go to matches <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             )}
 
+            {/* ✅ PENDING: note + refresh button */}
             {kycStatus?.status === "pending" && (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Your verification is pending review.</span>
                 </div>
-                <div className="mt-3">
+
+                <div className="mt-2 text-[11px] opacity-90">
+                  When it’s approved, refresh this page to see your verified status.
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/60"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Refresh
+                  </button>
+
                   <button
                     type="button"
                     onClick={cancelKyc}
@@ -1094,7 +1124,8 @@ export default function ProfilePage() {
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Pick everything that feels like you. Your selections are only saved when you click “Save interests”.
+              Pick everything that feels like you. Your selections are only saved when you
+              click “Save interests”.
             </p>
 
             <div className="mt-4">
