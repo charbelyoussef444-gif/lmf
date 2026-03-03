@@ -750,10 +750,10 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* ✅ VERIFIED: show CTA to conversations */}
+            {/* ✅ VERIFIED: message + CTA aligned right, purple/pink style */}
             {kycStatus?.status === "verified" && (
-              <div className="mt-4 space-y-3">
-                <p className="inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
                   <ShieldCheck className="h-4 w-4" />
                   Your account is verified.
                 </p>
@@ -761,9 +761,10 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => navigate("/conversations")}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                  className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-300/60 dark:shadow-black/30 dark:focus:ring-indigo-500/30"
                 >
-                  Go to matches <ArrowRight className="h-4 w-4" />
+                  Go to matches
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </button>
               </div>
             )}
