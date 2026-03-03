@@ -383,6 +383,19 @@ function NoMatchBanner() {
   );
 }
 
+/** ✅ NEW: incoming match note */
+function IncomingMatchNote() {
+  return (
+    <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/70 p-2.5 text-[11px] text-indigo-900 dark:border-indigo-800/50 dark:bg-indigo-950/40 dark:text-indigo-100">
+      <div className="font-semibold">Tip</div>
+      <div className="mt-0.5 text-indigo-700 dark:text-indigo-200/90">
+        You can get a new match anytime if someone else matches you. So keep coming back here and
+        check.
+      </div>
+    </div>
+  );
+}
+
 function extractIntroPrompts(text?: string) {
   if (!text) return [];
   const lines = text.split("\n").map((l) => l.trim());
@@ -1462,6 +1475,7 @@ export default function ConversationsPage() {
 
                     <MatchBlockers status={matchStatus} align="left" />
                     {noMatch && <NoMatchBanner />}
+                    <IncomingMatchNote />
                   </div>
 
                   {showTopMatchButton && (
@@ -1658,6 +1672,7 @@ export default function ConversationsPage() {
                     <div className="mt-2 w-full max-w-xs">
                       <MatchBlockers status={matchStatus} align="center" />
                       {noMatch && <NoMatchBanner />}
+                      <IncomingMatchNote />
                     </div>
                   </div>
                 )}
@@ -1696,6 +1711,7 @@ export default function ConversationsPage() {
 
                             <MatchBlockers status={matchStatus} align="left" />
                             {noMatch && <NoMatchBanner />}
+                            <IncomingMatchNote />
                           </div>
 
                           <button
@@ -1728,6 +1744,7 @@ export default function ConversationsPage() {
                         <div className="mt-4 w-full max-w-xs mx-auto">
                           <MatchBlockers status={matchStatus} align="center" />
                           {noMatch && <NoMatchBanner />}
+                          <IncomingMatchNote />
                         </div>
                       </div>
                     )}
