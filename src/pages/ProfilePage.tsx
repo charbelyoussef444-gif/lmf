@@ -1371,52 +1371,54 @@ export default function ProfilePage() {
             )}
           </section>
 
-          {/* ✅ NEW: Danger zone */}
-          <section className="rounded-3xl border border-rose-200 bg-rose-50/70 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-rose-800 dark:bg-rose-950/30 dark:shadow-black/30">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-300" />
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                Danger zone
-              </h2>
-            </div>
+         {/* ✅ Danger zone */}
+<section className="rounded-3xl border border-rose-200 bg-rose-50/70 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-rose-800 dark:bg-rose-950/30 dark:shadow-black/30">
+  <div className="flex items-center gap-2">
+    <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-300" />
+    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+      Danger zone
+    </h2>
+  </div>
 
-            <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
-              Deleting your account is permanent. Your profile, interests, photos, and verification
-              uploads will be removed.
-            </p>
+  <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
+    Deleting your account is permanent. Your profile, interests, photos, and verification
+    uploads will be removed.
+  </p>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-              <div>
-                <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-200">
-                  Type <span className="font-semibold">DELETE</span> to confirm
-                </label>
-                <input
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  disabled={deletingAccount}
-                  placeholder="DELETE"
-                  className="mt-1 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none focus:ring-2 focus:ring-rose-300/60 disabled:opacity-70 dark:border-rose-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-rose-500/30"
-                />
-                <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                  This can’t be undone.
-                </div>
-              </div>
+  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="flex-1">
+      <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-200">
+        Type <span className="font-semibold">DELETE</span> to confirm
+      </label>
 
-              <button
-                type="button"
-                onClick={deleteAccount}
-                disabled={deletingAccount || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
-              >
-                {deletingAccount ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <XCircle className="h-4 w-4" />
-                )}
-                {deletingAccount ? "Deleting…" : "Delete account"}
-              </button>
-            </div>
-          </section>
+      <input
+        value={deleteConfirmText}
+        onChange={(e) => setDeleteConfirmText(e.target.value)}
+        disabled={deletingAccount}
+        placeholder="DELETE"
+        className="mt-1 h-11 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none focus:ring-2 focus:ring-rose-300/60 disabled:opacity-70 dark:border-rose-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-rose-500/30"
+      />
+
+      <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+        This can’t be undone.
+      </div>
+    </div>
+
+    <button
+      type="button"
+      onClick={deleteAccount}
+      disabled={deletingAccount || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+      className="h-11 shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-xs font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
+    >
+      {deletingAccount ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <XCircle className="h-4 w-4" />
+      )}
+      {deletingAccount ? "Deleting…" : "Delete account"}
+    </button>
+  </div>
+</section>
         </main>
 
         <AppFooter />
