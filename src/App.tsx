@@ -1,6 +1,12 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { useEffect, useMemo } from "react";
 
 import LandingPage from "./pages/LandingPage";
 import ChatbotPage from "./pages/ChatbotPage";
@@ -28,20 +34,23 @@ function AuthedAppShell() {
     api.mePingOncePerTab().catch(() => {});
   }, [user, loading]);
 
-  // detect mobile
+  // normalize path (remove trailing slash)
+  const path = useMemo(
+    () => location.pathname.replace(/\/+$/, "") || "/",
+    [location.pathname]
+  );
+
+  // detect mobile (basic UA check)
   const isMobile =
     typeof window !== "undefined" &&
     /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
       navigator.userAgent
     );
 
-  // normalize path (remove trailing slash)
-  const path = location.pathname.replace(/\/+$/, "");
-
   /**
-   * ✅ MOBILE RULES
-   * Allow admin + sign-in related pages on mobile.
-   * Everything else on mobile -> /mobile
+   * ✅ MOBILE RULES:
+   * Only allow admin + sign-in related routes on mobile.
+   * Everything else -> /mobile
    */
   const mobileAllowed =
     path === "/mobile" ||
@@ -51,6 +60,7 @@ function AuthedAppShell() {
     path === "/admin" ||
     path.startsWith("/admin/");
 
+  // only enforce mobile gate after initial render (avoid weird early redirects)
   if (isMobile && !mobileAllowed) {
     return <Navigate to="/mobile" replace />;
   }
@@ -73,12 +83,14 @@ function AuthedAppShell() {
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          {/* ADMIN (mobile allowed too) */}
+          {/* ADMIN */}
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/users/:id" element={<AdminUserJourneyPage />} />
         </Route>
 
-        
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }
