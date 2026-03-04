@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useTheme } from "../theme/ThemeProvider";
 import { api } from "../lib/api";
 import logoMark from "../assets/likeminded-mark.png";
+import { useAuth } from "../auth/AuthProvider";
 
 type Props = {
   className?: string;
@@ -28,6 +29,7 @@ export default function AppHeader({
 }: Props) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const { user, loading } = useAuth();
 
   const [fullName, setFullName] = useState<string | null>(null);
 
@@ -39,6 +41,14 @@ export default function AppHeader({
 
   useEffect(() => {
     let alive = true;
+
+    // ✅ if not signed in (or still loading), do NOT call api.me()
+    if (loading || !user) {
+      setFullName(null);
+      return () => {
+        alive = false;
+      };
+    }
 
     (async () => {
       try {
@@ -54,7 +64,7 @@ export default function AppHeader({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [user, loading]);
 
   const activePath = location.pathname;
 
