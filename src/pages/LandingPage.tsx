@@ -419,7 +419,7 @@ export default function LandingPage() {
                 <div className="flex justify-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm backdrop-blur-xl dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-200">
                     <ShieldCheck className="h-4 w-4" />
-                    we guarantee at least 1 match a day
+                    we guarantee at least 1 new match a day
                     {countError ? (
                       <span className="ml-2 text-[10px] text-rose-700/90 dark:text-rose-200">
                         (count unavailable)
@@ -479,11 +479,9 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Free. Now and later.
-                      </div>
-                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                         Everyone deserves to find someone like-minded. No paywalls for connection.
                       </div>
+                      
                     </motion.div>
 
                     {/* Card 2 */}
@@ -502,11 +500,9 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Personality first.
-                      </div>
-                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                         We prioritize who you are and long-term fit, not surface-level profiles.
                       </div>
+                      
                     </motion.div>
 
                     {/* Card 3 */}
@@ -525,11 +521,9 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        One match a day. Guaranteed.
+                        One calculated match a day. Guaranteed. Just someone worth your focus.
                       </div>
-                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        Calculated matches, one at a time. No feeds. Just someone worth your focus.
-                      </div>
+                      
                     </motion.div>
                   </div>
                 </div>
