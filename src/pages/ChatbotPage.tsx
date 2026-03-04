@@ -33,6 +33,7 @@ type HistoryProgress = {
 const STARTED_KEY = "lm_assessment_started_v2";
 const ATTEMPT_KEY = "lm_assessment_attempt_id_v1";
 const PHASE1_POPUP_SHOWN_KEY = "lm_phase1_congrats_shown_v1";
+const LAST_UID_KEY = "lm_last_uid_v1";
 
 /** Supports dynamic IDs (B1_S, B2_P, etc.) */
 const MCQ_TAG_RE = /\[\[mcq:([A-Z0-9_]+)\]\]/g;
@@ -370,7 +371,7 @@ function CalmProgressLoader({
   );
 }
 
-// ✅ icons are back, but title is still centered and fills the card
+// ✅ icons are back, title centered, icon pinned
 function SidebarTallCard({
   icon,
   title,
@@ -380,14 +381,12 @@ function SidebarTallCard({
 }) {
   return (
     <div className="relative flex flex-1 items-center rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
-      {/* ✅ icon pinned left — always same X + perfectly centered */}
       <div className="absolute left-5 top-1/2 -translate-y-1/2">
         <div className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-200/70 bg-white/70 shadow-sm shadow-slate-200/20 backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/30 dark:shadow-black/20">
           <span className="[&>svg]:h-5 [&>svg]:w-5 [&>svg]:shrink-0">{icon}</span>
         </div>
       </div>
 
-      {/* ✅ title stays perfectly centered */}
       <div className="w-full px-14">
         <h2 className="text-center text-sm font-semibold text-slate-900 dark:text-slate-50">
           {title}
@@ -408,15 +407,84 @@ export default function ChatbotPage() {
   const isSendingRef = useRef(false);
   const prevPhaseRef = useRef<ChatPhase>("self");
 
-  const [hasStarted, setHasStarted] = useState<boolean>(
-    () => localStorage.getItem(STARTED_KEY) === "1"
-  );
+  // ✅ per-account scoping: get a stable UID
+  const [uid, setUid] = useState<string>("anon");
+  const [uidReady, setUidReady] = useState(false);
+
+  const scopedKey = useMemo(() => {
+    const safe = (uid || "anon").trim() || "anon";
+    return (base: string) => `${base}::${safe}`;
+  }, [uid]);
+
+  // ✅ determine current user id (safe: won't break TS if api shape differs)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveUid() {
+      const apiAny = api as any;
+      let next = "anon";
+
+      try {
+        // preferred: api.me()
+        if (typeof apiAny.me === "function") {
+          const me = await apiAny.me();
+          next = (me?.id || me?.user_id || me?.uid || "anon") as string;
+        } else if (typeof apiAny.getMe === "function") {
+          const me = await apiAny.getMe();
+          next = (me?.id || me?.user_id || me?.uid || "anon") as string;
+        } else if (typeof apiAny.profile === "function") {
+          const p = await apiAny.profile();
+          next = (p?.id || p?.user_id || "anon") as string;
+        } else if (typeof apiAny.getProfile === "function") {
+          const p = await apiAny.getProfile();
+          next = (p?.id || p?.user_id || "anon") as string;
+        }
+      } catch {
+        // if not logged in / request fails -> anon
+      }
+
+      if (cancelled) return;
+
+      next = (next || "anon").toString();
+      const prev = localStorage.getItem(LAST_UID_KEY) || "anon";
+
+      // if account changed, just switch scope (no global clears needed)
+      localStorage.setItem(LAST_UID_KEY, next);
+
+      setUid(next);
+      setUidReady(true);
+
+      // ✅ re-read started state for this account
+      const started = localStorage.getItem(`${STARTED_KEY}::${next}`) === "1";
+      setHasStarted(started);
+
+      // also reset local-only bubbles when user changes
+      if (prev !== next) {
+        setSelfBubbles(0);
+        setPrefBubbles(0);
+        setPhase("self");
+        prevPhaseRef.current = "self";
+        assessmentCompletedRef.current = false;
+        setCurrentAssistantText(
+          "Hi — I’ll ask some quick questions. Tap one option (or write one sentence for “Other”). Your progress is saved."
+        );
+      }
+    }
+
+    resolveUid();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ✅ hasStarted must be scoped per uid, not global
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
   const [starting, setStarting] = useState(false);
 
   const [phase, setPhase] = useState<ChatPhase>("self");
   const [, setServerProgress] = useState<HistoryProgress | null>(null);
 
-  // ✅ bubbles are created only when user confirms an MCQ answer (no grey placeholders)
   const [selfBubbles, setSelfBubbles] = useState(0);
   const [prefBubbles, setPrefBubbles] = useState(0);
 
@@ -439,13 +507,14 @@ export default function ChatbotPage() {
   const [otherText, setOtherText] = useState("");
   const [freeformText, setFreeformText] = useState("");
 
-  // confirm + phase transition popups
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showPhase1Congrats, setShowPhase1Congrats] = useState(false);
 
-  // use backend history only to restore the last message/phase; bubbles are local-only per your request
+  // ✅ wait for uidReady so localStorage scoping is correct
   useEffect(() => {
+    if (!uidReady) return;
+
     let cancelled = false;
 
     async function loadHistory() {
@@ -465,8 +534,10 @@ export default function ChatbotPage() {
         const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
         if (lastAssistant?.content) {
           setCurrentAssistantText(lastAssistant.content);
+
+          // ✅ started flag is per-account
           setHasStarted(true);
-          localStorage.setItem(STARTED_KEY, "1");
+          localStorage.setItem(scopedKey(STARTED_KEY), "1");
         }
 
         if (data?.phase === "done" && !assessmentCompletedRef.current) {
@@ -487,7 +558,7 @@ export default function ChatbotPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [uidReady, scopedKey]);
 
   const isFreeform = useMemo(
     () => isFreeformPrompt(currentAssistantText),
@@ -508,7 +579,6 @@ export default function ChatbotPage() {
     setShowConfirm(false);
   }, [mcqId]);
 
-  // Loader appearance delay
   useEffect(() => {
     if (!isLoadingNext) {
       setShowLoader(false);
@@ -518,7 +588,6 @@ export default function ChatbotPage() {
     return () => window.clearTimeout(t);
   }, [isLoadingNext]);
 
-  // Fake progress fill (fast start, slow end)
   useEffect(() => {
     if (!isLoadingNext) {
       setSavePercent(0);
@@ -548,11 +617,11 @@ export default function ChatbotPage() {
     if (starting) return;
     setStarting(true);
     try {
-      let attemptId: string | null = localStorage.getItem(ATTEMPT_KEY);
+      let attemptId: string | null = localStorage.getItem(scopedKey(ATTEMPT_KEY));
       if (!attemptId) {
         const start = await api.assessmentStart();
         attemptId = start.attempt_id;
-        localStorage.setItem(ATTEMPT_KEY, attemptId);
+        localStorage.setItem(scopedKey(ATTEMPT_KEY), attemptId);
       }
 
       api.trackEvent({
@@ -560,7 +629,7 @@ export default function ChatbotPage() {
         properties: { attempt_id: attemptId, source: "ok_button" },
       });
 
-      localStorage.setItem(STARTED_KEY, "1");
+      localStorage.setItem(scopedKey(STARTED_KEY), "1");
       setHasStarted(true);
 
       await sendAnswer("ok");
@@ -584,15 +653,16 @@ export default function ChatbotPage() {
       if (res?.phase) {
         const newPhase = res.phase as ChatPhase;
 
-        // phase transition popup: self -> pref
         const prev = prevPhaseRef.current;
+
+        // ✅ phase transition popup is now per-account
         if (
           prev === "self" &&
           newPhase === "pref" &&
-          localStorage.getItem(PHASE1_POPUP_SHOWN_KEY) !== "1"
+          localStorage.getItem(scopedKey(PHASE1_POPUP_SHOWN_KEY)) !== "1"
         ) {
           setShowPhase1Congrats(true);
-          localStorage.setItem(PHASE1_POPUP_SHOWN_KEY, "1");
+          localStorage.setItem(scopedKey(PHASE1_POPUP_SHOWN_KEY), "1");
         }
 
         prevPhaseRef.current = newPhase;
@@ -612,7 +682,6 @@ export default function ChatbotPage() {
       setSaveDone(true);
       setCurrentAssistantText(res?.reply || "");
     } catch {
-      // if request fails, roll back the bubble we added on confirm
       if (phase === "self") setSelfBubbles((n) => Math.max(0, n - 1));
       else if (phase === "pref") setPrefBubbles((n) => Math.max(0, n - 1));
       setCurrentAssistantText("Network error — try again.");
@@ -657,7 +726,6 @@ export default function ChatbotPage() {
 
     setShowConfirm(false);
 
-    // ✅ create a new bubble NOW (no placeholders)
     if (phase === "self") setSelfBubbles((n) => n + 1);
     else if (phase === "pref") setPrefBubbles((n) => n + 1);
 
