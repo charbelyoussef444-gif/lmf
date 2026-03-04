@@ -336,6 +336,9 @@ export const api = {
   // Profile / weights / interests
   me: () => request<ProfileResponse>("/me"),
 
+  // ✅ NEW: delete my account (DELETE /me) — returns 204
+  deleteMe: () => request<null>("/me", { method: "DELETE" }),
+
   // Locations for dropdowns
   getCountries: () => request<CountryRow[]>("/me/locations/countries"),
   getCities: (country: string) => {
@@ -448,8 +451,10 @@ export const api = {
       body: JSON.stringify({ text }),
     }),
 
-  markRead: (cid: string) => request<null>(`/conversations/${cid}/read`, { method: "POST" }),
-  endConversation: (cid: string) => request<null>(`/conversations/${cid}/end`, { method: "POST" }),
+  markRead: (cid: string) =>
+    request<null>(`/conversations/${cid}/read`, { method: "POST" }),
+  endConversation: (cid: string) =>
+    request<null>(`/conversations/${cid}/end`, { method: "POST" }),
 
   reportUser: (payload: ReportCreateIn) =>
     request<ReportCreateOut>("/reports", {
