@@ -24,12 +24,16 @@ function AuthedAppShell() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // detect mobile device
+  // detect mobile
   const isMobile =
     typeof window !== "undefined" &&
     /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
       navigator.userAgent
     );
+
+  // pages allowed on mobile
+  const mobileAllowed =
+    location.pathname.startsWith("/admin");
 
   // ping last-active for logged-in users
   useEffect(() => {
@@ -37,8 +41,8 @@ function AuthedAppShell() {
     api.mePingOncePerTab().catch(() => {});
   }, [user, loading]);
 
-  // redirect mobile users to mobile page
-  if (isMobile && location.pathname !== "/mobile") {
+  // redirect mobile users if page not allowed
+  if (isMobile && !mobileAllowed && location.pathname !== "/mobile") {
     return <Navigate to="/mobile" replace />;
   }
 
@@ -60,7 +64,7 @@ function AuthedAppShell() {
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          {/* ADMIN */}
+          {/* ADMIN (mobile allowed) */}
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/users/:id" element={<AdminUserJourneyPage />} />
         </Route>
