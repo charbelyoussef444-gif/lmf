@@ -370,30 +370,15 @@ function CalmProgressLoader({
   );
 }
 
-function SidebarTallCard({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body?: string;
-}) {
+// ✅ icon + body removed. Title fills the card.
+function SidebarTallCard({ title }: { title: string }) {
   return (
     <div className="flex flex-1 flex-col rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
-      {/* Center the title, make it fill the space */}
       <div className="flex flex-1 items-center justify-center">
         <h2 className="text-center text-sm font-semibold text-slate-900 dark:text-slate-50">
           {title}
         </h2>
       </div>
-
-      {/* Body removed per request (kept optional for future) */}
-      {body ? (
-        <p className="mt-2 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">
-          {body}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -950,10 +935,7 @@ export default function ChatbotPage() {
         onCancel={cancelPending}
       />
 
-      <CongratsModal
-        open={showPhase1Congrats}
-        onContinue={() => setShowPhase1Congrats(false)}
-      />
+      <CongratsModal open={showPhase1Congrats} onContinue={() => setShowPhase1Congrats(false)} />
 
       {!isLoadingHistory && !hasStarted && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
@@ -1052,22 +1034,10 @@ export default function ChatbotPage() {
 
             <aside className="h-full">
               <div className="flex h-full flex-col gap-4">
-                <SidebarTallCard
-                  icon={<Brain className="h-5 w-5 text-indigo-500/70 dark:text-indigo-300/70" />}
-                  title="Answer fast. Match better."
-                />
-                <SidebarTallCard
-                  icon={<HelpCircle className="h-5 w-5 text-rose-500/65 dark:text-rose-300/70" />}
-                  title="Be honest, not perfect."
-                />
-                <SidebarTallCard
-                  icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70" />}
-                  title="Private by design."
-                />
-                <SidebarTallCard
-                  icon={<ShieldCheck className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
-                  title="Progress you can trust."
-                />
+                <SidebarTallCard title="Answer fast. Match better." />
+                <SidebarTallCard title="Be honest, not perfect." />
+                <SidebarTallCard title="Private by design." />
+                <SidebarTallCard title="Progress you can trust." />
               </div>
             </aside>
           </div>
