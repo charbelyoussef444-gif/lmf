@@ -38,7 +38,11 @@ function AuthedAppShell() {
   // normalize path (remove trailing slash)
   const path = location.pathname.replace(/\/+$/, "");
 
-  // ✅ mobile allowed routes (admin + sign-in flow)
+  /**
+   * ✅ MOBILE RULES
+   * Allow admin + sign-in related pages on mobile.
+   * Everything else on mobile -> /mobile
+   */
   const mobileAllowed =
     path === "/mobile" ||
     path === "/login" ||
@@ -47,7 +51,6 @@ function AuthedAppShell() {
     path === "/admin" ||
     path.startsWith("/admin/");
 
-  // ✅ redirect mobile users if page not allowed
   if (isMobile && !mobileAllowed) {
     return <Navigate to="/mobile" replace />;
   }
