@@ -8,7 +8,9 @@ import {
   Star,
   MessageSquareHeart,
   Sparkles,
-  ArrowRight,
+  BadgeCheck,
+  BrainCircuit,
+  CalendarCheck2,
 } from "lucide-react";
 import { api } from "../lib/api";
 
@@ -355,6 +357,48 @@ function StarsRow({ n = 5 }: { n?: number }) {
   );
 }
 
+function ValueCard({
+  icon,
+  kicker,
+  title,
+  desc,
+  glow = "from-indigo-500/30 via-violet-500/25 to-rose-500/30",
+}: {
+  icon: ReactNode;
+  kicker: string;
+  title: string;
+  desc: string;
+  glow?: string;
+}) {
+  return (
+    <div className="relative">
+      {/* glow border */}
+      <div
+        className={`absolute -inset-[1px] rounded-3xl bg-gradient-to-r ${glow} blur-[10px] opacity-60`}
+        aria-hidden="true"
+      />
+      <div className="relative rounded-3xl border border-slate-200/70 bg-white/75 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/55 dark:shadow-black/40">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 text-white shadow-md">
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+              {kicker}
+            </div>
+            <div className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-50">
+              {title}
+            </div>
+            <div className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              {desc}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
   const [countError, setCountError] = useState(false);
@@ -376,7 +420,6 @@ export default function LandingPage() {
     };
   }, []);
 
-  // ✅ simplified to 3 only
   const testimonials = useMemo(
     () => [
       {
@@ -417,7 +460,6 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
               >
-                {/* Guarantee pill */}
                 <div className="flex justify-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm backdrop-blur-xl dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-200">
                     <ShieldCheck className="h-4 w-4" />
@@ -462,98 +504,49 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* ✅ 3 Pillars (replaces steps) */}
+                {/* ✅ standout 3 cards (no "pillars", no arrows) */}
                 <div className="mt-10">
-                  <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch">
-                    {/* Pillar 1 */}
+                  <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-3">
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.05 }}
-                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                          Pillar 1
-                        </div>
-                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Always
-                        </span>
-                      </div>
-                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Free. Now and later.
-                      </div>
-                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        Everyone deserves a real chance to find someone like-minded.
-                      </div>
+                      <ValueCard
+                        icon={<BadgeCheck className="h-5 w-5" />}
+                        kicker="Free access"
+                        title="Free. Now and later."
+                        desc="Everyone deserves a real chance to find someone like-minded. No paywalls for connection."
+                        glow="from-emerald-500/25 via-indigo-500/18 to-violet-500/25"
+                      />
                     </motion.div>
 
-                    {/* Arrow */}
-                    <div className="hidden md:flex items-center justify-center">
-                      <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
-                        <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                      </div>
-                    </div>
-
-                    {/* Pillar 2 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.1 }}
-                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                          Pillar 2
-                        </div>
-                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Deep fit
-                        </span>
-                      </div>
-                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Personality first.
-                      </div>
-                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        We prioritize deep compatibility, not surface-level profiles.
-                      </div>
+                      <ValueCard
+                        icon={<BrainCircuit className="h-5 w-5" />}
+                        kicker="Deep compatibility"
+                        title="Personality first."
+                        desc="We prioritize who you are and how you connect, not surface-level profile performance."
+                      />
                     </motion.div>
 
-                    {/* Arrow */}
-                    <div className="hidden md:flex items-center justify-center">
-                      <div className="rounded-xl border border-slate-200 bg-white/60 p-2 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/35">
-                        <ArrowRight className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                      </div>
-                    </div>
-
-                    {/* Pillar 3 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.15 }}
-                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
-                          Pillar 3
-                        </div>
-                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
-                          Daily
-                        </span>
-                      </div>
-                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        No swiping. One match at a time.
-                      </div>
-                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                        Calculated matches, delivered daily. Guaranteed.
-                      </div>
+                      <ValueCard
+                        icon={<CalendarCheck2 className="h-5 w-5" />}
+                        kicker="No swiping"
+                        title="One match a day. Guaranteed."
+                        desc="Calculated matches, one at a time. No scrolling feeds. Just someone worth your focus."
+                        glow="from-indigo-500/25 via-violet-500/20 to-rose-500/25"
+                      />
                     </motion.div>
-                  </div>
-
-                  {/* Mobile arrows */}
-                  <div className="mt-3 flex items-center justify-center gap-2 md:hidden">
-                    <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
-                    <ArrowRight className="h-4 w-4 text-slate-500 dark:text-slate-300" />
-                    <div className="h-px w-10 bg-slate-300/70 dark:bg-slate-700/70" />
                   </div>
                 </div>
 
@@ -655,7 +648,7 @@ export default function LandingPage() {
                       Privacy-first
                     </div>
                     <div className="mt-1">
-                      The goal is simple: fewer games, better people, safer experience.
+                      The goal: fewer games, better people, safer experience.
                     </div>
                   </div>
                 </div>
@@ -754,7 +747,6 @@ export default function LandingPage() {
                 </motion.div>
               </div>
 
-              {/* ✅ only 3 testimonial boxes */}
               <div className="mt-8 grid gap-4 md:grid-cols-3">
                 {testimonials.map((t, i) => (
                   <motion.div
