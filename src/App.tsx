@@ -1,3 +1,4 @@
+// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
@@ -21,22 +22,23 @@ function AuthedAppShell() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  // ping last-active for logged-in users
   useEffect(() => {
     if (loading || !user) return;
     api.mePingOncePerTab().catch(() => {});
   }, [user, loading]);
 
-  const path = location.pathname.replace(/\/+$/, "");
-
+  // detect mobile
   const isMobile =
     typeof window !== "undefined" &&
     /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
       navigator.userAgent
     );
 
-  /**
-   * MOBILE RULES
-   */
+  // normalize path (remove trailing slash)
+  const path = location.pathname.replace(/\/+$/, "");
+
+  // ✅ mobile allowed routes (admin + sign-in flow)
   const mobileAllowed =
     path === "/mobile" ||
     path === "/login" ||
@@ -45,16 +47,9 @@ function AuthedAppShell() {
     path === "/admin" ||
     path.startsWith("/admin/");
 
+  // ✅ redirect mobile users if page not allowed
   if (isMobile && !mobileAllowed) {
     return <Navigate to="/mobile" replace />;
-  }
-
-  /**
-   * DESKTOP RULES
-   * Only landing page allowed
-   */
-  if (!isMobile && path !== "/") {
-    return <Navigate to="/" replace />;
   }
 
   return (
@@ -63,19 +58,19 @@ function AuthedAppShell() {
         {/* MOBILE PAGE */}
         <Route path="/mobile" element={<MobileOnlyPage />} />
 
-        {/* PUBLIC */}
+        {/* PUBLIC ROUTES */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* PROTECTED */}
+        {/* PROTECTED ROUTES */}
         <Route element={<ProtectedRoute />}>
           <Route path="/chatbot" element={<ChatbotPage />} />
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          {/* ADMIN */}
+          {/* ADMIN (mobile allowed too) */}
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/users/:id" element={<AdminUserJourneyPage />} />
         </Route>
