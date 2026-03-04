@@ -460,10 +460,11 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* ✅ removed: Always badge, Personality badge, and the 3rd bubble.
-                    ✅ centered mini titles and styled them differently from the below text */}
+                {/* ✅ remove badges: Always / Personality / Daily
+                    ✅ keep 3 cards
+                    ✅ center mini titles + style differently from the main text */}
                 <div className="mt-10">
-                  <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2 md:items-stretch">
+                  <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-3 md:items-stretch">
                     {/* Card 1 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
@@ -474,7 +475,6 @@ export default function LandingPage() {
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
                         Free for everyone
                       </div>
-
                       <div className="mt-3 text-base font-semibold text-slate-900 dark:text-slate-50">
                         True connection should be free
                       </div>
@@ -490,9 +490,23 @@ export default function LandingPage() {
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
                         Deep compatibility
                       </div>
-
                       <div className="mt-3 text-base font-semibold text-slate-900 dark:text-slate-50">
                         No surface-level profiles
+                      </div>
+                    </motion.div>
+
+                    {/* Card 3 */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: 0.15 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-center shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
+                    >
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
+                        No swiping
+                      </div>
+                      <div className="mt-3 text-base font-semibold text-slate-900 dark:text-slate-50">
+                        Just someone worth your focus
                       </div>
                     </motion.div>
                   </div>
@@ -507,11 +521,7 @@ export default function LandingPage() {
                     <motion.div
                       initial={{ y: 0, opacity: 0.9 }}
                       animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                       className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
                     >
                       <ChevronDown className="h-8 w-8" />
@@ -609,11 +619,7 @@ export default function LandingPage() {
               <motion.div
                 initial={{ y: 0, opacity: 0.9 }}
                 animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
-                transition={{
-                  duration: 1.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                 className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
               >
                 <ChevronDown className="h-8 w-8" />
@@ -767,11 +773,7 @@ export default function LandingPage() {
               <motion.div
                 initial={{ y: 0, opacity: 0.9 }}
                 animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
-                transition={{
-                  duration: 1.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                 className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
               >
                 <ChevronDown className="h-8 w-8" />
@@ -812,22 +814,9 @@ export default function LandingPage() {
 
                     <div className="mt-6 flex flex-wrap gap-2">
                       {[
-                        {
-                          icon: (
-                            <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                          ),
-                          t: "Privacy-first",
-                        },
-                        {
-                          icon: <Sparkles className="h-4 w-4 text-indigo-500" />,
-                          t: "Personality-based",
-                        },
-                        {
-                          icon: (
-                            <MessageSquareHeart className="h-4 w-4 text-rose-500" />
-                          ),
-                          t: "One-at-a-time",
-                        },
+                        { icon: <ShieldCheck className="h-4 w-4 text-emerald-500" />, t: "Privacy-first" },
+                        { icon: <Sparkles className="h-4 w-4 text-indigo-500" />, t: "Personality-based" },
+                        { icon: <MessageSquareHeart className="h-4 w-4 text-rose-500" />, t: "One-at-a-time" },
                       ].map((x, i) => (
                         <div
                           key={i}
@@ -860,9 +849,7 @@ export default function LandingPage() {
                       </div>
                       <div>
                         <div className="font-semibold">LikeMinded guide</div>
-                        <div className="text-xs text-slate-500">
-                          Assessment chat
-                        </div>
+                        <div className="text-xs text-slate-500">Assessment chat</div>
                       </div>
 
                       <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
@@ -875,18 +862,15 @@ export default function LandingPage() {
 
                     <div className="mt-6 space-y-4 text-sm">
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        When you feel misunderstood, what do you do first:
-                        explain calmly, go quiet, or push harder?
+                        When you feel misunderstood, what do you do first: explain calmly, go quiet, or push harder?
                       </div>
 
                       <div className="ml-auto w-fit rounded-2xl bg-indigo-500 px-4 py-3 text-white">
-                        I explain once. If it keeps happening, I go quiet and
-                        reset.
+                        I explain once. If it keeps happening, I go quiet and reset.
                       </div>
 
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        That helps us avoid matching you with people who demand
-                        constant intensity.
+                        That helps us avoid matching you with people who demand constant intensity.
                       </div>
 
                       <div className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
