@@ -377,20 +377,23 @@ function SidebarTallCard({
 }: {
   icon: React.ReactNode;
   title: string;
-  body: string;
+  body?: string;
 }) {
   return (
     <div className="flex flex-1 flex-col rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
-      <div className="flex items-center gap-2">
-        {icon}
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+      {/* Center the title, make it fill the space */}
+      <div className="flex flex-1 items-center justify-center">
+        <h2 className="text-center text-sm font-semibold text-slate-900 dark:text-slate-50">
+          {title}
+        </h2>
       </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">
-        {body}
-      </p>
-      <div className="mt-auto pt-3">
-        <div className="h-px w-full bg-slate-200/70 dark:bg-slate-800/70" />
-      </div>
+
+      {/* Body removed per request (kept optional for future) */}
+      {body ? (
+        <p className="mt-2 text-[12px] leading-relaxed text-slate-600 dark:text-slate-300">
+          {body}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -925,7 +928,8 @@ export default function ChatbotPage() {
   const confirmTitle = useMemo(() => "Confirm your answer", []);
   const confirmSubtitle = useMemo(() => {
     if (!pendingConfirm) return "";
-    if (pendingConfirm.kind === "mcq") return `You selected: ${pendingConfirm.key}) ${pendingConfirm.label}`;
+    if (pendingConfirm.kind === "mcq")
+      return `You selected: ${pendingConfirm.key}) ${pendingConfirm.label}`;
     return `You wrote: ${pendingConfirm.text.replace(/^D\s*/, "")}`;
   }, [pendingConfirm]);
 
@@ -946,7 +950,10 @@ export default function ChatbotPage() {
         onCancel={cancelPending}
       />
 
-      <CongratsModal open={showPhase1Congrats} onContinue={() => setShowPhase1Congrats(false)} />
+      <CongratsModal
+        open={showPhase1Congrats}
+        onContinue={() => setShowPhase1Congrats(false)}
+      />
 
       {!isLoadingHistory && !hasStarted && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
@@ -988,7 +995,13 @@ export default function ChatbotPage() {
               <div className="h-full rounded-3xl border border-slate-200 bg-white/90 shadow-sm shadow-slate-200/50 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
                 <ProgressHeader
                   phase={phase}
-                  bubblesCount={phase === "self" ? selfBubbles : phase === "pref" ? prefBubbles : selfBubbles + prefBubbles}
+                  bubblesCount={
+                    phase === "self"
+                      ? selfBubbles
+                      : phase === "pref"
+                      ? prefBubbles
+                      : selfBubbles + prefBubbles
+                  }
                 />
 
                 <div className="px-4 py-5 sm:px-5">
@@ -1042,22 +1055,18 @@ export default function ChatbotPage() {
                 <SidebarTallCard
                   icon={<Brain className="h-5 w-5 text-indigo-500/70 dark:text-indigo-300/70" />}
                   title="Answer fast. Match better."
-                 
                 />
                 <SidebarTallCard
                   icon={<HelpCircle className="h-5 w-5 text-rose-500/65 dark:text-rose-300/70" />}
                   title="Be honest, not perfect."
-                  
                 />
                 <SidebarTallCard
                   icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70" />}
                   title="Private by design."
-                 
                 />
                 <SidebarTallCard
                   icon={<ShieldCheck className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
                   title="Progress you can trust."
-                  
                 />
               </div>
             </aside>
