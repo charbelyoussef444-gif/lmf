@@ -1,4 +1,3 @@
-// src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
@@ -18,37 +17,25 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { api } from "./lib/api";
 
-/**
- * App shell for authenticated users
- */
 function AuthedAppShell() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // ping last-active for logged-in users
   useEffect(() => {
     if (loading || !user) return;
     api.mePingOncePerTab().catch(() => {});
   }, [user, loading]);
 
-  // detect mobile
+  const path = location.pathname.replace(/\/+$/, "");
+
   const isMobile =
     typeof window !== "undefined" &&
     /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
       navigator.userAgent
     );
 
-  // normalize path (remove trailing slash)
-  const path = location.pathname.replace(/\/+$/, "");
-
   /**
-   * ✅ Mobile rules:
-   * - Allow /mobile always
-   * - Allow /login so user can sign in when trying to reach admin
-   * - Allow /auth/callback (sign-in redirect)
-   * - Allow /reset-password (optional but usually needed)
-   * - Allow /admin and /admin/* (admin + verification pages)
-   * Everything else on mobile -> /mobile
+   * MOBILE RULES
    */
   const mobileAllowed =
     path === "/mobile" ||
@@ -58,9 +45,16 @@ function AuthedAppShell() {
     path === "/admin" ||
     path.startsWith("/admin/");
 
-  // redirect mobile users if page not allowed
   if (isMobile && !mobileAllowed) {
     return <Navigate to="/mobile" replace />;
+  }
+
+  /**
+   * DESKTOP RULES
+   * Only landing page allowed
+   */
+  if (!isMobile && path !== "/") {
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -69,19 +63,19 @@ function AuthedAppShell() {
         {/* MOBILE PAGE */}
         <Route path="/mobile" element={<MobileOnlyPage />} />
 
-        {/* PUBLIC ROUTES */}
+        {/* PUBLIC */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* PROTECTED ROUTES */}
+        {/* PROTECTED */}
         <Route element={<ProtectedRoute />}>
           <Route path="/chatbot" element={<ChatbotPage />} />
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          {/* ADMIN (mobile allowed, but still protected/auth checked) */}
+          {/* ADMIN */}
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/users/:id" element={<AdminUserJourneyPage />} />
         </Route>
