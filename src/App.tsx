@@ -78,9 +78,7 @@ function AuthedAppShell() {
           <Route path="/admin/users/:id" element={<AdminUserJourneyPage />} />
         </Route>
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        
     </div>
   );
 }
