@@ -35,8 +35,7 @@ export default function AppHeader({
   // - if showUserBadge is provided, use it
   // - else fall back to showVerifiedBadge (old prop)
   // - else default true
-  const shouldShowUserBadge =
-    showUserBadge ?? (showVerifiedBadge ?? true);
+  const shouldShowUserBadge = showUserBadge ?? (showVerifiedBadge ?? true);
 
   useEffect(() => {
     let alive = true;
@@ -76,13 +75,23 @@ export default function AppHeader({
     };
   }, [activePath]);
 
+  // ✅ Active tab now uses a colored pill (indigo)
   const navLinkClass = (active: boolean) =>
     [
-      "relative rounded-full px-3 py-1.5 transition",
+      "relative rounded-full px-3 py-1.5 text-xs font-medium transition",
       active
-        ? "text-slate-900 dark:text-slate-50"
-        : "text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-300",
-      active ? "bg-slate-100 dark:bg-slate-800" : "bg-transparent",
+        ? [
+            "bg-indigo-600 text-white",
+            "shadow-sm",
+            "ring-1 ring-indigo-500/40",
+            "dark:bg-indigo-500 dark:text-slate-950",
+            "dark:ring-indigo-300/30",
+          ].join(" ")
+        : [
+            "text-slate-600 hover:text-indigo-600",
+            "dark:text-slate-300 dark:hover:text-indigo-300",
+            "bg-transparent",
+          ].join(" "),
     ].join(" ");
 
   return (
