@@ -1127,7 +1127,7 @@ export default function ChatbotPage() {
                   title="Be honest, not perfect."
                 />
                 <SidebarTallCard
-                  icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70 ml-[-10px]" />}
+                  icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70 " />}
                   title="Private by design."
                 />
                 <SidebarTallCard
