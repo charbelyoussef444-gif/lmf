@@ -379,11 +379,16 @@ function SidebarTallCard({
   title: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
-      <div className="flex flex-1 items-center justify-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200/70 bg-white/70 shadow-sm shadow-slate-200/20 backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/30 dark:shadow-black/20">
-          {icon}
+    <div className="relative flex flex-1 items-center rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
+      {/* ✅ icon pinned left — always same X + perfectly centered */}
+      <div className="absolute left-5 top-1/2 -translate-y-1/2">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl border border-slate-200/70 bg-white/70 shadow-sm shadow-slate-200/20 backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/30 dark:shadow-black/20">
+          <span className="[&>svg]:h-5 [&>svg]:w-5 [&>svg]:shrink-0">{icon}</span>
         </div>
+      </div>
+
+      {/* ✅ title stays perfectly centered */}
+      <div className="w-full px-14">
         <h2 className="text-center text-sm font-semibold text-slate-900 dark:text-slate-50">
           {title}
         </h2>
@@ -1054,7 +1059,7 @@ export default function ChatbotPage() {
                   title="Be honest, not perfect."
                 />
                 <SidebarTallCard
-                  icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70" />}
+                  icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70 ml-[-10px]" />}
                   title="Private by design."
                 />
                 <SidebarTallCard
