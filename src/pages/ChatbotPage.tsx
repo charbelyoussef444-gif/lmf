@@ -1042,22 +1042,22 @@ export default function ChatbotPage() {
                 <SidebarTallCard
                   icon={<Brain className="h-5 w-5 text-indigo-500/70 dark:text-indigo-300/70" />}
                   title="Answer fast. Match better."
-                  body="No essays. Just quick signals that make your matches feel instantly more “right.”"
+                 
                 />
                 <SidebarTallCard
                   icon={<HelpCircle className="h-5 w-5 text-rose-500/65 dark:text-rose-300/70" />}
                   title="Be honest, not perfect."
-                  body="Pick the closest option. If none fit, one sentence is enough. Overthinking ruins accuracy."
+                  
                 />
                 <SidebarTallCard
                   icon={<Lock className="h-5 w-5 text-emerald-500/70 dark:text-emerald-300/70" />}
                   title="Private by design."
-                  body="People see a clean summary — not your raw answers. You stay in control of what shows up."
+                 
                 />
                 <SidebarTallCard
                   icon={<ShieldCheck className="h-5 w-5 text-slate-500 dark:text-slate-300" />}
                   title="Progress you can trust."
-                  body="Bubbles appear only when you confirm an answer. No placeholders."
+                  
                 />
               </div>
             </aside>
