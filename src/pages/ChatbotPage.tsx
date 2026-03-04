@@ -6,9 +6,9 @@ import {
   Loader2,
   ChevronRight,
   ShieldCheck,
-  Brain,
-  HelpCircle,
-  Lock,
+  
+ 
+  
   Sparkles,
   CheckCircle2,
   ArrowRight,
