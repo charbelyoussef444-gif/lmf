@@ -479,7 +479,7 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        Everyone deserves to find someone like-minded. No paywalls for connection.
+                        True connection should be free 
                       </div>
                       
                     </motion.div>
@@ -500,7 +500,7 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        We prioritize who you are and long-term fit, not surface-level profiles.
+                        No surface-level profiles
                       </div>
                       
                     </motion.div>
@@ -521,7 +521,7 @@ export default function LandingPage() {
                         </span>
                       </div>
                       <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                        One calculated match a day. Guaranteed. Just someone worth your focus.
+                        Just someone worth your focus
                       </div>
                       
                     </motion.div>
