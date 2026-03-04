@@ -8,11 +8,8 @@ import {
   Star,
   MessageSquareHeart,
   Sparkles,
-  BadgeCheck,
-  BrainCircuit,
-  CalendarCheck2,
 } from "lucide-react";
-import { api } from "../lib/api";
+import { api } from "../lib/api"; // ✅ adjust if your api.ts path differs
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
@@ -357,48 +354,6 @@ function StarsRow({ n = 5 }: { n?: number }) {
   );
 }
 
-function ValueCard({
-  icon,
-  kicker,
-  title,
-  desc,
-  glow = "from-indigo-500/30 via-violet-500/25 to-rose-500/30",
-}: {
-  icon: ReactNode;
-  kicker: string;
-  title: string;
-  desc: string;
-  glow?: string;
-}) {
-  return (
-    <div className="relative">
-      {/* glow border */}
-      <div
-        className={`absolute -inset-[1px] rounded-3xl bg-gradient-to-r ${glow} blur-[10px] opacity-60`}
-        aria-hidden="true"
-      />
-      <div className="relative rounded-3xl border border-slate-200/70 bg-white/75 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-xl dark:border-slate-700/70 dark:bg-slate-900/55 dark:shadow-black/40">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-rose-500 text-white shadow-md">
-            {icon}
-          </div>
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-              {kicker}
-            </div>
-            <div className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-50">
-              {title}
-            </div>
-            <div className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              {desc}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function LandingPage() {
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
   const [countError, setCountError] = useState(false);
@@ -460,6 +415,7 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45 }}
               >
+                {/* Guarantee pill */}
                 <div className="flex justify-center">
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-semibold text-emerald-800 shadow-sm backdrop-blur-xl dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-200">
                     <ShieldCheck className="h-4 w-4" />
@@ -504,48 +460,76 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* ✅ standout 3 cards (no "pillars", no arrows) */}
+                {/* ✅ keep original styling, no arrows, no "Pillar" */}
                 <div className="mt-10">
-                  <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-3">
+                  <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-3 md:items-stretch">
+                    {/* Card 1 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.05 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <ValueCard
-                        icon={<BadgeCheck className="h-5 w-5" />}
-                        kicker="Free access"
-                        title="Free. Now and later."
-                        desc="Everyone deserves a real chance to find someone like-minded. No paywalls for connection."
-                        glow="from-emerald-500/25 via-indigo-500/18 to-violet-500/25"
-                      />
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Free for everyone
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Always
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Free. Now and later.
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        Everyone deserves to find someone like-minded. No paywalls for connection.
+                      </div>
                     </motion.div>
 
+                    {/* Card 2 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.1 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <ValueCard
-                        icon={<BrainCircuit className="h-5 w-5" />}
-                        kicker="Deep compatibility"
-                        title="Personality first."
-                        desc="We prioritize who you are and how you connect, not surface-level profile performance."
-                      />
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          Deep compatibility
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Personality
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        Personality first.
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        We prioritize who you are and long-term fit, not surface-level profiles.
+                      </div>
                     </motion.div>
 
+                    {/* Card 3 */}
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: 0.15 }}
+                      className="rounded-2xl border border-slate-200 bg-white/65 p-5 text-left shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/40"
                     >
-                      <ValueCard
-                        icon={<CalendarCheck2 className="h-5 w-5" />}
-                        kicker="No swiping"
-                        title="One match a day. Guaranteed."
-                        desc="Calculated matches, one at a time. No scrolling feeds. Just someone worth your focus."
-                        glow="from-indigo-500/25 via-violet-500/20 to-rose-500/25"
-                      />
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                          No swiping
+                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
+                          Daily
+                        </span>
+                      </div>
+                      <div className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                        One match a day. Guaranteed.
+                      </div>
+                      <div className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        Calculated matches, one at a time. No feeds. Just someone worth your focus.
+                      </div>
                     </motion.div>
                   </div>
                 </div>
@@ -559,11 +543,7 @@ export default function LandingPage() {
                     <motion.div
                       initial={{ y: 0, opacity: 0.9 }}
                       animate={{ y: [0, 10, 0], opacity: [0.6, 1, 0.6] }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                       className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
                     >
                       <ChevronDown className="h-8 w-8" />
@@ -856,20 +836,9 @@ export default function LandingPage() {
 
                     <div className="mt-6 flex flex-wrap gap-2">
                       {[
-                        {
-                          icon: <ShieldCheck className="h-4 w-4 text-emerald-500" />,
-                          t: "Privacy-first",
-                        },
-                        {
-                          icon: <Sparkles className="h-4 w-4 text-indigo-500" />,
-                          t: "Personality-based",
-                        },
-                        {
-                          icon: (
-                            <MessageSquareHeart className="h-4 w-4 text-rose-500" />
-                          ),
-                          t: "One-at-a-time",
-                        },
+                        { icon: <ShieldCheck className="h-4 w-4 text-emerald-500" />, t: "Privacy-first" },
+                        { icon: <Sparkles className="h-4 w-4 text-indigo-500" />, t: "Personality-based" },
+                        { icon: <MessageSquareHeart className="h-4 w-4 text-rose-500" />, t: "One-at-a-time" },
                       ].map((x, i) => (
                         <div
                           key={i}
@@ -902,9 +871,7 @@ export default function LandingPage() {
                       </div>
                       <div>
                         <div className="font-semibold">LikeMinded guide</div>
-                        <div className="text-xs text-slate-500">
-                          Assessment chat
-                        </div>
+                        <div className="text-xs text-slate-500">Assessment chat</div>
                       </div>
 
                       <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-200">
@@ -917,8 +884,7 @@ export default function LandingPage() {
 
                     <div className="mt-6 space-y-4 text-sm">
                       <div className="rounded-2xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/70">
-                        When you feel misunderstood, what do you do first: explain
-                        calmly, go quiet, or push harder?
+                        When you feel misunderstood, what do you do first: explain calmly, go quiet, or push harder?
                       </div>
 
                       <div className="ml-auto w-fit rounded-2xl bg-indigo-500 px-4 py-3 text-white">
