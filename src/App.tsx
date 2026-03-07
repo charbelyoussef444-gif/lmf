@@ -18,6 +18,16 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminPage from "./pages/Admin";
 import AdminUserJourneyPage from "./pages/AdminUserJourneyPage";
 import MobileOnlyPage from "./pages/MobileOnlyPage";
+import LandingPage_mobile from "./pages_mobile/LandingPage_mobile";
+import LoginPage_mobile from "./pages_mobile/LoginPage_mobile";
+import AuthCallback_mobile from "./pages_mobile/AuthCallback_mobile";
+import ResetPasswordPage_mobile from "./pages_mobile/ResetPasswordPage_mobile";
+import ChatbotPage_mobile from "./pages_mobile/ChatbotPage_mobile";
+import ConversationsPage_mobile from "./pages_mobile/ConversationsPage_mobile";
+import ProfilePage_mobile from "./pages_mobile/ProfilePage_mobile";
+import AdminPage_mobile from "./pages_mobile/AdminPage_mobile";
+import AdminUserJourneyPage_mobile from "./pages_mobile/AdminUserJourneyPage_mobile";
+import MobileOnlyPage_mobile from "./pages_mobile/MobileOnlyPage_mobile";
 
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
@@ -50,6 +60,16 @@ function AuthedAppShell() {
         {/* MOBILE PAGE */}
         <Route path="/mobile" element={<MobileOnlyPage />} />
 
+        {/* MOBILE-FIRST ROUTES */}
+        <Route path="/m" element={<LandingPage_mobile />} />
+        <Route path="/m/login" element={<LoginPage_mobile />} />
+        <Route path="/m/auth/callback" element={<AuthCallback_mobile />} />
+        <Route
+          path="/m/reset-password"
+          element={<ResetPasswordPage_mobile />}
+        />
+        <Route path="/m/mobile" element={<MobileOnlyPage_mobile />} />
+
         {/* PUBLIC ROUTES */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -62,9 +82,18 @@ function AuthedAppShell() {
           <Route path="/conversations" element={<ConversationsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
+          <Route path="/m/chatbot" element={<ChatbotPage_mobile />} />
+          <Route path="/m/conversations" element={<ConversationsPage_mobile />} />
+          <Route path="/m/profile" element={<ProfilePage_mobile />} />
+
           {/* ADMIN */}
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/users/:id" element={<AdminUserJourneyPage />} />
+          <Route path="/m/admin" element={<AdminPage_mobile />} />
+          <Route
+            path="/m/admin/users/:id"
+            element={<AdminUserJourneyPage_mobile />}
+          />
         </Route>
 
         {/* Catch-all */}
