@@ -1,12 +1,12 @@
 // src/App.tsx
 import {
   BrowserRouter,
+  HashRouter,
   Routes,
   Route,
   Navigate,
-  useLocation,
 } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import LandingPage from "./pages/LandingPage";
 import ChatbotPage from "./pages/ChatbotPage";
@@ -23,10 +23,10 @@ import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { api } from "./lib/api";
+import { hasSupabaseConfig } from "./lib/supabaseClient";
 
 function AuthedAppShell() {
   const { user, loading } = useAuth();
-  const location = useLocation();
 
   // ping last-active for logged-in users
   useEffect(() => {
@@ -34,39 +34,18 @@ function AuthedAppShell() {
     api.mePingOncePerTab().catch(() => {});
   }, [user, loading]);
 
-  // normalize path (remove trailing slash)
-  const path = useMemo(
-    () => location.pathname.replace(/\/+$/, "") || "/",
-    [location.pathname]
-  );
-
-  // detect mobile (basic UA check)
-  const isMobile =
-    typeof window !== "undefined" &&
-    /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
-      navigator.userAgent
-    );
-
-  /**
-   * ✅ MOBILE RULES:
-   * Only allow admin + sign-in related routes on mobile.
-   * Everything else -> /mobile
-   */
-  const mobileAllowed =
-    path === "/mobile" ||
-    path === "/login" ||
-    path === "/auth/callback" ||
-    path === "/reset-password" ||
-    path === "/admin" ||
-    path.startsWith("/admin/");
-
-  // only enforce mobile gate after initial render (avoid weird early redirects)
-  if (isMobile && !mobileAllowed) {
-    return <Navigate to="/mobile" replace />;
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
+      {!hasSupabaseConfig && (
+        <div className="mx-auto max-w-5xl px-4 pt-4">
+          <div className="rounded-xl border border-amber-300 bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100">
+            Mobile preview is running without Supabase keys. Add
+            <code className="mx-1 font-mono">VITE_SUPABASE_URL</code> and
+            <code className="mx-1 font-mono">VITE_SUPABASE_ANON_KEY</code>
+            to enable authentication.
+          </div>
+        </div>
+      )}
       <Routes>
         {/* MOBILE PAGE */}
         <Route path="/mobile" element={<MobileOnlyPage />} />
@@ -96,13 +75,19 @@ function AuthedAppShell() {
 }
 
 export default function App() {
+  const isNativeCapacitorRuntime =
+    typeof window !== "undefined" &&
+    !!(window as Window & { Capacitor?: unknown }).Capacitor;
+
+  const Router = isNativeCapacitorRuntime ? HashRouter : BrowserRouter;
+
   return (
-    <BrowserRouter>
+    <Router>
       <ThemeProvider>
         <AuthProvider>
           <AuthedAppShell />
         </AuthProvider>
       </ThemeProvider>
-    </BrowserRouter>
+    </Router>
   );
 }
