@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-
+//vercel
 type AuthUser = {
   id: string;
   email?: string | null;
