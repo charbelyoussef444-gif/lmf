@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { api, type ProfileResponse } from "../lib/api";
+import { supabase } from "../lib/supabaseClient";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
@@ -518,37 +519,47 @@ export default function ProfilePage() {
     }
   }
 
-  // ✅ NEW: delete account action
-  async function deleteAccount() {
-    if (deletingAccount) return;
-    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
-      alert('Type "DELETE" to confirm.');
-      return;
-    }
+// ✅ NEW: delete account action
+async function deleteAccount() {
+  if (deletingAccount) return;
 
-    const ok = confirm(
-      "This will permanently delete your account and data. This cannot be undone. Continue?"
-    );
-    if (!ok) return;
-
-    setDeletingAccount(true);
-    try {
-      await api.deleteMe(); // ✅ you’ll add this in api.ts
-
-      // Clean local auth/session if you have one
-      // (keep these minimal; adjust to your real auth storage)
-      try {
-        localStorage.removeItem("token");
-      } catch {}
-
-      navigate("/login");
-    } catch (e) {
-      console.error(e);
-      alert("Failed to delete account.");
-    } finally {
-      setDeletingAccount(false);
-    }
+  if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+    alert('Type "DELETE" to confirm.');
+    return;
   }
+
+  const ok = confirm(
+    "This will permanently delete your account and data. This cannot be undone. Continue?"
+  );
+  if (!ok) return;
+
+  setDeletingAccount(true);
+
+  try {
+    await api.deleteMe();
+
+    // Clear your custom local token
+    try {
+      localStorage.removeItem("token");
+    } catch (err) {
+      console.error("Failed to remove local token:", err);
+    }
+
+    // Clear Supabase session from browser storage as well
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Failed to sign out Supabase locally after delete:", err);
+    }
+
+    navigate("/login", { replace: true });
+  } catch (e) {
+    console.error(e);
+    alert("Failed to delete account.");
+  } finally {
+    setDeletingAccount(false);
+  }
+}
 
   if (loading) {
     return (
