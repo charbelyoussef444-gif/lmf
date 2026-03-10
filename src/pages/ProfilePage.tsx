@@ -240,7 +240,6 @@ export default function ProfilePage() {
   const [kycSlots, setKycSlots] = useState<KycSlot[]>([
     { file: null, preview: null },
     { file: null, preview: null },
-    { file: null, preview: null },
   ]);
 
   // saved indicators
@@ -405,7 +404,7 @@ export default function ProfilePage() {
     }
   }
 
-  function onPickKycFile(e: ChangeEvent<HTMLInputElement>, idx: 0 | 1 | 2) {
+  function onPickKycFile(e: ChangeEvent<HTMLInputElement>, idx: 0 | 1) {
     const file = e.target.files?.[0] || null;
     if (!file) return;
 
@@ -419,7 +418,7 @@ export default function ProfilePage() {
     e.target.value = "";
   }
 
-  function clearKycSlot(idx: 0 | 1 | 2) {
+  function clearKycSlot(idx: 0 | 1) {
     setKycSlots((prev) => {
       const next = [...prev];
       if (next[idx]?.preview) URL.revokeObjectURL(next[idx]!.preview!);
@@ -437,19 +436,18 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function submitKycTriplet() {
+  async function submitKycDocuments() {
     const f1 = kycSlots[0]?.file;
     const f2 = kycSlots[1]?.file;
-    const f3 = kycSlots[2]?.file;
 
-    if (!f1 || !f2 || !f3) {
-      alert("Please upload all 3 verification images.");
+    if (!f1 || !f2) {
+      alert("Please upload both verification images.");
       return;
     }
 
     setKycBusy(true);
     try {
-      await api.meKycUpload([f1, f2, f3]);
+      await api.meKycUpload([f1, f2]);
       const kyc = await api.meKycStatus();
       setKycStatus(kyc);
       flashSaved("kyc");
@@ -459,7 +457,6 @@ export default function ProfilePage() {
           if (s.preview) URL.revokeObjectURL(s.preview);
         });
         return [
-          { file: null, preview: null },
           { file: null, preview: null },
           { file: null, preview: null },
         ];
@@ -628,7 +625,7 @@ async function deleteAccount() {
   const recMaxMi = kmToMiles(recommendedMaxKm);
 
   const kycAllSelected =
-    !!kycSlots[0]?.file && !!kycSlots[1]?.file && !!kycSlots[2]?.file;
+    !!kycSlots[0]?.file && !!kycSlots[1]?.file;
 
   const kycCards: Array<{
     title: string;
@@ -644,11 +641,6 @@ async function deleteAccount() {
       title: "2) Face selfie",
       subtitle: "A clear photo of your face",
       hint: "Good lighting, no filters, face fully visible.",
-    },
-    {
-      title: "3) Selfie + ID",
-      subtitle: "You holding your ID next to your face",
-      hint: "Face + ID visible in the same photo.",
     },
   ];
 
@@ -824,10 +816,11 @@ async function deleteAccount() {
                   <span>Your verification is pending review.</span>
                 </div>
 
-                <div className="mt-2 text-[11px] opacity-90">
-                  When it’s approved, refresh this page to see your verified status.
+                <div className="mt-2 space-y-1 text-[11px] opacity-90">
+                  <div>Verification review can take up to 24 hours.</div>
+                  <div>When it’s approved, refresh this page to see your verified status.</div>
                 </div>
-
+                
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
@@ -857,7 +850,7 @@ async function deleteAccount() {
             {kycStatus?.status === "unverified" && (
               <div className="mt-4 space-y-4 text-xs text-slate-600 dark:text-slate-300">
                 <p>
-                  Upload the <span className="font-medium">three required images</span> below.
+                  Upload the <span className="font-medium">two required images</span> below.
                   If your request was denied, check the reasons and re-upload.
                 </p>
 
@@ -880,7 +873,7 @@ async function deleteAccount() {
                 )}
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {([0, 1, 2] as const).map((idx) => {
+                  {([0, 1] as const).map((idx) => {
                     const slot = kycSlots[idx];
                     const meta = kycCards[idx];
                     const has = !!slot.file;
@@ -965,19 +958,19 @@ async function deleteAccount() {
                     {kycAllSelected ? (
                       <span className="inline-flex items-center gap-2">
                         <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
-                        All 3 images selected. Ready to submit.
+                        Both images selected. Ready to submit.
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-2">
                         <ShieldAlert className="h-4 w-4 text-rose-500 dark:text-rose-300" />
-                        Please select all 3 images to submit.
+                        Please select both images to submit.
                       </span>
                     )}
                   </div>
 
                   <button
                     type="button"
-                    onClick={submitKycTriplet}
+                    onClick={submitKycDocuments}
                     disabled={kycBusy || !kycAllSelected}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-medium text-slate-50 hover:bg-black disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                   >
