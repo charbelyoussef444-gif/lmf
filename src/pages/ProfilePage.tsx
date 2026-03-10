@@ -817,8 +817,8 @@ async function deleteAccount() {
                 </div>
 
                 <div className="mt-2 space-y-1 text-[11px] opacity-90">
-                  <div>Verification review can take up to 24 hours.</div>
-                  <div>When it’s approved, refresh this page to see your verified status.</div>
+                  <div>Verification review can take up to 24 hours maximum.</div>
+                  <div>The decision will be sent to you by email.</div>
                 </div>
                 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
