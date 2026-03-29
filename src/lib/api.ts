@@ -536,8 +536,11 @@ export const api = {
       images: Array<{ name: string; url: string }>;
     }>(`/admin/kyc/${userId}/images`),
 
-  adminApproveKyc: (userId: string) =>
-    request<{ ok: boolean }>(`/admin/kyc/${userId}/approve`, { method: "POST" }),
+  adminApproveKyc: (userId: string, idNumber: string) =>
+    request<{ ok: boolean }>(`/admin/kyc/${userId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ id_number: idNumber }),
+    }),
 
   adminRejectKyc: (userId: string, reason: string) =>
     request<{ ok: boolean }>(`/admin/kyc/${userId}/reject`, {

@@ -52,6 +52,7 @@ export default function AdminPage() {
     Array<{ name: string; url: string }>
   >([]);
   const [kycBusy, setKycBusy] = useState(false);
+  const [idNumber, setIdNumber] = useState("");
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
@@ -96,6 +97,7 @@ export default function AdminPage() {
   async function openPreview(userId: string) {
     try {
       setPreviewUserId(userId);
+      setIdNumber("");
       const imgs = await api.adminKycImages(userId);
       setPreviewImages(imgs.images);
     } catch (e) {
@@ -105,15 +107,23 @@ export default function AdminPage() {
   }
 
   async function approve(userId: string) {
+    const trimmed = idNumber.trim();
+    if (!trimmed) {
+      alert("Please enter the ID number from the document before approving.");
+      return;
+    }
     if (!confirm("Approve verification?")) return;
     setKycBusy(true);
     try {
-      await api.adminApproveKyc(userId);
+      await api.adminApproveKyc(userId, trimmed);
+      setIdNumber("");
       await refreshPending();
       setPreviewUserId(null);
       setPreviewImages([]);
-    } catch {
-      alert("Approve failed.");
+    } catch (e: any) {
+      const msg =
+        e?.message || e?.body?.detail || "Approve failed.";
+      alert(msg);
     } finally {
       setKycBusy(false);
     }
@@ -381,10 +391,24 @@ export default function AdminPage() {
                       )}
                     </div>
 
+                    {/* ID number input for duplicate check */}
+                    <div className="pt-2">
+                      <label className="mb-1 block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                        ID number (from document)
+                      </label>
+                      <input
+                        type="text"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                        placeholder="Enter the ID number shown on the document"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-indigo-500"
+                      />
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-3 pt-2">
                       <button
                         onClick={() => approve(previewUserId)}
-                        disabled={kycBusy}
+                        disabled={kycBusy || !idNumber.trim()}
                         className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                       >
                         {kycBusy ? (
