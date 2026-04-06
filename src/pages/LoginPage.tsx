@@ -233,13 +233,15 @@ export default function LoginPage() {
   // ✅ default redirect should be landing ("/"), not "/conversations"
   const from = (location.state as any)?.from?.pathname || "/";
 
-  const initialPhase: "auth" | "onboarding" = (() => {
+  const initialPhase: "auth" | "verify" | "onboarding" = (() => {
     const forced = (location.state as any)?.onboarding === true;
     const persisted = sessionStorage.getItem(ONBOARDING_FLAG_KEY) === "1";
     return forced || persisted ? "onboarding" : "auth";
   })();
 
-  const [phase, setPhase] = useState<"auth" | "onboarding">(initialPhase);
+  const [phase, setPhase] = useState<"auth" | "verify" | "onboarding">(
+    initialPhase
+  );
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
@@ -275,6 +277,20 @@ export default function LoginPage() {
   const [selfGender, setSelfGender] = useState<
     "woman" | "man" | "nonbinary" | null
   >(null);
+
+  // Email verification (6-digit OTP) — mirrors lmm EmailVerificationScreen
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function clearMsgs() {
     setNotice(null);
@@ -453,12 +469,17 @@ export default function LoginPage() {
       });
       if (error) throw error;
 
-      if (!data.user || !data.session) {
-        setNotice("Account created! Check your email to confirm your address.");
+      if (!data.session) {
+        // Email confirmation required — Supabase project is configured for
+        // 6-digit OTP via custom SMTP (same as lmm). Switch to verify phase
+        // so the user can enter the code on this screen.
+        setVerifyEmail(emailUp);
+        setOtpDigits(["", "", "", "", "", ""]);
+        setPhase("verify");
         return;
       }
 
-      // persist + open onboarding
+      // Auto-confirm path (rare): persist + open onboarding directly
       sessionStorage.setItem(ONBOARDING_FLAG_KEY, "1");
       setPhase("onboarding");
     } catch (e: any) {
@@ -467,6 +488,96 @@ export default function LoginPage() {
       setBusy(false);
     }
   }
+
+  // Email verification — mirrors lmm/src/screens/auth/EmailVerificationScreen.tsx
+  // handleVerify(): same supabase.auth.verifyOtp call with type 'signup'.
+  async function onVerifyOtp(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    clearMsgs();
+    const token = otpDigits.join("");
+    if (token.length !== 6) {
+      setError("Enter the 6-digit code.");
+      return;
+    }
+    setVerifying(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: verifyEmail,
+        token,
+        type: "signup",
+      });
+      if (error) throw error;
+      // Session is now active; AuthProvider's onAuthStateChange will pick it up.
+      // Move straight to onboarding (same as the auto-confirm path above).
+      sessionStorage.setItem(ONBOARDING_FLAG_KEY, "1");
+      setPhase("onboarding");
+    } catch (e: any) {
+      setError(e?.message || "Invalid code. Please try again.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function onResendOtp() {
+    clearMsgs();
+    if (!verifyEmail) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: verifyEmail,
+      });
+      if (error) throw error;
+      setNotice("A new code has been sent to your email.");
+    } catch (e: any) {
+      setError(e?.message || "Failed to resend code.");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  // OTP input helpers
+  function handleOtpChange(i: number, val: string) {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const next = [...otpDigits];
+    next[i] = digit;
+    setOtpDigits(next);
+    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
+  }
+
+  function handleOtpKeyDown(
+    i: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) {
+    if (e.key === "Backspace" && !otpDigits[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    } else if (e.key === "ArrowLeft" && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    } else if (e.key === "ArrowRight" && i < 5) {
+      otpRefs.current[i + 1]?.focus();
+    }
+  }
+
+  function handleOtpPaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+    if (!pasted) return;
+    e.preventDefault();
+    const next = ["", "", "", "", "", ""];
+    for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
+    setOtpDigits(next);
+    const focusIndex = Math.min(pasted.length, 5);
+    otpRefs.current[focusIndex]?.focus();
+  }
+
+  // Auto-focus first OTP box when verify phase opens
+  useEffect(() => {
+    if (phase !== "verify") return;
+    const t = setTimeout(() => otpRefs.current[0]?.focus(), 80);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   async function onCompleteOnboarding(
     e: FormEvent<HTMLFormElement>
@@ -1098,6 +1209,99 @@ export default function LoginPage() {
 
               {error && (
                 <div className="mt-3 text-xs text-rose-600 dark:text-rose-300">
+                  {error}
+                </div>
+              )}
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Email verification sheet — mirrors lmm EmailVerificationScreen */}
+      {phase === "verify" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900/95"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                  Verify your email
+                </h2>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  We sent a 6-digit code to{" "}
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
+                    {verifyEmail}
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  clearMsgs();
+                  setOtpDigits(["", "", "", "", "", ""]);
+                  setPhase("auth");
+                  setMode("signup");
+                }}
+                aria-label="Back"
+                className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={onVerifyOtp} className="mt-5">
+              <div className="flex justify-between gap-2">
+                {otpDigits.map((d, i) => (
+                  <input
+                    key={i}
+                    ref={(el) => {
+                      otpRefs.current[i] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete={i === 0 ? "one-time-code" : "off"}
+                    maxLength={1}
+                    value={d}
+                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                    onPaste={i === 0 ? handleOtpPaste : undefined}
+                    className="h-12 w-11 rounded-2xl border border-slate-200 bg-white text-center text-lg font-semibold text-slate-900 shadow-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                  />
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                disabled={verifying || otpDigits.join("").length !== 6}
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:brightness-110 disabled:opacity-60"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {verifying ? "Verifying..." : "Verify Email"}
+              </button>
+
+              <div className="mt-4 text-center text-xs text-slate-600 dark:text-slate-300">
+                Didn't receive the code?{" "}
+                <button
+                  type="button"
+                  onClick={onResendOtp}
+                  disabled={resending}
+                  className="font-medium text-indigo-600 hover:underline disabled:opacity-60 dark:text-indigo-300"
+                >
+                  {resending ? "Sending..." : "Resend"}
+                </button>
+              </div>
+
+              {notice && (
+                <div className="mt-3 text-center text-xs text-emerald-600 dark:text-emerald-300">
+                  {notice}
+                </div>
+              )}
+              {error && (
+                <div className="mt-3 text-center text-xs text-rose-600 dark:text-rose-300">
                   {error}
                 </div>
               )}
