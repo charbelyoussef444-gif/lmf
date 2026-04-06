@@ -1,6 +1,7 @@
 // src/pages/ProfilePage.tsx
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -20,9 +21,13 @@ import {
   Check,
   ArrowRight,
   RefreshCw,
+  MapPin,
+  Pencil,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api, type ProfileResponse } from "../lib/api";
+import { api, type ProfileResponse, type CityRow } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
 
 import AppHeader from "../components/AppHeader";
@@ -38,6 +43,8 @@ type Profile = {
 
   // this page displays a single string
   location?: string | null;
+  // backend id, kept so we can preserve it when re-saving onboarding payload
+  location_id?: number | null;
 
   personality_weight: number;
   interests_weight: number;
@@ -51,6 +58,16 @@ type Profile = {
 
   preferred_max_distance_km?: number | null;
 };
+
+const LOCKED_COUNTRY = "Lebanon";
+
+function foldToAsciiLike(s: string) {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
 
 type Interest = { id: number; name: string; category?: string | null };
 
@@ -184,6 +201,7 @@ function normalizeProfile(p: ProfileResponse): Profile {
     gender: p.gender ?? null,
     age: p.age ?? null,
     location: (p.location_label ?? null) as string | null,
+    location_id: p.location_id ?? null,
     personality_weight: p.personality_weight,
     interests_weight: p.interests_weight,
     verified: p.verified,
@@ -235,6 +253,112 @@ export default function ProfilePage() {
   // ✅ NEW: delete account UI state
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  // ✅ NEW: location edit UI state
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [cities, setCities] = useState<CityRow[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [pendingCityId, setPendingCityId] = useState<string>("");
+  const [citySearch, setCitySearch] = useState("");
+  const [showLocationConfirm, setShowLocationConfirm] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationSaved, setLocationSaved] = useState(false);
+  const locationSavedTimer = useRef<number | null>(null);
+
+  const cityOptions = useMemo(
+    () =>
+      cities.map((c) => ({
+        value: String(c.id),
+        label: `${c.city}${c.admin_name ? `, ${c.admin_name}` : ""}`,
+      })),
+    [cities]
+  );
+
+  const filteredCityOptions = useMemo(() => {
+    const key = foldToAsciiLike(citySearch);
+    if (!key) return cityOptions;
+    return cityOptions.filter((o) => foldToAsciiLike(o.label).includes(key));
+  }, [cityOptions, citySearch]);
+
+  const pendingCityLabel = useMemo(() => {
+    if (!pendingCityId) return "";
+    return cityOptions.find((o) => o.value === pendingCityId)?.label ?? "";
+  }, [cityOptions, pendingCityId]);
+
+  async function openEditLocation() {
+    setEditingLocation(true);
+    setCitySearch("");
+    setPendingCityId(
+      profile?.location_id != null ? String(profile.location_id) : ""
+    );
+    if (cities.length === 0) {
+      setLoadingCities(true);
+      try {
+        const list = (await api.getCities(LOCKED_COUNTRY)) as CityRow[];
+        setCities(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error(e);
+        alert("Could not load cities. Please try again.");
+      } finally {
+        setLoadingCities(false);
+      }
+    }
+  }
+
+  function closeEditLocation() {
+    if (savingLocation) return;
+    setEditingLocation(false);
+    setShowLocationConfirm(false);
+    setPendingCityId("");
+    setCitySearch("");
+  }
+
+  async function confirmAndSaveLocation() {
+    if (!profile) return;
+    if (!pendingCityId) return;
+    const newId = Number(pendingCityId);
+    if (!Number.isFinite(newId)) return;
+    if (profile.age == null) {
+      alert("Your age is missing — please complete onboarding first.");
+      return;
+    }
+    setSavingLocation(true);
+    try {
+      // Backend has only PUT /me/onboarding which fully overwrites the row,
+      // so we re-send every existing field and only swap the location_id.
+      const updated = await api.completeOnboarding({
+        age: profile.age,
+        gender:
+          (profile.gender as "woman" | "man" | "nonbinary" | null) ?? null,
+        location_id: newId,
+        preferred_min_age: profile.preferred_min_age ?? null,
+        preferred_max_age: profile.preferred_max_age ?? null,
+        preferred_gender: (profile.preferred_gender ?? null) as
+          | "women"
+          | "men"
+          | "everyone"
+          | null,
+        preferred_max_distance_km: profile.preferred_max_distance_km ?? null,
+      });
+      setProfile(normalizeProfile(updated));
+      setLocationSaved(true);
+      if (locationSavedTimer.current)
+        window.clearTimeout(locationSavedTimer.current);
+      locationSavedTimer.current = window.setTimeout(
+        () => setLocationSaved(false),
+        2200
+      );
+      setShowLocationConfirm(false);
+      setEditingLocation(false);
+      setPendingCityId("");
+      setCitySearch("");
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Failed to update location.");
+    } finally {
+      setSavingLocation(false);
+    }
+  }
 
   // 3 required KYC slots with previews (in this exact order)
   const [kycSlots, setKycSlots] = useState<KycSlot[]>([
@@ -293,6 +417,8 @@ export default function ProfilePage() {
       if (photosSavedTimer.current)
         window.clearTimeout(photosSavedTimer.current);
       if (kycSavedTimer.current) window.clearTimeout(kycSavedTimer.current);
+      if (locationSavedTimer.current)
+        window.clearTimeout(locationSavedTimer.current);
     };
   }, []);
 
@@ -716,63 +842,296 @@ async function deleteAccount() {
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Profile
               </h2>
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
-                <span>Core details for matching</span>
+              <div className="flex items-center gap-2">
+                {locationSaved && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                    <Check className="h-3.5 w-3.5" /> Saved
+                  </span>
+                )}
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <Sparkles className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" />
+                  <span>Core details for matching</span>
+                </div>
               </div>
             </div>
-            <div className="mt-4 grid gap-4 text-sm text-slate-700 dark:text-slate-200 sm:grid-cols-2">
-              <div className="space-y-1">
-                <div>
-                  <span className="font-medium text-slate-900 dark:text-slate-50">
-                    Name:
-                  </span>{" "}
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {/* Name */}
+              <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Name
+                </div>
+                <div className="mt-1 text-sm text-slate-900 dark:text-slate-50">
                   {profile.full_name}
                 </div>
-                {profile.age ? (
-                  <div>
-                    <span className="font-medium text-slate-900 dark:text-slate-50">
-                      Age:
-                    </span>{" "}
-                    {profile.age}
-                  </div>
-                ) : null}
-                {profile.gender ? (
-                  <div>
-                    <span className="font-medium text-slate-900 dark:text-slate-50">
-                      Gender:
-                    </span>{" "}
-                    {profile.gender}
-                  </div>
-                ) : null}
-                {profile.location ? (
-                  <div>
-                    <span className="font-medium text-slate-900 dark:text-slate-50">
-                      Location:
-                    </span>{" "}
-                    {profile.location}
-                  </div>
-                ) : null}
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  {profile.verified ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Verified
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                      Not verified yet
-                    </span>
-                  )}
+
+              {/* Age (one-time, not editable) */}
+              <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Age
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Your profile details help us understand who you are and what kind of people
-                  you’re likely to click with.
+                <div className="mt-1 text-sm text-slate-900 dark:text-slate-50">
+                  {profile.age ?? "—"}
+                </div>
+                <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  Cannot be changed.
+                </div>
+              </div>
+
+              {/* Gender (one-time, not editable) */}
+              <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Gender
+                </div>
+                <div className="mt-1 text-sm capitalize text-slate-900 dark:text-slate-50">
+                  {profile.gender ?? "—"}
+                </div>
+                <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  Cannot be changed.
+                </div>
+              </div>
+
+              {/* Location (editable) */}
+              <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Location
+                    </div>
+                    <div className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-900 dark:text-slate-50">
+                      <MapPin className="h-3.5 w-3.5 text-rose-500 dark:text-rose-300" />
+                      <span className="truncate">
+                        {profile.location ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openEditLocation}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Change
+                  </button>
+                </div>
+                <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  You can update your city anytime.
                 </div>
               </div>
             </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              {profile.verified ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  Not verified yet
+                </span>
+              )}
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              Your profile details help us understand who you are and what kind of people
+              you’re likely to click with.
+            </div>
           </section>
+
+          {/* ✏️ Edit Location Modal */}
+          {editingLocation && (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+              onClick={closeEditLocation}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-rose-500 dark:text-rose-300" />
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Change location
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeEditLocation}
+                    aria-label="Close"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  Country is locked to {LOCKED_COUNTRY}. Pick a new city below.
+                </p>
+
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+                    <span className="font-medium">Current:</span>{" "}
+                    {profile.location ?? "—"}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-200">
+                      Search city
+                    </label>
+                    <div className="relative">
+                      <input
+                        value={citySearch}
+                        onChange={(e) => setCitySearch(e.target.value)}
+                        placeholder="Type to filter…"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 pr-9 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                        disabled={loadingCities}
+                      />
+                      {citySearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCitySearch("")}
+                          aria-label="Clear filter"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-950">
+                    {loadingCities ? (
+                      <div className="flex items-center justify-center gap-2 px-3 py-6 text-xs text-slate-500 dark:text-slate-400">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading cities…
+                      </div>
+                    ) : filteredCityOptions.length === 0 ? (
+                      <div className="px-3 py-4 text-xs text-slate-500 dark:text-slate-400">
+                        No matches.
+                      </div>
+                    ) : (
+                      filteredCityOptions.map((opt) => {
+                        const active = opt.value === pendingCityId;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setPendingCityId(opt.value)}
+                            className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${
+                              active
+                                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200"
+                                : "text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-800/60"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeEditLocation}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      !pendingCityId ||
+                      pendingCityId ===
+                        (profile.location_id != null
+                          ? String(profile.location_id)
+                          : "") ||
+                      loadingCities
+                    }
+                    onClick={() => setShowLocationConfirm(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Update location
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ⚠️ Confirm Location Change Popup */}
+          {showLocationConfirm && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
+              onClick={() => {
+                if (!savingLocation) setShowLocationConfirm(false);
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Confirm location change
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                      Are you sure you want to change your location?
+                    </p>
+                    <div className="mt-3 space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-800/60">
+                      <div className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium text-slate-900 dark:text-slate-50">
+                          From:
+                        </span>{" "}
+                        {profile.location ?? "—"}
+                      </div>
+                      <div className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium text-slate-900 dark:text-slate-50">
+                          To:
+                        </span>{" "}
+                        {pendingCityLabel || "—"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={savingLocation}
+                    onClick={() => setShowLocationConfirm(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingLocation}
+                    onClick={confirmAndSaveLocation}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingLocation ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Yes, change it
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Verification */}
           <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
