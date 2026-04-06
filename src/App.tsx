@@ -7,6 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useEffect, useMemo } from "react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import LandingPage from "./pages/LandingPage";
 import ChatbotPage from "./pages/ChatbotPage";
@@ -23,6 +24,13 @@ import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { api } from "./lib/api";
+
+// Google Web Client ID — MUST match lmm/src/config/env.ts GOOGLE_WEB_CLIENT_ID
+// so web and mobile resolve to the same Supabase identity for the same Google account.
+// Can be overridden via VITE_GOOGLE_WEB_CLIENT_ID env var.
+const GOOGLE_WEB_CLIENT_ID =
+  (import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID as string | undefined) ||
+  "6780217929-luhf3mk3t9i5lkl18b70tm853i8rjlao.apps.googleusercontent.com";
 
 function AuthedAppShell() {
   const { user, loading } = useAuth();
@@ -97,12 +105,14 @@ function AuthedAppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <AuthedAppShell />
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <GoogleOAuthProvider clientId={GOOGLE_WEB_CLIENT_ID}>
+      <BrowserRouter>
+        <ThemeProvider>
+          <AuthProvider>
+            <AuthedAppShell />
+          </AuthProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }

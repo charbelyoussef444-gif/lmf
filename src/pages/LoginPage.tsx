@@ -13,6 +13,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../auth/AuthProvider";
 import { api } from "../lib/api";
@@ -356,6 +357,33 @@ export default function LoginPage() {
       navigate(from, { replace: true });
     } catch (e: any) {
       setError(e?.message || "Authentication failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Google Sign-In — mirrors lmm/src/services/auth.ts signInWithGoogle().
+  // Same Supabase call (signInWithIdToken / provider 'google'), same Google
+  // Web Client ID configured in App.tsx, so web and mobile resolve to the
+  // same Supabase user for the same Google account.
+  async function onGoogleSignIn(resp: CredentialResponse) {
+    clearMsgs();
+    const idToken = resp.credential;
+    if (!idToken) {
+      setError("Google sign in cancelled.");
+      return;
+    }
+    setBusy(true);
+    try {
+      sessionStorage.setItem("post_login_redirect", from);
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: idToken,
+      });
+      if (error) throw error;
+      navigate(from, { replace: true });
+    } catch (e: any) {
+      setError(e?.message || "Could not sign in with Google.");
     } finally {
       setBusy(false);
     }
@@ -711,6 +739,29 @@ export default function LoginPage() {
                           <LogIn className="h-4 w-4" />
                           Sign in
                         </button>
+
+                        <div className="relative my-4 flex items-center">
+                          <div className="flex-grow border-t border-slate-200 dark:border-slate-700" />
+                          <span className="mx-3 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            or continue with
+                          </span>
+                          <div className="flex-grow border-t border-slate-200 dark:border-slate-700" />
+                        </div>
+
+                        <div className="flex justify-center">
+                          <GoogleLogin
+                            onSuccess={onGoogleSignIn}
+                            onError={() =>
+                              setError("Could not sign in with Google.")
+                            }
+                            useOneTap={false}
+                            theme="outline"
+                            size="large"
+                            text="continue_with"
+                            shape="pill"
+                            width="320"
+                          />
+                        </div>
                       </form>
                     </motion.div>
                   ) : (
@@ -819,6 +870,29 @@ export default function LoginPage() {
                           <UserPlus className="h-4 w-4" />
                           Create account
                         </button>
+
+                        <div className="relative my-4 flex items-center">
+                          <div className="flex-grow border-t border-slate-200 dark:border-slate-700" />
+                          <span className="mx-3 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            or sign up with
+                          </span>
+                          <div className="flex-grow border-t border-slate-200 dark:border-slate-700" />
+                        </div>
+
+                        <div className="flex justify-center">
+                          <GoogleLogin
+                            onSuccess={onGoogleSignIn}
+                            onError={() =>
+                              setError("Could not sign in with Google.")
+                            }
+                            useOneTap={false}
+                            theme="outline"
+                            size="large"
+                            text="signup_with"
+                            shape="pill"
+                            width="320"
+                          />
+                        </div>
                       </form>
                     </motion.div>
                   )}
