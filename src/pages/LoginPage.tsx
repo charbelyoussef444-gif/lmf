@@ -382,6 +382,11 @@ export default function LoginPage() {
   // Same Supabase call (signInWithIdToken / provider 'google'), same Google
   // Web Client ID configured in App.tsx, so web and mobile resolve to the
   // same Supabase user for the same Google account.
+  //
+  // Onboarding gate: Google never returns age/gender/location, so a brand-new
+  // user signing in via Google has an incomplete profile and must go through
+  // the onboarding sheet (same as mobile RootNavigator's needsOnboarding
+  // check, and the same as AuthCallback.tsx for the email-confirm flow).
   async function onGoogleSignIn(resp: CredentialResponse) {
     clearMsgs();
     const idToken = resp.credential;
@@ -397,7 +402,26 @@ export default function LoginPage() {
         token: idToken,
       });
       if (error) throw error;
-      navigate(from, { replace: true });
+
+      // Check if the profile is complete enough to skip onboarding.
+      // Same logic as AuthCallback.tsx.
+      let needsOnboarding = false;
+      try {
+        const me = await api.me();
+        if (!me.age || me.age < 18 || me.age > 99) {
+          needsOnboarding = true;
+        }
+      } catch {
+        // If /me fails (e.g. brand-new user with no row yet), assume onboarding needed
+        needsOnboarding = true;
+      }
+
+      if (needsOnboarding) {
+        sessionStorage.setItem(ONBOARDING_FLAG_KEY, "1");
+        setPhase("onboarding");
+      } else {
+        navigate(from, { replace: true });
+      }
     } catch (e: any) {
       setError(e?.message || "Could not sign in with Google.");
     } finally {
