@@ -289,6 +289,8 @@ function MatchBlockers({
         assessment_completed: boolean;
         has_interest: boolean;
         has_photos: boolean;
+        has_age?: boolean;
+        has_gender?: boolean;
         photos_count?: number;
         not_banned: boolean;
       }
@@ -301,6 +303,9 @@ function MatchBlockers({
 
   if (checks) {
     if (!checks.not_banned) issues.push("Your account is banned.");
+    if (checks.has_age === false) issues.push("Add your age to your profile.");
+    if (checks.has_gender === false)
+      issues.push("Add your gender to your profile.");
     if (!checks.verified) issues.push("Your account is not verified.");
     if (!checks.assessment_completed)
       issues.push("Your compatibility assessment is not complete.");
@@ -322,14 +327,21 @@ function MatchBlockers({
   const buttonsJustify = align === "center" ? "justify-center" : "";
 
   const needsProfile = checks
-    ? !checks.not_banned || !checks.verified || !checks.has_interest || !checks.has_photos
+    ? !checks.not_banned ||
+      !checks.verified ||
+      !checks.has_interest ||
+      !checks.has_photos ||
+      checks.has_age === false ||
+      checks.has_gender === false
     : issues.some((x) => {
         const s = x.toLowerCase();
         return (
           s.includes("interest") ||
           s.includes("photo") ||
           s.includes("verified") ||
-          s.includes("banned")
+          s.includes("banned") ||
+          s.includes("age") ||
+          s.includes("gender")
         );
       });
 

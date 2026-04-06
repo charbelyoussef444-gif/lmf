@@ -265,6 +265,22 @@ export default function ProfilePage() {
   const [locationSaved, setLocationSaved] = useState(false);
   const locationSavedTimer = useRef<number | null>(null);
 
+  // ✅ NEW: one-time age add UI state
+  const [pendingAge, setPendingAge] = useState("");
+  const [savingAge, setSavingAge] = useState(false);
+  const [showAgeConfirm, setShowAgeConfirm] = useState(false);
+  const [ageSaved, setAgeSaved] = useState(false);
+  const ageSavedTimer = useRef<number | null>(null);
+
+  // ✅ NEW: one-time gender add UI state
+  const [pendingGender, setPendingGender] = useState<
+    "woman" | "man" | "nonbinary" | ""
+  >("");
+  const [savingGender, setSavingGender] = useState(false);
+  const [showGenderConfirm, setShowGenderConfirm] = useState(false);
+  const [genderSaved, setGenderSaved] = useState(false);
+  const genderSavedTimer = useRef<number | null>(null);
+
   const cityOptions = useMemo(
     () =>
       cities.map((c) => ({
@@ -360,6 +376,93 @@ export default function ProfilePage() {
     }
   }
 
+  async function confirmAndSaveAge() {
+    if (!profile) return;
+    const ageNum = Number(pendingAge);
+    if (!pendingAge || Number.isNaN(ageNum)) {
+      alert("Please enter your age.");
+      return;
+    }
+    if (ageNum < 18 || ageNum > 99) {
+      alert("Age must be between 18 and 99.");
+      return;
+    }
+    setSavingAge(true);
+    try {
+      const updated = await api.completeOnboarding({
+        age: ageNum,
+        gender:
+          (profile.gender as "woman" | "man" | "nonbinary" | null) ?? null,
+        location_id: profile.location_id ?? null,
+        preferred_min_age: profile.preferred_min_age ?? null,
+        preferred_max_age: profile.preferred_max_age ?? null,
+        preferred_gender: (profile.preferred_gender ?? null) as
+          | "women"
+          | "men"
+          | "everyone"
+          | null,
+        preferred_max_distance_km: profile.preferred_max_distance_km ?? null,
+      });
+      setProfile(normalizeProfile(updated));
+      setPendingAge("");
+      setShowAgeConfirm(false);
+      setAgeSaved(true);
+      if (ageSavedTimer.current) window.clearTimeout(ageSavedTimer.current);
+      ageSavedTimer.current = window.setTimeout(
+        () => setAgeSaved(false),
+        2200
+      );
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Failed to save age.");
+    } finally {
+      setSavingAge(false);
+    }
+  }
+
+  async function confirmAndSaveGender() {
+    if (!profile) return;
+    if (!pendingGender) {
+      alert("Please select your gender.");
+      return;
+    }
+    if (profile.age == null) {
+      alert("Please add your age first.");
+      return;
+    }
+    setSavingGender(true);
+    try {
+      const updated = await api.completeOnboarding({
+        age: profile.age,
+        gender: pendingGender,
+        location_id: profile.location_id ?? null,
+        preferred_min_age: profile.preferred_min_age ?? null,
+        preferred_max_age: profile.preferred_max_age ?? null,
+        preferred_gender: (profile.preferred_gender ?? null) as
+          | "women"
+          | "men"
+          | "everyone"
+          | null,
+        preferred_max_distance_km: profile.preferred_max_distance_km ?? null,
+      });
+      setProfile(normalizeProfile(updated));
+      setPendingGender("");
+      setShowGenderConfirm(false);
+      setGenderSaved(true);
+      if (genderSavedTimer.current)
+        window.clearTimeout(genderSavedTimer.current);
+      genderSavedTimer.current = window.setTimeout(
+        () => setGenderSaved(false),
+        2200
+      );
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message || "Failed to save gender.");
+    } finally {
+      setSavingGender(false);
+    }
+  }
+
   // 3 required KYC slots with previews (in this exact order)
   const [kycSlots, setKycSlots] = useState<KycSlot[]>([
     { file: null, preview: null },
@@ -419,6 +522,9 @@ export default function ProfilePage() {
       if (kycSavedTimer.current) window.clearTimeout(kycSavedTimer.current);
       if (locationSavedTimer.current)
         window.clearTimeout(locationSavedTimer.current);
+      if (ageSavedTimer.current) window.clearTimeout(ageSavedTimer.current);
+      if (genderSavedTimer.current)
+        window.clearTimeout(genderSavedTimer.current);
     };
   }, []);
 
@@ -866,30 +972,133 @@ async function deleteAccount() {
                 </div>
               </div>
 
-              {/* Age (one-time, not editable) */}
+              {/* Age (one-time, not editable after set) */}
               <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Age
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Age
+                  </div>
+                  {ageSaved && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                      <Check className="h-3 w-3" /> Saved
+                    </span>
+                  )}
                 </div>
-                <div className="mt-1 text-sm text-slate-900 dark:text-slate-50">
-                  {profile.age ?? "—"}
-                </div>
-                <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                  Cannot be changed.
-                </div>
+                {profile.age != null ? (
+                  <>
+                    <div className="mt-1 text-sm text-slate-900 dark:text-slate-50">
+                      {profile.age}
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      Cannot be changed.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={18}
+                        max={99}
+                        value={pendingAge}
+                        onChange={(e) =>
+                          setPendingAge(e.target.value.replace(/[^\d]/g, ""))
+                        }
+                        placeholder="e.g. 24"
+                        className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/40"
+                      />
+                      <button
+                        type="button"
+                        disabled={!pendingAge}
+                        onClick={() => {
+                          const n = Number(pendingAge);
+                          if (!Number.isFinite(n) || n < 18 || n > 99) {
+                            alert("Age must be between 18 and 99.");
+                            return;
+                          }
+                          setShowAgeConfirm(true);
+                        }}
+                        className="rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                    </div>
+                    <div className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-300">
+                      Required to match. One-time, cannot be changed later.
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Gender (one-time, not editable) */}
+              {/* Gender (one-time, not editable after set) */}
               <div className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Gender
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Gender
+                  </div>
+                  {genderSaved && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-900/20 dark:text-emerald-200">
+                      <Check className="h-3 w-3" /> Saved
+                    </span>
+                  )}
                 </div>
-                <div className="mt-1 text-sm capitalize text-slate-900 dark:text-slate-50">
-                  {profile.gender ?? "—"}
-                </div>
-                <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                  Cannot be changed.
-                </div>
+                {profile.gender != null ? (
+                  <>
+                    <div className="mt-1 text-sm capitalize text-slate-900 dark:text-slate-50">
+                      {profile.gender}
+                    </div>
+                    <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      Cannot be changed.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          { value: "woman", label: "Woman" },
+                          { value: "man", label: "Man" },
+                          { value: "nonbinary", label: "Non-binary" },
+                        ] as const
+                      ).map((opt) => {
+                        const active = pendingGender === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setPendingGender(opt.value)}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-medium transition ${
+                              active
+                                ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-900/30 dark:text-indigo-200"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={!pendingGender || profile.age == null}
+                        onClick={() => setShowGenderConfirm(true)}
+                        className="rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      {profile.age == null && (
+                        <span className="text-[11px] text-amber-600 dark:text-amber-300">
+                          Set your age first.
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-300">
+                      Required to match. One-time, cannot be changed later.
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Location (editable) */}
@@ -1125,6 +1334,130 @@ async function deleteAccount() {
                       <>
                         <Check className="h-3.5 w-3.5" />
                         Yes, change it
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ⚠️ Confirm Age (one-time) */}
+          {showAgeConfirm && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
+              onClick={() => {
+                if (!savingAge) setShowAgeConfirm(false);
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Confirm your age
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                      You are setting your age to{" "}
+                      <span className="font-semibold text-slate-900 dark:text-slate-50">
+                        {pendingAge}
+                      </span>
+                      . This is a one-time action and cannot be changed later.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={savingAge}
+                    onClick={() => setShowAgeConfirm(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingAge}
+                    onClick={confirmAndSaveAge}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingAge ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Yes, save it
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ⚠️ Confirm Gender (one-time) */}
+          {showGenderConfirm && (
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm"
+              onClick={() => {
+                if (!savingGender) setShowGenderConfirm(false);
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Confirm your gender
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                      You are setting your gender to{" "}
+                      <span className="font-semibold capitalize text-slate-900 dark:text-slate-50">
+                        {pendingGender}
+                      </span>
+                      . This is a one-time action and cannot be changed later.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={savingGender}
+                    onClick={() => setShowGenderConfirm(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingGender}
+                    onClick={confirmAndSaveGender}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-indigo-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingGender ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        Yes, save it
                       </>
                     )}
                   </button>
