@@ -1125,7 +1125,8 @@ async function deleteAccount() {
                   </button>
                 </div>
                 <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                  You can update your city anytime.
+                  You can update your city anytime. If your specific location
+                  isn't listed, choose the closest one.
                 </div>
               </div>
             </div>
@@ -1176,6 +1177,7 @@ async function deleteAccount() {
 
                 <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                   Country is locked to {LOCKED_COUNTRY}. Pick a new city below.
+                  If your specific location isn't listed, choose the closest one.
                 </p>
 
                 <div className="mt-4 space-y-3">
