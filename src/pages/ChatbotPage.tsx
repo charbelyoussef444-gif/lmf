@@ -17,6 +17,7 @@ import { api } from "../lib/api";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
+import Skeleton from "../components/Skeleton";
 
 type ChatPhase = "self" | "pref" | "done";
 
@@ -1073,10 +1074,13 @@ export default function ChatbotPage() {
 
                 <div className="px-4 py-5 sm:px-5">
                   {isLoadingHistory ? (
-                    <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/25">
-                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading…
+                    <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/25 space-y-4">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <div className="space-y-2 pt-2">
+                        {[...Array(4)].map((_, i) => (
+                          <Skeleton key={i} className="h-10 w-full" variant="rect" />
+                        ))}
                       </div>
                     </div>
                   ) : (

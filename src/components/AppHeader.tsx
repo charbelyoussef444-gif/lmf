@@ -6,6 +6,7 @@ import { useTheme } from "../theme/ThemeProvider";
 import { api } from "../lib/api";
 import logoMark from "../assets/likeminded-mark.png";
 import { useAuth } from "../auth/AuthProvider";
+import Skeleton from "./Skeleton";
 
 type Props = {
   className?: string;
@@ -135,12 +136,17 @@ export default function AppHeader({
       <div className="flex items-center gap-3">
         {shouldShowUserBadge && (
           <>
-            {fullName ? (
+            {loading ? (
+              <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-3 py-1 dark:border-slate-600 dark:bg-slate-900/70">
+                <Skeleton className="h-3.5 w-3.5" variant="circle" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ) : fullName ? (
               <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-200">
                 <User2 className="h-3.5 w-3.5 opacity-80" />
                 <span className="max-w-[160px] truncate">{fullName}</span>
               </div>
-            ) : (
+            ) : !user ? (
               <Link
                 to={signInPath}
                 className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-[11px] font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-600 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-indigo-400 dark:hover:text-indigo-200"
@@ -148,6 +154,11 @@ export default function AppHeader({
                 <LogIn className="h-3.5 w-3.5" />
                 Sign in
               </Link>
+            ) : (
+              <div className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/70 px-3 py-1 dark:border-slate-600 dark:bg-slate-900/70">
+                <Skeleton className="h-3.5 w-3.5" variant="circle" />
+                <Skeleton className="h-3 w-20" />
+              </div>
             )}
           </>
         )}

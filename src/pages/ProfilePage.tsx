@@ -32,6 +32,7 @@ import { supabase } from "../lib/supabaseClient";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
+import Skeleton from "../components/Skeleton";
 
 type GenderPreference = "women" | "men" | "everyone";
 
@@ -811,8 +812,61 @@ async function deleteAccount() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-500 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-400 grid place-items-center transition-colors duration-300">
-        <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 transition-colors duration-300">
+        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 sm:px-6 lg:px-8">
+          <AppHeader />
+          <main className="flex-1 py-8 space-y-8">
+            {/* Profile section skeleton */}
+            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+              <Skeleton className="h-4 w-24 mb-5" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                    <Skeleton className="h-2.5 w-16 mb-3" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Verification skeleton */}
+            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+              <Skeleton className="h-4 w-32 mb-4" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="rounded-2xl border border-slate-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+                    <Skeleton className="h-32 w-full" variant="rect" />
+                    <Skeleton className="h-3 w-24 mt-3" />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Personality skeleton */}
+            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+              <Skeleton className="h-4 w-40 mb-5" />
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-2 flex-1" variant="rect" />
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Preferences skeleton */}
+            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+              <Skeleton className="h-4 w-36 mb-5" />
+              <div className="space-y-4">
+                <Skeleton className="h-3 w-48" />
+                <Skeleton className="h-2 w-full" variant="rect" />
+                <Skeleton className="h-3 w-32 mt-2" />
+              </div>
+            </section>
+          </main>
+        </div>
       </div>
     );
   }
