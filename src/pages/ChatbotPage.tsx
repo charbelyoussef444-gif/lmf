@@ -644,6 +644,7 @@ export default function ChatbotPage() {
     if (!msg) return;
     if (isSendingRef.current) return;
 
+    const phaseAtSend = phase;
     isSendingRef.current = true;
     setIsLoadingNext(true);
     setSaveDone(false);
@@ -683,8 +684,8 @@ export default function ChatbotPage() {
       setSaveDone(true);
       setCurrentAssistantText(res?.reply || "");
     } catch {
-      if (phase === "self") setSelfBubbles((n) => Math.max(0, n - 1));
-      else if (phase === "pref") setPrefBubbles((n) => Math.max(0, n - 1));
+      if (phaseAtSend === "self") setSelfBubbles((n) => Math.max(0, n - 1));
+      else if (phaseAtSend === "pref") setPrefBubbles((n) => Math.max(0, n - 1));
       setCurrentAssistantText("Network error — try again.");
     } finally {
       window.setTimeout(() => {
