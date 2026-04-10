@@ -302,8 +302,7 @@ export default function LoginPage() {
     if (!user) return;
     if (phase !== "auth") return;
     navigate(from, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, from, phase, navigate]);
 
   // ✅ Load cities for Lebanon when onboarding opens
   useEffect(() => {
