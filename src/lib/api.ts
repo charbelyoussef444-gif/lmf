@@ -277,8 +277,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       // ignore
     }
-    redirectToLogin();
     const msg = await res.text().catch(() => "");
+    redirectToLogin();
     throw new Error(`Unauthorized${msg ? `: ${msg}` : ""}`);
   }
 
