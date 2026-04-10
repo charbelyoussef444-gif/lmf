@@ -27,7 +27,12 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api, type ProfileResponse, type CityRow } from "../lib/api";
+import {
+  api,
+  type ProfileResponse,
+  type CityRow,
+  type GalleryPhotoSlot,
+} from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
 
 import AppHeader from "../components/AppHeader";
@@ -247,8 +252,20 @@ export default function ProfilePage() {
   const [pendingInterests, setPendingInterests] = useState<Interest[]>([]);
   const [updatingInterests, setUpdatingInterests] = useState(false);
 
-  // backend returns 3-slot array now: ["", "", ""]
-  const [photos, setPhotos] = useState<string[]>(["", "", ""]);
+  // Backend returns a 3-slot array of GalleryPhotoSlot | null now.
+  // Each slot has url + review status + rejection reason.
+  const [photos, setPhotos] = useState<(GalleryPhotoSlot | null)[]>([
+    null,
+    null,
+    null,
+  ]);
+  // Local picks that have NOT been uploaded yet. Aligned to positions 1..3.
+  type LocalPick = { file: File; previewUrl: string };
+  const [localPicks, setLocalPicks] = useState<(LocalPick | null)[]>([
+    null,
+    null,
+    null,
+  ]);
   const [uploading, setUploading] = useState(false);
   const [uploadingPos, setUploadingPos] = useState<1 | 2 | 3 | null>(null);
   const [removingPos, setRemovingPos] = useState<1 | 2 | 3 | null>(null);
@@ -572,9 +589,10 @@ export default function ProfilePage() {
         setPendingInterests(ints);
 
         // backend returns fixed 3 slots; still guard
-        setPhotos(
-          Array.isArray(ph) ? (ph.length === 3 ? ph : ["", "", ""]) : ["", "", ""]
-        );
+        const normalisedPh: (GalleryPhotoSlot | null)[] = Array.isArray(ph)
+          ? (ph.length === 3 ? ph : [null, null, null])
+          : [null, null, null];
+        setPhotos(normalisedPh);
         setAllInterests(allInts);
 
         if (kyc) {
@@ -620,24 +638,71 @@ export default function ProfilePage() {
     }
   }
 
-  async function uploadGallery(e: ChangeEvent<HTMLInputElement>, pos: 1 | 2 | 3) {
+  // Pick a photo locally — does NOT upload yet. User has to press "Upload"
+  // explicitly, matching the mobile flow.
+  function pickGalleryPhoto(e: ChangeEvent<HTMLInputElement>, pos: 1 | 2 | 3) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      e.target.value = "";
+      return;
+    }
+    setLocalPicks((prev) => {
+      const next = [...prev];
+      if (next[pos - 1]?.previewUrl) {
+        URL.revokeObjectURL(next[pos - 1]!.previewUrl);
+      }
+      next[pos - 1] = {
+        file,
+        previewUrl: URL.createObjectURL(file),
+      };
+      return next;
+    });
+    e.target.value = "";
+  }
+
+  function clearLocalPick(pos: 1 | 2 | 3) {
+    setLocalPicks((prev) => {
+      const next = [...prev];
+      if (next[pos - 1]?.previewUrl) {
+        URL.revokeObjectURL(next[pos - 1]!.previewUrl);
+      }
+      next[pos - 1] = null;
+      return next;
+    });
+  }
+
+  async function uploadLocalPicks() {
+    const picks = localPicks;
+    const hasAny = picks.some((p) => p !== null);
+    if (!hasAny) return;
 
     setUploading(true);
-    setUploadingPos(pos);
     try {
-      await api.uploadGalleryPhoto(file, pos);
+      const jobs: Promise<unknown>[] = [];
+      picks.forEach((p, i) => {
+        if (p) {
+          jobs.push(api.uploadGalleryPhoto(p.file, (i + 1) as 1 | 2 | 3));
+        }
+      });
+      await Promise.all(jobs);
       const ph = await api.myPhotos();
-      setPhotos(ph.length === 3 ? ph : ["", "", ""]);
+      setPhotos(
+        Array.isArray(ph) && ph.length === 3 ? ph : [null, null, null]
+      );
+      // release previews
+      picks.forEach((p) => {
+        if (p?.previewUrl) URL.revokeObjectURL(p.previewUrl);
+      });
+      setLocalPicks([null, null, null]);
       flashSaved("photos");
+      alert(
+        "Your photos were sent for review. You will be notified if anything needs to change."
+      );
     } catch (err) {
       console.error(err);
-      alert("Failed to upload photo.");
+      alert("Failed to upload photos. Please try again.");
     } finally {
-      e.target.value = "";
       setUploading(false);
-      setUploadingPos(null);
     }
   }
 
@@ -646,7 +711,9 @@ export default function ProfilePage() {
     try {
       await api.deleteGalleryPhoto(pos);
       const ph = await api.myPhotos();
-      setPhotos(ph.length === 3 ? ph : ["", "", ""]);
+      setPhotos(
+        Array.isArray(ph) && ph.length === 3 ? ph : [null, null, null]
+      );
       flashSaved("photos");
     } catch (err) {
       console.error(err);
@@ -2064,80 +2131,151 @@ async function deleteAccount() {
               )}
             </div>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Upload up to three photos that feel like you. You can update them anytime.
+              Photos are reviewed by our team before they count toward
+              matching. Pick your photos, then press <strong>Upload for review</strong>.
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((pos) => {
                 const p = pos as 1 | 2 | 3;
-                const hasPhoto = !!photos[p - 1];
+                const slot = photos[p - 1];
+                const localPick = localPicks[p - 1];
                 const busy = uploadingPos === p || removingPos === p;
 
-                return (
-                  <div
-                    key={p}
-                    className="group relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
-                  >
-                    {hasPhoto ? (
+                // Local pick takes visual priority until uploaded.
+                if (localPick) {
+                  return (
+                    <div
+                      key={p}
+                      className="group relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                    >
                       <img
-                        src={photos[p - 1]}
-                        alt={`gallery-${p}`}
+                        src={localPick.previewUrl}
+                        alt={`gallery-${p}-local`}
                         className="h-full w-full object-cover"
                       />
-                    ) : (
-                      <span className="text-xs text-slate-400">Empty slot {p}</span>
-                    )}
-
-                    {hasPhoto && (
+                      <span className="absolute left-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Ready
+                      </span>
                       <button
                         type="button"
-                        onClick={() => removeGallery(p)}
-                        disabled={busy}
+                        onClick={() => clearLocalPick(p)}
+                        disabled={uploading}
                         className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
-                        aria-label={`Remove photo ${p}`}
+                        aria-label={`Remove local photo ${p}`}
                         title="Remove"
                       >
-                        {removingPos === p ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <XCircle className="h-5 w-5" />
-                        )}
+                        <XCircle className="h-5 w-5" />
                       </button>
-                    )}
+                    </div>
+                  );
+                }
 
-                    <label
+                const hasServerPhoto = !!slot && !!slot.url;
+                const status = slot?.status;
+                const isRejected = hasServerPhoto && status === "rejected";
+                const isPending = hasServerPhoto && status === "pending";
+
+                return (
+                  <div key={p} className="flex flex-col gap-2">
+                    <div
                       className={[
-                        "absolute inset-0 z-10 flex cursor-pointer items-center justify-center text-xs font-medium text-white backdrop-blur-[1px] transition",
-                        hasPhoto
-                          ? "bg-slate-900/40 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
-                          : "bg-slate-900/25 opacity-100 pointer-events-auto",
-                        busy ? "opacity-100 pointer-events-none" : "",
+                        "group relative flex h-40 items-center justify-center overflow-hidden rounded-2xl border bg-slate-50 dark:bg-slate-900",
+                        isRejected
+                          ? "border-2 border-rose-500"
+                          : "border border-slate-200 dark:border-slate-700",
                       ].join(" ")}
                     >
-                      {uploadingPos === p ? (
-                        <>
-                          <Loader2 className="mr-1 h-4 w-4 animate-spin" /> Uploading…
-                        </>
+                      {hasServerPhoto ? (
+                        <img
+                          src={slot!.url}
+                          alt={`gallery-${p}`}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
-                        <>
-                          <Upload className="mr-1 h-4 w-4" /> Upload
-                        </>
+                        <span className="text-xs text-slate-400">
+                          Empty slot {p}
+                        </span>
                       )}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => uploadGallery(e, p)}
-                      />
-                    </label>
+
+                      {isPending && (
+                        <span className="absolute left-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          Pending
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="absolute left-2 top-2 z-20 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          Rejected
+                        </span>
+                      )}
+
+                      {hasServerPhoto && (
+                        <button
+                          type="button"
+                          onClick={() => removeGallery(p)}
+                          disabled={busy || uploading}
+                          className="absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur hover:bg-black/70 disabled:opacity-60"
+                          aria-label={`Remove photo ${p}`}
+                          title="Remove"
+                        >
+                          {removingPos === p ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XCircle className="h-5 w-5" />
+                          )}
+                        </button>
+                      )}
+
+                      <label
+                        className={[
+                          "absolute inset-0 z-10 flex cursor-pointer items-center justify-center text-xs font-medium text-white backdrop-blur-[1px] transition",
+                          hasServerPhoto
+                            ? "bg-slate-900/40 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto"
+                            : "bg-slate-900/25 opacity-100 pointer-events-auto",
+                          busy || uploading
+                            ? "opacity-100 pointer-events-none"
+                            : "",
+                        ].join(" ")}
+                      >
+                        <Upload className="mr-1 h-4 w-4" />
+                        {hasServerPhoto ? "Replace" : "Pick photo"}
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => pickGalleryPhoto(e, p)}
+                        />
+                      </label>
+                    </div>
+
+                    {isRejected && slot?.rejection_reason ? (
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                        {slot.rejection_reason}
+                      </p>
+                    ) : null}
                   </div>
                 );
               })}
             </div>
 
-            {uploading && (
-              <div className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
+            {localPicks.some((p) => p !== null) && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={uploadLocalPicks}
+                  disabled={uploading}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-fuchsia-500 px-5 text-sm font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Uploading…
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" /> Upload for review
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </section>

@@ -3,6 +3,39 @@ import { supabase } from "./supabaseClient";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
+/** Gallery photo with review status (matches backend /me/photos shape) */
+export type GalleryPhotoStatus = "pending" | "approved" | "rejected";
+
+export type GalleryPhotoSlot = {
+  position: 1 | 2 | 3;
+  url: string;
+  status: GalleryPhotoStatus;
+  rejection_reason: string | null;
+};
+
+/** Admin: pending gallery review queue row */
+export type AdminPendingGalleryRow = {
+  user_id: string;
+  full_name: string | null;
+  age: number | null;
+  pending_count: number;
+  oldest_pending_at: string | null;
+};
+
+/** Admin: full gallery review payload for a single user */
+export type AdminGalleryReview = {
+  user_id: string;
+  full_name: string | null;
+  age: number | null;
+  selfie_url: string | null;
+  photos: Array<{
+    position: 1 | 2 | 3;
+    url: string;
+    status: GalleryPhotoStatus;
+    rejection_reason: string | null;
+  }>;
+};
+
 /** Chatbot response type (matches backend: updated_traits) */
 export type ChatbotResponse = {
   reply: string;
@@ -394,8 +427,8 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  // Photos
-  myPhotos: () => request<string[]>("/me/photos"),
+  // Photos — fixed 3-slot array; null = empty slot
+  myPhotos: () => request<Array<GalleryPhotoSlot | null>>("/me/photos"),
 
   uploadGalleryPhoto: (file: File, position: 1 | 2 | 3) => {
     const fd = new FormData();
@@ -547,6 +580,41 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),
+
+  /* ---- Admin: gallery photo review ---- */
+  adminListPendingGallery: () =>
+    request<AdminPendingGalleryRow[]>("/admin/gallery/pending"),
+
+  adminGetUserGallery: (userId: string) =>
+    request<AdminGalleryReview>(`/admin/gallery/${userId}`),
+
+  adminApprovePhoto: (userId: string, position: 1 | 2 | 3) =>
+    request<{ ok: boolean }>(
+      `/admin/gallery/${userId}/photos/${position}/approve`,
+      { method: "POST" }
+    ),
+
+  adminRejectPhoto: (
+    userId: string,
+    position: 1 | 2 | 3,
+    reason: string
+  ) =>
+    request<{ ok: boolean }>(
+      `/admin/gallery/${userId}/photos/${position}/reject`,
+      { method: "POST", body: JSON.stringify({ reason }) }
+    ),
+
+  adminApproveAllGallery: (userId: string) =>
+    request<{ ok: boolean; updated: number }>(
+      `/admin/gallery/${userId}/approve-all`,
+      { method: "POST" }
+    ),
+
+  adminRejectAllGallery: (userId: string, reason: string) =>
+    request<{ ok: boolean; updated: number }>(
+      `/admin/gallery/${userId}/reject-all`,
+      { method: "POST", body: JSON.stringify({ reason }) }
+    ),
 
   adminListUsers: (q?: string, limit = 50, offset = 0) => {
     const params = new URLSearchParams();

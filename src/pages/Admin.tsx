@@ -8,9 +8,14 @@ import {
   Eye,
   CheckCircle2,
   XCircle,
+  Images,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api";
+import {
+  api,
+  type AdminGalleryReview,
+  type AdminPendingGalleryRow,
+} from "../lib/api";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
@@ -44,7 +49,7 @@ type PendingKycRow = {
 export default function AdminPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"kyc" | "users">("kyc");
+  const [tab, setTab] = useState<"kyc" | "gallery" | "users">("kyc");
 
   const [pending, setPending] = useState<PendingKycRow[]>([]);
   const [previewUserId, setPreviewUserId] = useState<string | null>(null);
@@ -53,6 +58,18 @@ export default function AdminPage() {
   >([]);
   const [kycBusy, setKycBusy] = useState(false);
   const [idNumber, setIdNumber] = useState("");
+
+  // Gallery review state
+  const [galleryPending, setGalleryPending] = useState<AdminPendingGalleryRow[]>(
+    []
+  );
+  const [galleryPreviewUserId, setGalleryPreviewUserId] = useState<string | null>(
+    null
+  );
+  const [galleryPreview, setGalleryPreview] = useState<AdminGalleryReview | null>(
+    null
+  );
+  const [galleryBusy, setGalleryBusy] = useState(false);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
@@ -77,6 +94,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isMeAdmin) return;
     if (tab === "kyc") refreshPending();
+    if (tab === "gallery") refreshGalleryPending();
     if (tab === "users") refreshUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMeAdmin, tab]);
@@ -142,6 +160,113 @@ export default function AdminPage() {
       alert("Reject failed.");
     } finally {
       setKycBusy(false);
+    }
+  }
+
+  /* ---- Gallery review helpers ---- */
+
+  async function refreshGalleryPending() {
+    try {
+      const rows = await api.adminListPendingGallery();
+      setGalleryPending(rows);
+      if (galleryPreviewUserId) {
+        try {
+          const review = await api.adminGetUserGallery(galleryPreviewUserId);
+          setGalleryPreview(review);
+        } catch {
+          setGalleryPreview(null);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function openGalleryPreview(userId: string) {
+    setGalleryPreviewUserId(userId);
+    try {
+      const review = await api.adminGetUserGallery(userId);
+      setGalleryPreview(review);
+    } catch (e) {
+      console.error(e);
+      setGalleryPreview(null);
+    }
+  }
+
+  async function afterGalleryAction() {
+    // If the user has no more pending photos, drop them from the queue view.
+    await refreshGalleryPending();
+    if (galleryPreviewUserId) {
+      try {
+        const review = await api.adminGetUserGallery(galleryPreviewUserId);
+        const stillHasPending = review.photos.some(
+          (p) => p.status === "pending"
+        );
+        if (!stillHasPending) {
+          setGalleryPreviewUserId(null);
+          setGalleryPreview(null);
+        } else {
+          setGalleryPreview(review);
+        }
+      } catch {
+        setGalleryPreviewUserId(null);
+        setGalleryPreview(null);
+      }
+    }
+  }
+
+  async function approvePhoto(userId: string, position: 1 | 2 | 3) {
+    setGalleryBusy(true);
+    try {
+      await api.adminApprovePhoto(userId, position);
+      await afterGalleryAction();
+    } catch (e: any) {
+      alert(e?.message || "Approve failed.");
+    } finally {
+      setGalleryBusy(false);
+    }
+  }
+
+  async function rejectPhoto(userId: string, position: 1 | 2 | 3) {
+    const reason = prompt("Why is this photo rejected?");
+    if (!reason?.trim()) return;
+    setGalleryBusy(true);
+    try {
+      await api.adminRejectPhoto(userId, position, reason.trim());
+      await afterGalleryAction();
+    } catch (e: any) {
+      alert(e?.message || "Reject failed.");
+    } finally {
+      setGalleryBusy(false);
+    }
+  }
+
+  async function approveAllPhotos(userId: string) {
+    if (!confirm("Approve ALL pending photos for this user?")) return;
+    setGalleryBusy(true);
+    try {
+      await api.adminApproveAllGallery(userId);
+      await afterGalleryAction();
+    } catch (e: any) {
+      alert(e?.message || "Approve all failed.");
+    } finally {
+      setGalleryBusy(false);
+    }
+  }
+
+  async function rejectAllPhotos(userId: string) {
+    const reason = prompt(
+      "Enter a single rejection reason to apply to ALL pending photos:"
+    );
+    if (!reason?.trim()) return;
+    setGalleryBusy(true);
+    try {
+      await api.adminRejectAllGallery(userId, reason.trim());
+      await afterGalleryAction();
+    } catch (e: any) {
+      alert(e?.message || "Reject all failed.");
+    } finally {
+      setGalleryBusy(false);
     }
   }
 
@@ -250,6 +375,16 @@ export default function AdminPage() {
                   KYC review
                 </button>
                 <button
+                  onClick={() => setTab("gallery")}
+                  className={`rounded-full px-3 py-1.5 transition ${
+                    tab === "gallery"
+                      ? "bg-slate-900 text-slate-50 dark:bg-slate-100 dark:text-slate-900"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  Gallery review
+                </button>
+                <button
                   onClick={() => setTab("users")}
                   className={`rounded-full px-3 py-1.5 transition ${
                     tab === "users"
@@ -277,7 +412,17 @@ export default function AdminPage() {
                   : "border border-slate-200 bg-white/70 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
               }`}
             >
-              KYC review
+              KYC
+            </button>
+            <button
+              onClick={() => setTab("gallery")}
+              className={`flex-1 rounded-2xl px-3 py-2 text-xs font-medium transition ${
+                tab === "gallery"
+                  ? "bg-slate-900 text-slate-50 dark:bg-slate-100 dark:text-slate-900"
+                  : "border border-slate-200 bg-white/70 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200"
+              }`}
+            >
+              Gallery
             </button>
             <button
               onClick={() => setTab("users")}
@@ -425,6 +570,260 @@ export default function AdminPage() {
                       >
                         <XCircle className="h-4 w-4" />
                         Reject
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {tab === "gallery" && (
+            <section className="grid gap-6 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)]">
+              <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Images className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Pending gallery reviews
+                    </h2>
+                  </div>
+                  <button
+                    onClick={refreshGalleryPending}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {galleryPending.map((row) => (
+                    <button
+                      key={row.user_id}
+                      onClick={() => openGalleryPreview(row.user_id)}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition ${
+                        galleryPreviewUserId === row.user_id
+                          ? "border-indigo-400 bg-indigo-50 dark:border-indigo-500/80 dark:bg-indigo-950/30"
+                          : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-slate-800 dark:text-slate-100">
+                          {row.full_name ||
+                            `User ${row.user_id.slice(0, 8)}…`}
+                        </div>
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                          {row.pending_count}
+                        </span>
+                      </div>
+
+                      {typeof row.age === "number" && (
+                        <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                          Age {row.age}
+                        </div>
+                      )}
+
+                      {row.oldest_pending_at && (
+                        <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                          Submitted{" "}
+                          {new Date(row.oldest_pending_at).toLocaleString()}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+
+                  {!galleryPending.length && (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-3 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+                      No pending gallery photos.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+                <div className="mb-3 flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-rose-500 dark:text-rose-300" />
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    Review photos
+                  </h2>
+                </div>
+
+                {!galleryPreviewUserId || !galleryPreview ? (
+                  <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+                    Select a user from the queue to review their photos.
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-sm">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
+                      <div>
+                        <span className="font-medium">
+                          {galleryPreview.full_name || "Unknown user"}
+                        </span>
+                        {typeof galleryPreview.age === "number" && (
+                          <span className="ml-2 text-slate-400">
+                            · Age {galleryPreview.age}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 font-mono text-[11px]">
+                        {galleryPreview.user_id}
+                      </div>
+                    </div>
+
+                    {/* Verified selfie reference */}
+                    <div>
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Verified selfie (reference)
+                      </div>
+                      {galleryPreview.selfie_url ? (
+                        <a
+                          href={galleryPreview.selfie_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block overflow-hidden rounded-2xl border border-emerald-300/60 bg-slate-100 dark:border-emerald-500/40 dark:bg-slate-900"
+                        >
+                          <img
+                            src={galleryPreview.selfie_url}
+                            alt="verified selfie"
+                            className="h-48 w-full object-cover"
+                          />
+                        </a>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-3 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+                          No verified selfie on file.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Photo grid */}
+                    <div>
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Gallery photos
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                        {galleryPreview.photos.map((p) => {
+                          const isPending = p.status === "pending";
+                          const isRejected = p.status === "rejected";
+                          const isApproved = p.status === "approved";
+                          return (
+                            <div
+                              key={p.position}
+                              className={[
+                                "overflow-hidden rounded-2xl border bg-slate-100 dark:bg-slate-900",
+                                isRejected
+                                  ? "border-2 border-rose-500"
+                                  : isApproved
+                                    ? "border-emerald-400"
+                                    : "border-slate-200 dark:border-slate-700",
+                              ].join(" ")}
+                            >
+                              <div className="relative">
+                                <a
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <img
+                                    src={p.url}
+                                    alt={`Photo ${p.position}`}
+                                    className="h-48 w-full object-cover"
+                                  />
+                                </a>
+                                <span
+                                  className={[
+                                    "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white",
+                                    isPending
+                                      ? "bg-amber-500"
+                                      : isRejected
+                                        ? "bg-rose-600"
+                                        : "bg-emerald-600",
+                                  ].join(" ")}
+                                >
+                                  {p.status}
+                                </span>
+                              </div>
+
+                              {isRejected && p.rejection_reason && (
+                                <div className="border-t border-rose-200 bg-rose-50/60 px-3 py-2 text-[11px] text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
+                                  {p.rejection_reason}
+                                </div>
+                              )}
+
+                              {isPending && (
+                                <div className="flex items-center justify-between gap-2 px-3 py-2">
+                                  <button
+                                    onClick={() =>
+                                      approvePhoto(
+                                        galleryPreview.user_id,
+                                        p.position
+                                      )
+                                    }
+                                    disabled={galleryBusy}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                                  >
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      rejectPhoto(
+                                        galleryPreview.user_id,
+                                        p.position
+                                      )
+                                    }
+                                    disabled={galleryBusy}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1 text-[11px] font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Reject
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {!galleryPreview.photos.length && (
+                          <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-3 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+                            No photos uploaded for this user.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Batch actions */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <button
+                        onClick={() =>
+                          approveAllPhotos(galleryPreview.user_id)
+                        }
+                        disabled={
+                          galleryBusy ||
+                          !galleryPreview.photos.some(
+                            (p) => p.status === "pending"
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {galleryBusy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                        Approve all pending
+                      </button>
+                      <button
+                        onClick={() =>
+                          rejectAllPhotos(galleryPreview.user_id)
+                        }
+                        disabled={
+                          galleryBusy ||
+                          !galleryPreview.photos.some(
+                            (p) => p.status === "pending"
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        Reject all pending
                       </button>
                     </div>
                   </div>
