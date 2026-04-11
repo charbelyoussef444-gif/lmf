@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { api } from "../lib/api";
-
+//kk
 export default function AuthCallback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
