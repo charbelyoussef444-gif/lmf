@@ -267,7 +267,8 @@ export default function ProfilePage() {
     null,
   ]);
   const [uploading, setUploading] = useState(false);
-  const [uploadingPos, setUploadingPos] = useState<1 | 2 | 3 | null>(null);
+
+  
   const [removingPos, setRemovingPos] = useState<1 | 2 | 3 | null>(null);
 
   const [savingPreferences, setSavingPreferences] = useState(false);
