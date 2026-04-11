@@ -25,6 +25,7 @@ import {
   Pencil,
   X,
   AlertTriangle,
+  Lock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -641,6 +642,13 @@ export default function ProfilePage() {
   // Pick a photo locally — does NOT upload yet. User has to press "Upload"
   // explicitly, matching the mobile flow.
   function pickGalleryPhoto(e: ChangeEvent<HTMLInputElement>, pos: 1 | 2 | 3) {
+    if (kycStatus?.status !== "verified") {
+      e.target.value = "";
+      alert(
+        "You must complete identity verification before uploading gallery photos."
+      );
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) {
       e.target.value = "";
@@ -1609,7 +1617,7 @@ async function deleteAccount() {
           )}
 
           {/* Verification */}
-          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          <section id="kyc-section" className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-rose-500 dark:text-rose-300" />
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -2134,6 +2142,34 @@ async function deleteAccount() {
               Photos are reviewed by our team before they count toward
               matching. Pick your photos, then press <strong>Upload for review</strong>.
             </p>
+
+            {kycStatus && kycStatus.status !== "verified" && (
+              <div className="mt-4 rounded-2xl border-l-4 border-amber-500 bg-amber-50 p-4 dark:border-amber-400 dark:bg-amber-950/30">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                    Verification required
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
+                  {kycStatus.status === "pending"
+                    ? "Your verification is being reviewed. You will be able to upload gallery photos as soon as you are verified."
+                    : "You must complete identity verification before you can upload gallery photos."}
+                </p>
+                {kycStatus.status !== "pending" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById("kyc-section");
+                      if (el) el.scrollIntoView({behavior: "smooth", block: "start"});
+                    }}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                  >
+                    Verify identity <ArrowRight className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((pos) => {
