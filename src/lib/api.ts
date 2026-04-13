@@ -669,6 +669,11 @@ export const api = {
     );
   },
 
+  adminPurgeExpired: () =>
+    request<{ purged: number; errors: number; error_ids: string[] }>("/me/purge-expired", {
+      method: "DELETE",
+    }),
+
   completeOnboarding: (payload: {
     age: number;
     location_id: number | null;

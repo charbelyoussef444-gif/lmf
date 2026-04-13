@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   XCircle,
   Images,
+  Trash2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -74,6 +75,10 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query, setQuery] = useState("");
   const [userBusyId, setUserBusyId] = useState<string | null>(null);
+
+  // Purge expired soft-deleted accounts
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<{ purged: number; errors: number } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -279,6 +284,20 @@ export default function AdminPage() {
     }
   }
 
+  async function handlePurgeExpired() {
+    if (!confirm("Permanently delete all accounts that have been soft-deleted for 7+ days?")) return;
+    setPurgeBusy(true);
+    setPurgeResult(null);
+    try {
+      const res = await api.adminPurgeExpired();
+      setPurgeResult({ purged: res.purged, errors: res.errors });
+    } catch {
+      setPurgeResult({ purged: 0, errors: -1 });
+    } finally {
+      setPurgeBusy(false);
+    }
+  }
+
   async function toggleBan(u: AdminUser) {
     setUserBusyId(u.id);
     try {
@@ -396,6 +415,21 @@ export default function AdminPage() {
                 </button>
               </nav>
 
+              <button
+                onClick={handlePurgeExpired}
+                disabled={purgeBusy}
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+              >
+                {purgeBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                Purge deleted accounts
+              </button>
+              {purgeResult && (
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {purgeResult.errors === -1
+                    ? "Failed"
+                    : `${purgeResult.purged} purged${purgeResult.errors > 0 ? `, ${purgeResult.errors} errors` : ""}`}
+                </span>
+              )}
               <span className="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:inline-flex">
                 {me?.full_name || "Admin"}
               </span>
