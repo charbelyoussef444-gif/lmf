@@ -319,6 +319,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(`Unauthorized${msg ? `: ${msg}` : ""}`);
   }
 
+  // 410 Gone — account permanently deleted (past 7-day window)
+  if (res.status === 410) {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      await supabase.auth.signOut();
+    } catch { /* ignore */ }
+    redirectToLogin();
+    throw new Error("Account has been permanently deleted");
+  }
+
   if (!res.ok) {
     const msg = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText}${msg ? `: ${msg}` : ""}`);
