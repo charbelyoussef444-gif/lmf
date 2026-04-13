@@ -293,6 +293,7 @@ function MatchBlockers({
         has_gender?: boolean;
         photos_count?: number;
         not_banned: boolean;
+        not_deleted?: boolean;
       }
     | undefined;
 
@@ -302,6 +303,7 @@ function MatchBlockers({
   const issues: string[] = [];
 
   if (checks) {
+    if (checks.not_deleted === false) issues.push("Your account is scheduled for deletion. Recover it from your profile to match again.");
     if (!checks.not_banned) issues.push("Your account is banned.");
     if (checks.has_age === false) issues.push("Add your age to your profile.");
     if (checks.has_gender === false)
