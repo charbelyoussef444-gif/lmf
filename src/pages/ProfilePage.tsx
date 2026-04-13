@@ -26,6 +26,7 @@ import {
   X,
   AlertTriangle,
   Lock,
+  CheckCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -64,6 +65,9 @@ type Profile = {
   preferred_gender?: GenderPreference | null;
 
   preferred_max_distance_km?: number | null;
+
+  deleted_at?: string | null;
+  scheduled_purge_at?: string | null;
 };
 
 const LOCKED_COUNTRY = "Lebanon";
@@ -231,6 +235,8 @@ function normalizeProfile(p: ProfileResponse): Profile {
     preferred_max_age: p.preferred_max_age ?? null,
     preferred_gender: (p.preferred_gender ?? null) as GenderPreference | null,
     preferred_max_distance_km: p.preferred_max_distance_km ?? null,
+    deleted_at: p.deleted_at ?? null,
+    scheduled_purge_at: p.scheduled_purge_at ?? null,
   };
 }
 
@@ -285,6 +291,7 @@ export default function ProfilePage() {
   // ✅ NEW: delete account UI state
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [recoveringAccount, setRecoveringAccount] = useState(false);
 
   // ✅ NEW: location edit UI state
   const [editingLocation, setEditingLocation] = useState(false);
@@ -843,7 +850,7 @@ export default function ProfilePage() {
     }
   }
 
-// ✅ NEW: delete account action
+// ✅ Soft-delete account (7-day recovery window)
 async function deleteAccount() {
   if (deletingAccount) return;
 
@@ -853,40 +860,41 @@ async function deleteAccount() {
   }
 
   const ok = confirm(
-    "This will permanently delete your account and data. This cannot be undone. Continue?"
+    "Your account will be scheduled for deletion. You have 7 days to recover it before it's permanently removed. Continue?"
   );
   if (!ok) return;
 
   setDeletingAccount(true);
 
   try {
-    await api.deleteMe();
-
-    // Clear all local storage and caches
-    try {
-      localStorage.clear();
-    } catch (err) {
-      console.error("Failed to clear localStorage:", err);
+    const res = await api.deleteMe();
+    // Update local profile state to show recovery UI
+    if (profile) {
+      setProfile({ ...profile, deleted_at: res.deleted_at, scheduled_purge_at: res.scheduled_purge_at } as any);
     }
-    try {
-      sessionStorage.clear();
-    } catch (err) {
-      console.error("Failed to clear sessionStorage:", err);
-    }
-
-    // Clear Supabase session from browser storage as well
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error("Failed to sign out Supabase locally after delete:", err);
-    }
-
-    navigate("/login", { replace: true });
+    setDeleteConfirmText("");
   } catch (e) {
     console.error(e);
-    alert("Failed to delete account.");
+    alert("Failed to schedule account deletion.");
   } finally {
     setDeletingAccount(false);
+  }
+}
+
+// ✅ Recover soft-deleted account
+async function recoverAccount() {
+  if (recoveringAccount) return;
+  setRecoveringAccount(true);
+  try {
+    await api.recoverMe();
+    // Reload profile to clear deleted_at
+    const updated = await api.me();
+    setProfile(normalizeProfile(updated));
+  } catch (e) {
+    console.error(e);
+    alert("Failed to recover account.");
+  } finally {
+    setRecoveringAccount(false);
   }
 }
 
@@ -2332,44 +2340,82 @@ async function deleteAccount() {
     </h2>
   </div>
 
-  <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
-    Deleting your account is permanent. Your profile, interests, photos, and verification
-    uploads will be removed.
-  </p>
-
-  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-    <div className="flex-1">
-      <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-200">
-        Type <span className="font-semibold">DELETE</span> to confirm
-      </label>
-
-      <input
-        value={deleteConfirmText}
-        onChange={(e) => setDeleteConfirmText(e.target.value)}
-        disabled={deletingAccount}
-        placeholder="DELETE"
-        className="mt-1 h-11 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none focus:ring-2 focus:ring-rose-300/60 disabled:opacity-70 dark:border-rose-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-rose-500/30"
-      />
-
-      <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-        This can’t be undone.
+  {profile?.deleted_at ? (
+    <>
+      <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
+        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+          Your account is scheduled for deletion
+        </p>
+        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+          Your account will be permanently deleted on{" "}
+          <span className="font-semibold">
+            {new Date(profile.scheduled_purge_at!).toLocaleDateString(undefined, {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </span>
+          . You can recover it before then.
+        </p>
       </div>
-    </div>
 
-    <button
-      type="button"
-      onClick={deleteAccount}
-      disabled={deletingAccount || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
-      className="h-11 shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-xs font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
-    >
-      {deletingAccount ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <XCircle className="h-4 w-4" />
-      )}
-      {deletingAccount ? "Deleting…" : "Delete account"}
-    </button>
-  </div>
+      <button
+        type="button"
+        onClick={recoverAccount}
+        disabled={recoveringAccount}
+        className="mt-4 h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-xs font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
+      >
+        {recoveringAccount ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <CheckCircle className="h-4 w-4" />
+        )}
+        {recoveringAccount ? "Recovering…" : "Recover my account"}
+      </button>
+    </>
+  ) : (
+    <>
+      <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
+        Your account will be scheduled for deletion with a 7-day recovery window.
+        After 7 days, your profile, interests, photos, and verification uploads will be permanently removed.
+      </p>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex-1">
+          <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-200">
+            Type <span className="font-semibold">DELETE</span> to confirm
+          </label>
+
+          <input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            disabled={deletingAccount}
+            placeholder="DELETE"
+            className="mt-1 h-11 w-full rounded-xl border border-rose-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none focus:ring-2 focus:ring-rose-300/60 disabled:opacity-70 dark:border-rose-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-rose-500/30"
+          />
+
+          <div className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+            You’ll have 7 days to change your mind.
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={deleteAccount}
+          disabled={deletingAccount || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+          className="h-11 shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 text-xs font-semibold text-white shadow-sm hover:brightness-110 disabled:opacity-60"
+        >
+          {deletingAccount ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <XCircle className="h-4 w-4" />
+          )}
+          {deletingAccount ? "Scheduling…" : "Delete account"}
+        </button>
+      </div>
+    </>
+  )}
 </section>
         </main>
 

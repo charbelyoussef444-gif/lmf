@@ -178,6 +178,10 @@ export type ProfileResponse = {
   preferred_max_distance_km?: number | null;
 
   last_login_at?: string | null;
+
+  // Soft-delete
+  deleted_at?: string | null;
+  scheduled_purge_at?: string | null;
 };
 
 /** Analytics tracking types */
@@ -369,8 +373,13 @@ export const api = {
   // Profile / weights / interests
   me: () => request<ProfileResponse>("/me"),
 
-  // ✅ NEW: delete my account (DELETE /me) — returns 204
-  deleteMe: () => request<null>("/me", { method: "DELETE" }),
+  // Soft-delete my account (7-day recovery window)
+  deleteMe: () =>
+    request<{ message: string; deleted_at: string; scheduled_purge_at: string }>("/me", { method: "DELETE" }),
+
+  // Recover a soft-deleted account within the 7-day window
+  recoverMe: () =>
+    request<{ message: string }>("/me/recover", { method: "POST" }),
 
   // Locations for dropdowns
   getCountries: () => request<CountryRow[]>("/me/locations/countries"),
