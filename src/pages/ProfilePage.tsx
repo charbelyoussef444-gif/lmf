@@ -35,7 +35,6 @@ import {
   type CityRow,
   type GalleryPhotoSlot,
 } from "../lib/api";
-import { supabase } from "../lib/supabaseClient";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
