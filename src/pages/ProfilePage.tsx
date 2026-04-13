@@ -862,11 +862,16 @@ async function deleteAccount() {
   try {
     await api.deleteMe();
 
-    // Clear your custom local token
+    // Clear all local storage and caches
     try {
-      localStorage.removeItem("token");
+      localStorage.clear();
     } catch (err) {
-      console.error("Failed to remove local token:", err);
+      console.error("Failed to clear localStorage:", err);
+    }
+    try {
+      sessionStorage.clear();
+    } catch (err) {
+      console.error("Failed to clear sessionStorage:", err);
     }
 
     // Clear Supabase session from browser storage as well
