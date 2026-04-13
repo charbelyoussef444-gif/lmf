@@ -408,18 +408,7 @@ function IncomingMatchNote() {
   );
 }
 
-function extractIntroPrompts(text?: string) {
-  if (!text) return [];
-  const lines = text.split("\n").map((l) => l.trim());
-  const idx = lines.findIndex((l) => l.toLowerCase().includes("easy ways to start"));
-  if (idx === -1) return [];
-  const after = lines.slice(idx + 1);
-  const prompts = after
-    .filter((l) => l.startsWith("•"))
-    .map((l) => l.replace(/^•\s*/, "").replace(/\*\*/g, "").trim())
-    .filter(Boolean);
-  return prompts.slice(0, 3);
-}
+/* extractIntroPrompts removed — new intro format is a single paragraph */
 
 /** ---------------- Helpers ---------------- */
 function useNow(intervalMs = 1000) {
@@ -2000,45 +1989,31 @@ export default function ConversationsPage() {
                       const ts = fmtMsgTimeFromSec((m as any).ts);
 
                       if ((m as any).role === "system") {
-                        const prompts = extractIntroPrompts((m as any).text);
                         return (
                           <motion.div
                             key={(m as any).id}
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: "spring", duration: 0.5 }}
                             className="flex justify-center"
                           >
-                            <div className="w-full max-w-[92%] rounded-3xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-slate-900 shadow-sm dark:border-indigo-800/50 dark:bg-indigo-950/40 dark:text-slate-50">
-                              <div className="flex items-center gap-2 text-[11px] font-semibold text-indigo-700 dark:text-indigo-200">
-                                <Sparkles className="h-4 w-4" />
-                                Match intro
-                              </div>
-
-                              <div className="mt-2 whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-100">
-                                {(m as any).text}
-                              </div>
-
-                              {prompts.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {prompts.map((p) => (
-                                    <button
-                                      key={p}
-                                      type="button"
-                                      onClick={() => setMessage(p)}
-                                      className="rounded-full border border-indigo-200 bg-white/70 px-3 py-1 text-[11px] font-medium text-indigo-700 hover:bg-white dark:border-indigo-800/50 dark:bg-slate-900/60 dark:text-indigo-200"
-                                      title="Use this starter"
-                                    >
-                                      {p}
-                                    </button>
-                                  ))}
+                            <div className="w-full max-w-[88%] rounded-2xl bg-gradient-to-br from-violet-500/10 via-fuchsia-500/10 to-rose-500/10 p-[1px] dark:from-violet-500/20 dark:via-fuchsia-500/20 dark:to-rose-500/20">
+                              <div className="rounded-2xl bg-white/90 px-5 py-4 backdrop-blur-sm dark:bg-slate-900/90">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-violet-600 dark:text-violet-300">
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                  Conversation starter
                                 </div>
-                              )}
 
-                              {ts && (
-                                <div className="mt-2 text-right text-[10px] text-slate-500/80 dark:text-slate-300/60">
-                                  {ts}
-                                </div>
-                              )}
+                                <p className="mt-2.5 text-[15px] leading-relaxed text-slate-800 dark:text-slate-100">
+                                  {(m as any).text}
+                                </p>
+
+                                {ts && (
+                                  <div className="mt-3 text-right text-[10px] text-slate-400 dark:text-slate-500">
+                                    {ts}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </motion.div>
                         );
