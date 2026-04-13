@@ -2262,6 +2262,7 @@ async function deleteAccount() {
                         </button>
                       )}
 
+                      {kycStatus?.status === "verified" && (
                       <label
                         className={[
                           "absolute inset-0 z-10 flex cursor-pointer items-center justify-center text-xs font-medium text-white backdrop-blur-[1px] transition",
@@ -2282,6 +2283,7 @@ async function deleteAccount() {
                           onChange={(e) => pickGalleryPhoto(e, p)}
                         />
                       </label>
+                      )}
                     </div>
 
                     {isRejected && slot?.rejection_reason ? (
