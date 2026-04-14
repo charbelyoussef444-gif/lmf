@@ -7,7 +7,7 @@ import MobileTabBar from "../components/MobileTabBar";
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
-//ddddd
+//dddddddd
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 transition-colors duration-300">
