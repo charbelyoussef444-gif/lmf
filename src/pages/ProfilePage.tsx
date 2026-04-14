@@ -900,11 +900,11 @@ async function recoverAccount() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 transition-colors duration-300">
-        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto flex min-h-screen max-w-5xl max-md:max-w-full flex-col px-4 sm:px-6 lg:px-8">
           <AppHeader />
-          <main className="flex-1 py-8 space-y-8">
+          <main className="flex-1 py-8 max-md:py-5 space-y-8 max-md:space-y-5 pb-20 md:pb-0">
             {/* Profile section skeleton */}
-            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+            <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
               <Skeleton className="h-4 w-24 mb-5" />
               <div className="grid gap-4 sm:grid-cols-2">
                 {[...Array(4)].map((_, i) => (
@@ -917,7 +917,7 @@ async function recoverAccount() {
             </section>
 
             {/* Verification skeleton */}
-            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+            <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
               <Skeleton className="h-4 w-32 mb-4" />
               <div className="grid gap-4 sm:grid-cols-2">
                 {[...Array(2)].map((_, i) => (
@@ -930,7 +930,7 @@ async function recoverAccount() {
             </section>
 
             {/* Personality skeleton */}
-            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+            <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
               <Skeleton className="h-4 w-40 mb-5" />
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
@@ -944,7 +944,7 @@ async function recoverAccount() {
             </section>
 
             {/* Preferences skeleton */}
-            <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+            <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
               <Skeleton className="h-4 w-36 mb-5" />
               <div className="space-y-4">
                 <Skeleton className="h-3 w-48" />
@@ -1098,12 +1098,12 @@ async function recoverAccount() {
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-5xl max-md:max-w-full flex-col px-4 sm:px-6 lg:px-8">
         <AppHeader />
 
-        <main className="flex-1 py-8 space-y-8">
+        <main className="flex-1 py-8 max-md:py-5 space-y-8 max-md:space-y-5 pb-20 md:pb-0">
           {/* Profile */}
-          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Profile
@@ -1629,7 +1629,7 @@ async function recoverAccount() {
           )}
 
           {/* Verification */}
-          <section id="kyc-section" className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          <section id="kyc-section" className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-rose-500 dark:text-rose-300" />
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -1841,7 +1841,7 @@ async function recoverAccount() {
           </section>
 
           {/* Match preferences */}
-          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -2000,7 +2000,7 @@ async function recoverAccount() {
           </section>
 
           {/* Interests */}
-          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-violet-500 dark:text-violet-300" />
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -2137,7 +2137,7 @@ async function recoverAccount() {
           </section>
 
           {/* Gallery */}
-          <section className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+          <section className="rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-6 max-md:p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
             <div className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-rose-500 dark:text-rose-300" />
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -2331,7 +2331,7 @@ async function recoverAccount() {
           </section>
 
          {/* ✅ Danger zone */}
-<section className="rounded-3xl border border-rose-200 bg-rose-50/70 p-6 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-rose-800 dark:bg-rose-950/30 dark:shadow-black/30">
+<section className="rounded-3xl max-md:rounded-2xl border border-rose-200 bg-rose-50/70 p-6 max-md:p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-rose-800 dark:bg-rose-950/30 dark:shadow-black/30">
   <div className="flex items-center gap-2">
     <ShieldAlert className="h-5 w-5 text-rose-600 dark:text-rose-300" />
     <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">

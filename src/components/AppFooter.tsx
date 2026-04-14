@@ -9,7 +9,7 @@ type Props = {
 export default function AppFooter({ className, showAuthStatus = true }: Props) {
   return (
     <footer
-      className={`border-t border-slate-200 py-4 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400 ${
+      className={`hidden md:block border-t border-slate-200 py-4 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400 ${
         className || ""
       }`}
     >

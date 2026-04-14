@@ -676,7 +676,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               className="w-full max-w-md"
             >
-              <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40">
+              <div className="rounded-2xl md:rounded-3xl border border-slate-200 bg-white/80 p-4 md:p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-300">
                   <ShieldCheck className="h-5 w-5" />
                   <h1 className="text-sm font-semibold">You’re signed in</h1>
@@ -737,7 +737,7 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40"
+              className="rounded-2xl md:rounded-3xl border border-slate-200 bg-white/80 p-4 md:p-6 shadow-lg shadow-slate-200/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/40"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

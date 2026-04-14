@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import Skeleton from "../components/Skeleton";
 import AppHeader from "../components/AppHeader";
+import MobileTabBar from "../components/MobileTabBar";
 
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -10,7 +11,7 @@ export default function ProtectedRoute() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 transition-colors duration-300">
-        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 sm:px-6 lg:px-8 pb-20 md:pb-0">
           <AppHeader showNav={false} showUserBadge={false} />
           <main className="flex-1 py-8 space-y-6">
             <Skeleton className="h-5 w-48" />
@@ -31,5 +32,10 @@ export default function ProtectedRoute() {
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <MobileTabBar />
+    </>
+  );
 }

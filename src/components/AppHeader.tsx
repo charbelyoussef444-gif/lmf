@@ -96,17 +96,17 @@ export default function AppHeader({
     ].join(" ");
 
   return (
-    <header className={`flex h-16 items-center justify-between ${className || ""}`}>
+    <header className={`flex h-12 md:h-16 items-center justify-between ${className || ""}`}>
       {/* LEFT SIDE */}
-      <div className="flex items-center gap-4">
-        <Link to="/" className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
+        <Link to="/" className="flex items-center gap-2 md:gap-4">
           <img
             src={logoMark}
             alt="LikeMinded"
-            className="h-[80px] w-[80px] mt-[5px] object-contain"
+            className="h-10 w-10 md:h-[80px] md:w-[80px] md:mt-[5px] object-contain"
           />
 
-          <div className="flex flex-col leading-tight">
+          <div className="hidden md:flex flex-col leading-tight">
             <span className="text-sm font-semibold tracking-tight">LikeMinded</span>
             <span className="text-[11px] text-slate-500 dark:text-slate-400">
               Compatibility-first dating

@@ -760,7 +760,7 @@ export default function ChatbotPage() {
 
   const optionButtonClass = (isSelected: boolean) =>
     [
-      "group relative rounded-3xl border bg-white px-4 py-3 text-left shadow-sm transition disabled:opacity-60 dark:bg-slate-950/35",
+      "group relative rounded-2xl md:rounded-3xl border bg-white px-3 md:px-4 py-3 text-left shadow-sm transition disabled:opacity-60 dark:bg-slate-950/35 w-full",
       "border-slate-200 hover:border-indigo-200/70 hover:shadow-md dark:border-slate-800 dark:hover:border-indigo-500/25",
       isSelected
         ? "border-indigo-300/70 ring-2 ring-indigo-200/50 bg-indigo-50/40 dark:bg-indigo-500/10 dark:ring-indigo-400/20"
@@ -769,7 +769,7 @@ export default function ChatbotPage() {
 
   const otherButtonClass = (isSelected: boolean) =>
     [
-      "group relative rounded-3xl border bg-white px-4 py-3 text-left shadow-sm transition disabled:opacity-60 dark:bg-slate-950/35",
+      "group relative rounded-2xl md:rounded-3xl border bg-white px-3 md:px-4 py-3 text-left shadow-sm transition disabled:opacity-60 dark:bg-slate-950/35 w-full",
       "border-slate-200 hover:border-rose-200/70 hover:shadow-md dark:border-slate-800 dark:hover:border-rose-400/20",
       isSelected
         ? "border-rose-300/60 ring-2 ring-rose-200/40 bg-rose-50/40 dark:bg-rose-500/10 dark:ring-rose-400/15"
@@ -783,7 +783,7 @@ export default function ChatbotPage() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.995 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
-      className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/35"
+      className="rounded-2xl md:rounded-3xl border border-slate-200 bg-white/90 p-3 md:p-5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/35"
     >
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-500/80 dark:text-rose-300/80">
@@ -838,7 +838,7 @@ export default function ChatbotPage() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.995 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
-      className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/35"
+      className="rounded-2xl md:rounded-3xl border border-slate-200 bg-white/90 p-3 md:p-5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/35"
     >
       <div className="min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-500/80 dark:text-indigo-300/80">
@@ -984,7 +984,7 @@ export default function ChatbotPage() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.995 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
-      className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/35"
+      className="rounded-2xl md:rounded-3xl border border-slate-200 bg-white/90 p-3 md:p-5 shadow-sm shadow-slate-200/50 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/35"
     >
       <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
         {stripMcqArtifacts(currentAssistantText)}
@@ -1055,13 +1055,13 @@ export default function ChatbotPage() {
         </div>
       )}
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl max-md:max-w-full flex-col px-4 max-md:px-3 sm:px-6 lg:px-8">
         <AppHeader />
 
-        <main className="flex-1 pt-6 pb-10">
-          <div className="grid items-stretch grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+        <main className="flex-1 pt-4 md:pt-6 pb-20 md:pb-10">
+          <div className="grid items-stretch grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[1fr_340px]">
             <section className="h-full">
-              <div className="h-full rounded-3xl border border-slate-200 bg-white/90 shadow-sm shadow-slate-200/50 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
+              <div className="h-full rounded-2xl md:rounded-3xl border border-slate-200 bg-white/90 shadow-sm shadow-slate-200/50 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/35">
                 <ProgressHeader
                   phase={phase}
                   bubblesCount={
@@ -1073,7 +1073,7 @@ export default function ChatbotPage() {
                   }
                 />
 
-                <div className="px-4 py-5 sm:px-5">
+                <div className="px-3 py-4 sm:px-5 sm:py-5">
                   {isLoadingHistory ? (
                     <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 dark:border-slate-800 dark:bg-slate-950/25 space-y-4">
                       <Skeleton className="h-4 w-3/4" />
@@ -1121,7 +1121,7 @@ export default function ChatbotPage() {
               </div>
             </section>
 
-            <aside className="h-full">
+            <aside className="hidden md:block h-full">
               <div className="flex h-full flex-col gap-4">
                 <SidebarTallCard
                   icon={<Brain className="h-5 w-5 text-indigo-500/70 dark:text-indigo-300/70" />}

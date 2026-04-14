@@ -10,6 +10,7 @@ import {
   MessageSquareHeart,
   ShieldCheck,
   ArrowRight,
+  ArrowLeft,
   Star,
   Filter,
   Plus,
@@ -1420,13 +1421,13 @@ export default function ConversationsPage() {
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl max-md:max-w-full flex-col px-4 max-md:px-3 sm:px-6 lg:px-8">
         <AppHeader />
 
-        <main className="flex-1 py-6">
-          <div className="grid h-[72vh] gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.95fr)]">
+        <main className="flex-1 py-6 max-md:py-3 pb-20 md:pb-0">
+          <div className="grid h-[72vh] max-md:h-auto gap-6 max-md:gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.95fr)]">
             {/* LEFT */}
-            <aside className="flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <aside className={`flex h-[72vh] max-md:h-auto max-md:min-h-[60vh] min-h-0 flex-col overflow-hidden rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 p-4 max-md:p-3 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30 ${active ? "max-md:hidden" : ""}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <MessageSquareHeart className="h-5 w-5 text-indigo-500 dark:text-indigo-300" />
@@ -1683,7 +1684,7 @@ export default function ConversationsPage() {
             </aside>
 
             {/* RIGHT */}
-            <section className="relative flex h-[72vh] min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30">
+            <section className={`relative flex h-[72vh] max-md:h-[calc(100vh-8rem)] min-h-0 flex-col overflow-hidden rounded-3xl max-md:rounded-2xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:shadow-black/30 ${!active ? "max-md:hidden" : ""}`}>
               {!active ? (
                 <div className="flex-1 p-8">
                   <div className="grid h-full place-items-center">
@@ -1771,8 +1772,18 @@ export default function ConversationsPage() {
                     )}
                   </AnimatePresence>
 
-                  <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
-                    <div className="min-w-0">
+                  <div className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 max-md:px-3 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/80">
+                    <div className="min-w-0 flex items-center gap-2">
+                      {/* Mobile back button */}
+                      <button
+                        type="button"
+                        onClick={() => { setActiveId(null); stopPartnerTyping(); }}
+                        className="hidden max-md:inline-flex shrink-0 items-center justify-center rounded-full p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                        aria-label="Back to conversations"
+                      >
+                        <ArrowLeft className="h-5 w-5" />
+                      </button>
+                      <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate font-semibold text-slate-900 dark:text-slate-50">
                           {active?.partnerName}
@@ -1812,8 +1823,9 @@ export default function ConversationsPage() {
                         )}
                       </div>
                     </div>
+                    </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 max-md:hidden">
                       <Link
                         to="/profile"
                         className="underline decoration-slate-300 underline-offset-4 hover:text-indigo-600 dark:decoration-slate-600 dark:hover:text-indigo-300"

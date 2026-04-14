@@ -401,8 +401,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen text-slate-900 dark:text-slate-50 transition-colors duration-300">
-      <div className="mx-auto min-h-screen max-w-6xl px-6 sm:px-10 lg:px-20">
-        <div className="sticky top-0 z-50 -mx-6 sm:-mx-10 lg:-mx-20 px-6 sm:px-10 lg:px-20 backdrop-blur-xl bg-white/65 dark:bg-slate-950/45 border-b border-slate-200/50 dark:border-slate-800/50">
+      <div className="mx-auto min-h-screen max-w-6xl px-4 sm:px-10 lg:px-20">
+        <div className="sticky top-0 z-50 -mx-4 sm:-mx-10 lg:-mx-20 px-4 sm:px-10 lg:px-20 backdrop-blur-xl bg-white/65 dark:bg-slate-950/45 border-b border-slate-200/50 dark:border-slate-800/50">
           <AppHeader />
         </div>
 
@@ -432,7 +432,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                <h1 className="mt-6 text-4xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">
+                <h1 className="mt-6 text-3xl font-semibold leading-[1.05] sm:text-5xl lg:text-6xl">
                   No swiping.
                   <br />
                   <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-rose-500 bg-clip-text text-transparent">

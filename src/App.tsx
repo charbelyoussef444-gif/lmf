@@ -6,7 +6,7 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import LandingPage from "./pages/LandingPage";
@@ -18,7 +18,6 @@ import AuthCallback from "./pages/AuthCallback";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminPage from "./pages/Admin";
 import AdminUserJourneyPage from "./pages/AdminUserJourneyPage";
-import MobileOnlyPage from "./pages/MobileOnlyPage";
 
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
@@ -34,7 +33,9 @@ const GOOGLE_WEB_CLIENT_ID =
 
 function AuthedAppShell() {
   const { user, loading } = useAuth();
-  const location = useLocation();
+  // Keep useLocation subscription so the component re-renders on route changes
+  // (used to be needed for the mobile gate; kept as a harmless no-op reference).
+  useLocation();
 
   // ping last-active for logged-in users
   useEffect(() => {
@@ -42,42 +43,11 @@ function AuthedAppShell() {
     api.mePingOncePerTab().catch(() => {});
   }, [user, loading]);
 
-  // normalize path (remove trailing slash)
-  const path = useMemo(
-    () => location.pathname.replace(/\/+$/, "") || "/",
-    [location.pathname]
-  );
-
-  // detect mobile (basic UA check)
-  const isMobile =
-    typeof window !== "undefined" &&
-    /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
-      navigator.userAgent
-    );
-
-  /**
-   * ✅ MOBILE RULES:
-   * Only allow admin + sign-in related routes on mobile.
-   * Everything else -> /mobile
-   */
-  const mobileAllowed =
-    path === "/mobile" ||
-    path === "/login" ||
-    path === "/auth/callback" ||
-    path === "/reset-password" ||
-    path === "/admin" ||
-    path.startsWith("/admin/");
-
-  // only enforce mobile gate after initial render (avoid weird early redirects)
-  if (isMobile && !mobileAllowed) {
-    return <Navigate to="/mobile" replace />;
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
       <Routes>
-        {/* MOBILE PAGE */}
-        <Route path="/mobile" element={<MobileOnlyPage />} />
+        {/* /mobile no longer blocks — redirect to home */}
+        <Route path="/mobile" element={<Navigate to="/" replace />} />
 
         {/* PUBLIC ROUTES */}
         <Route path="/" element={<LandingPage />} />
