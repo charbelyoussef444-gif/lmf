@@ -1,6 +1,6 @@
 // Mobile replica of /likeminded/src/screens/matches/MatchesHomeScreen.tsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ShieldCheck,

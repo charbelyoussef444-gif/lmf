@@ -172,7 +172,6 @@ export default function MobileVerificationScreen() {
               <GradientButton
                 title="Cancel Verification"
                 variant="outline"
-                size="sm"
                 onClick={handleCancel}
                 loading={cancelling}
               />

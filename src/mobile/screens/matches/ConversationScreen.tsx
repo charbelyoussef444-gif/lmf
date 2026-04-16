@@ -59,6 +59,7 @@ export default function MobileConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [partnerName, setPartnerName] = useState("Match");
   const [feedback, setFeedback] = useState<MatchFeedbackStatus | null>(null);
+  const [photosUnlocked, setPhotosUnlocked] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("spam");
@@ -75,15 +76,18 @@ export default function MobileConversationScreen() {
   const load = async () => {
     if (!conversationId) return;
     try {
-      const [msgs, convs, fb] = await Promise.all([
+      const [msgs, convs, fb, photos] = await Promise.all([
         api.thread(conversationId).catch(() => []),
         api.conversations().catch(() => []),
         api.matchFeedbackStatus(conversationId).catch(() => null),
+        api.conversationPhotos(conversationId).catch(() => null),
       ]);
       setMessages(msgs || []);
       const me = convs.find((c) => c.id === conversationId);
       if (me) setPartnerName(me.partnerName || "Match");
       setFeedback(fb);
+      // If the photos endpoint returned a list (not null from error), photos are unlocked
+      setPhotosUnlocked(Array.isArray(photos));
     } finally {
       setLoading(false);
       setTimeout(scrollToBottom, 0);
@@ -147,6 +151,7 @@ export default function MobileConversationScreen() {
     try {
       const res = await api.submitMatchFeedback(conversationId, yes);
       if (res.photos_unlocked) {
+        setPhotosUnlocked(true);
         alert("🎉 Photos unlocked! You can now see each other's photos.");
         navigate(`/conversations/${conversationId}/photos`);
       } else if (res.both_yes) {
@@ -300,7 +305,7 @@ export default function MobileConversationScreen() {
         </div>
       ) : null}
 
-      {feedback?.photos_unlocked ? (
+      {photosUnlocked ? (
         <button
           type="button"
           onClick={() => navigate(`/conversations/${conversationId}/photos`)}
