@@ -6,7 +6,7 @@ export type WsMessageData = {
   sender_user_id?: string | null;
   receiver_user_id?: string | null;
   content_text?: string | null;
-  created_at: string; // ISO
+  created_at: string; // ISO//
 };
 
 export type WsEvent =
