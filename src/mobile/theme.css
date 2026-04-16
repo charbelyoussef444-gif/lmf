@@ -1,0 +1,695 @@
+/* ==========================================================================
+ * Mobile App Replica Theme — ONLY applies on phone viewports (< md breakpoint)
+ *
+ * Mirrors /likeminded/src/theme/colors.ts, typography.ts, spacing.ts
+ * so that the web UI on a phone looks IDENTICAL to the native mobile app.
+ *
+ * Scope: all classes here start with `.m-` so they can't leak into desktop.
+ * The wrapper `.mobile-app-scope` is the only place these variables resolve;
+ * outside of that, desktop UI is completely unaffected.
+ * ========================================================================== */
+
+.mobile-app-scope {
+  /* ── Brand Primaries (light mode — mobile app is light-first) ── */
+  --m-primary: #4a56e8;
+  --m-primary-dark: #3d4adb;
+  --m-primary-light: #6b78ff;
+  --m-primary-muted: rgba(74, 86, 232, 0.1);
+  --m-secondary: #e835cc;
+  --m-secondary-muted: rgba(232, 53, 204, 0.1);
+  --m-accent: #f06b1a;
+  --m-accent-muted: rgba(240, 107, 26, 0.1);
+
+  /* ── Gradients ── */
+  --m-gradient-start: #4a56e8;
+  --m-gradient-end: #e835cc;
+  --m-gradient-warm-start: #e835cc;
+  --m-gradient-warm-end: #f06b1a;
+
+  /* ── Surfaces ── */
+  --m-bg: #f8f7fc;
+  --m-bg-elevated: #ffffff;
+  --m-surface: #ffffff;
+  --m-surface-hover: rgba(0, 0, 0, 0.04);
+  --m-surface-secondary: #f3f2f8;
+  --m-surface-tertiary: #eeedf5;
+  --m-surface-input: #f3f2f8;
+
+  /* ── Text ── */
+  --m-text-primary: #1a1a2e;
+  --m-text-secondary: rgba(26, 26, 46, 0.65);
+  --m-text-tertiary: rgba(26, 26, 46, 0.4);
+  --m-text-link: #4a56e8;
+  --m-text-on-gradient: #ffffff;
+
+  /* ── Semantic ── */
+  --m-success: #059669;
+  --m-success-light: rgba(5, 150, 105, 0.1);
+  --m-warning: #d97706;
+  --m-warning-light: rgba(217, 119, 6, 0.1);
+  --m-error: #e11d48;
+  --m-error-light: rgba(225, 29, 72, 0.08);
+  --m-info: #2563eb;
+  --m-info-light: rgba(37, 99, 235, 0.08);
+
+  /* ── Borders ── */
+  --m-separator: rgba(0, 0, 0, 0.1);
+  --m-separator-light: rgba(0, 0, 0, 0.05);
+  --m-border: rgba(0, 0, 0, 0.1);
+  --m-border-glass: rgba(0, 0, 0, 0.08);
+
+  /* ── Chat ── */
+  --m-chat-me: #4a56e8;
+  --m-chat-me-text: #ffffff;
+  --m-chat-them: #eeedf5;
+  --m-chat-them-text: #1a1a2e;
+
+  /* ── Tab Bar ── */
+  --m-tab-active: #4a56e8;
+  --m-tab-inactive: rgba(26, 26, 46, 0.35);
+  --m-tab-bar-bg: rgba(248, 247, 252, 0.95);
+
+  /* ── Glows ── */
+  --m-glow-primary: rgba(74, 86, 232, 0.15);
+  --m-glow-secondary: rgba(232, 53, 204, 0.12);
+
+  /* ── Spacing (from /likeminded spacing.ts) ── */
+  --m-xxs: 2px;
+  --m-xs: 4px;
+  --m-sm: 8px;
+  --m-md: 12px;
+  --m-base: 16px;
+  --m-lg: 20px;
+  --m-xl: 24px;
+  --m-2xl: 32px;
+  --m-3xl: 40px;
+  --m-4xl: 48px;
+  --m-5xl: 64px;
+
+  /* ── Border radius ── */
+  --m-r-xs: 4px;
+  --m-r-sm: 8px;
+  --m-r-md: 12px;
+  --m-r-lg: 16px;
+  --m-r-xl: 20px;
+  --m-r-2xl: 24px;
+  --m-r-full: 9999px;
+}
+
+/* Dark mode variant */
+html.dark .mobile-app-scope {
+  --m-primary: #5564ff;
+  --m-primary-dark: #3d4adb;
+  --m-primary-light: #7a86ff;
+  --m-primary-muted: rgba(85, 100, 255, 0.15);
+  --m-secondary: #ff3fe5;
+  --m-secondary-muted: rgba(255, 63, 229, 0.15);
+  --m-accent: #ff7d2a;
+  --m-accent-muted: rgba(255, 125, 42, 0.15);
+
+  --m-gradient-start: #5564ff;
+  --m-gradient-end: #ff3fe5;
+
+  --m-bg: #07002a;
+  --m-bg-elevated: #0d0b2e;
+  --m-surface: rgba(255, 255, 255, 0.06);
+  --m-surface-hover: rgba(255, 255, 255, 0.1);
+  --m-surface-secondary: rgba(255, 255, 255, 0.04);
+  --m-surface-tertiary: rgba(255, 255, 255, 0.03);
+  --m-surface-input: rgba(255, 255, 255, 0.08);
+
+  --m-text-primary: #ffffff;
+  --m-text-secondary: rgba(255, 255, 255, 0.7);
+  --m-text-tertiary: rgba(255, 255, 255, 0.45);
+  --m-text-link: #7a86ff;
+
+  --m-success: #34d399;
+  --m-success-light: rgba(52, 211, 153, 0.15);
+  --m-warning: #fbbf24;
+  --m-warning-light: rgba(251, 191, 36, 0.15);
+  --m-error: #fb7185;
+  --m-error-light: rgba(251, 113, 133, 0.15);
+  --m-info: #60a5fa;
+  --m-info-light: rgba(96, 165, 250, 0.15);
+
+  --m-separator: rgba(255, 255, 255, 0.12);
+  --m-separator-light: rgba(255, 255, 255, 0.06);
+  --m-border: rgba(255, 255, 255, 0.1);
+  --m-border-glass: rgba(255, 255, 255, 0.08);
+
+  --m-chat-me: #5564ff;
+  --m-chat-them: rgba(255, 255, 255, 0.08);
+  --m-chat-them-text: #ffffff;
+
+  --m-tab-active: #5564ff;
+  --m-tab-inactive: rgba(255, 255, 255, 0.4);
+  --m-tab-bar-bg: rgba(7, 0, 42, 0.95);
+
+  --m-glow-primary: rgba(85, 100, 255, 0.3);
+  --m-glow-secondary: rgba(255, 63, 229, 0.25);
+}
+
+/* When the mobile-app-scope is active, hide the global aurora blobs
+ * (they conflict with the dark mobile-app-like background). */
+@media (max-width: 767.98px) {
+  body:has(.mobile-app-scope) {
+    background: var(--m-bg) !important;
+  }
+
+  html:has(.mobile-app-scope)::before,
+  html:has(.mobile-app-scope)::after {
+    display: none !important;
+  }
+
+  html:has(.mobile-app-scope) {
+    background: var(--m-bg) !important;
+    font-size: 100%; /* override the global 125% which breaks mobile sizing */
+  }
+}
+
+/* ============================================================
+ * Typography helpers (Apple HIG scale)
+ * ============================================================ */
+.m-large-title {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 41px;
+  letter-spacing: 0.37px;
+}
+.m-title1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 34px;
+  letter-spacing: 0.36px;
+}
+.m-title2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  letter-spacing: 0.35px;
+}
+.m-title3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 25px;
+  letter-spacing: 0.38px;
+}
+.m-headline {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: -0.41px;
+}
+.m-body {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: -0.41px;
+}
+.m-callout {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 21px;
+  letter-spacing: -0.32px;
+}
+.m-subhead {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.24px;
+}
+.m-footnote {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: -0.08px;
+}
+.m-caption1 {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+.m-caption2 {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 13px;
+  letter-spacing: 0.07px;
+}
+
+/* ============================================================
+ * Shared patterns
+ * ============================================================ */
+.m-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--m-bg);
+  color: var(--m-text-primary);
+  padding-top: env(safe-area-inset-top, 0);
+  -webkit-font-smoothing: antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.m-screen-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.m-card {
+  background-color: var(--m-surface);
+  border: 1px solid var(--m-border-glass);
+  border-radius: var(--m-r-md);
+  padding: var(--m-base);
+}
+.m-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: -0.08px;
+  text-transform: uppercase;
+  color: var(--m-text-tertiary);
+  margin-bottom: var(--m-sm);
+}
+
+/* ============================================================
+ * Gradient button
+ * ============================================================ */
+.m-btn-gradient {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--m-xl);
+  border-radius: 28px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(
+    135deg,
+    var(--m-gradient-start),
+    var(--m-gradient-end)
+  );
+  box-shadow: 0 6px 24px var(--m-glow-primary);
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.m-btn-gradient:active:not(:disabled) {
+  opacity: 0.85;
+  transform: scale(0.99);
+}
+.m-btn-gradient:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.m-btn-solid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--m-xl);
+  border-radius: 28px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--m-primary);
+  box-shadow: 0 6px 24px var(--m-glow-primary);
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+.m-btn-solid:active:not(:disabled) {
+  opacity: 0.85;
+}
+.m-btn-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--m-sm);
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--m-xl);
+  border-radius: 28px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--m-text-primary);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border-glass);
+  cursor: pointer;
+}
+
+/* ============================================================
+ * Input
+ * ============================================================ */
+.m-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-xs);
+  margin-bottom: var(--m-base);
+}
+.m-input-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--m-text-secondary);
+  letter-spacing: -0.08px;
+}
+.m-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--m-base);
+  border-radius: var(--m-r-md);
+  background-color: var(--m-surface-input);
+  border: 1px solid var(--m-border-glass);
+  color: var(--m-text-primary);
+  font-size: 17px;
+  letter-spacing: -0.41px;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+.m-input::placeholder {
+  color: var(--m-text-tertiary);
+}
+.m-input:focus {
+  border-color: var(--m-primary);
+}
+.m-input-error {
+  border-color: var(--m-error);
+}
+.m-input-error-text {
+  font-size: 13px;
+  color: var(--m-error);
+}
+.m-input-wrap {
+  position: relative;
+}
+.m-input-right-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--m-text-tertiary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+/* ============================================================
+ * Chip
+ * ============================================================ */
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: var(--m-r-full);
+  background-color: var(--m-surface);
+  border: 1px solid var(--m-border-glass);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--m-text-primary);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.m-chip-selected {
+  background: linear-gradient(
+    135deg,
+    var(--m-gradient-start),
+    var(--m-gradient-end)
+  );
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px var(--m-glow-primary);
+}
+
+/* ============================================================
+ * Badge
+ * ============================================================ */
+.m-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--m-primary-muted);
+  color: var(--m-primary);
+}
+.m-badge-success { background: var(--m-success-light); color: var(--m-success); }
+.m-badge-warning { background: var(--m-warning-light); color: var(--m-warning); }
+.m-badge-error { background: var(--m-error-light); color: var(--m-error); }
+.m-badge-info { background: var(--m-info-light); color: var(--m-info); }
+
+/* ============================================================
+ * Avatar (initials over gradient)
+ * ============================================================ */
+.m-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(
+    135deg,
+    var(--m-gradient-start),
+    var(--m-gradient-end)
+  );
+  color: #ffffff;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ============================================================
+ * Progress Bar
+ * ============================================================ */
+.m-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--m-surface-secondary);
+  overflow: hidden;
+}
+.m-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--m-gradient-start),
+    var(--m-gradient-end)
+  );
+  transition: width 300ms ease;
+}
+
+/* ============================================================
+ * Icon circle
+ * ============================================================ */
+.m-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+ * Mobile tab bar
+ * ============================================================ */
+.m-tab-bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  background-color: var(--m-tab-bar-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--m-border-glass);
+}
+.m-tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 8px) + 6px);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--m-tab-inactive);
+  text-decoration: none;
+}
+.m-tab-item-active {
+  color: var(--m-tab-active);
+}
+
+/* ============================================================
+ * Mobile header
+ * ============================================================ */
+.m-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--m-base);
+  min-height: 44px;
+  background-color: var(--m-bg);
+}
+.m-header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--m-text-primary);
+  letter-spacing: -0.41px;
+}
+.m-header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  color: var(--m-text-primary);
+  cursor: pointer;
+}
+
+/* ============================================================
+ * Typing dots (chatbot)
+ * ============================================================ */
+@keyframes mTypingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* ============================================================
+ * Pulse ring (matches mobile radar animation)
+ * ============================================================ */
+@keyframes m-pulse-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3.5);
+    opacity: 0;
+  }
+}
+.m-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  border-radius: 40px;
+  border: 2px solid var(--m-primary);
+  animation: m-pulse-ring 3500ms ease-out infinite;
+}
+
+/* ============================================================
+ * Grouped list row (iOS-style settings)
+ * ============================================================ */
+.m-list-group {
+  background-color: var(--m-surface);
+  border: 1px solid var(--m-border-glass);
+  border-radius: var(--m-r-md);
+  overflow: hidden;
+}
+.m-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--m-md);
+  padding: 14px var(--m-base);
+  min-height: 52px;
+  color: var(--m-text-primary);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+}
+.m-list-row + .m-list-row {
+  border-top: 1px solid var(--m-separator-light);
+}
+.m-list-row-title {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.41px;
+}
+
+/* ============================================================
+ * Range slider (dual + single)
+ * ============================================================ */
+.m-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 28px;
+  pointer-events: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.m-range-input::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: linear-gradient(
+    135deg,
+    var(--m-gradient-start),
+    var(--m-gradient-end)
+  );
+  box-shadow: 0 2px 4px var(--m-glow-primary);
+  border: none;
+  cursor: grab;
+}
+.m-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--m-primary);
+  box-shadow: 0 2px 4px var(--m-glow-primary);
+  border: none;
+  cursor: grab;
+}
+.m-range-input::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 28px;
+}
+.m-range-input::-moz-range-track {
+  background: transparent;
+  height: 28px;
+}
+
+/* ============================================================
+ * Chat bubbles
+ * ============================================================ */
+.m-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 16px;
+  line-height: 21px;
+  word-wrap: break-word;
+}
+.m-bubble-me {
+  background: var(--m-chat-me);
+  color: var(--m-chat-me-text);
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.m-bubble-them {
+  background: var(--m-chat-them);
+  color: var(--m-chat-them-text);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}

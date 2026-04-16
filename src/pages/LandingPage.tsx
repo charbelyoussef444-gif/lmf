@@ -13,6 +13,7 @@ import { api } from "../lib/api"; // ✅ adjust if your api.ts path differs
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
+import MobileWelcomeScreen from "../mobile/screens/auth/WelcomeScreen";
 
 function SectionShell({ id, children }: { id: string; children: ReactNode }) {
   return (
@@ -400,7 +401,11 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-50 transition-colors duration-300">
+    <>
+      {/* Mobile replica of native WelcomeScreen */}
+      <MobileWelcomeScreen />
+
+    <div className="min-h-screen text-slate-900 dark:text-slate-50 transition-colors duration-300 hidden md:block">
       <div className="mx-auto min-h-screen max-w-6xl px-4 sm:px-10 lg:px-20">
         <div className="sticky top-0 z-50 -mx-4 sm:-mx-10 lg:-mx-20 px-4 sm:px-10 lg:px-20 backdrop-blur-xl bg-white/65 dark:bg-slate-950/45 border-b border-slate-200/50 dark:border-slate-800/50">
           <AppHeader />
@@ -900,5 +905,6 @@ export default function LandingPage() {
         </main>
       </div>
     </div>
+    </>
   );
 }

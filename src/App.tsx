@@ -19,6 +19,22 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminPage from "./pages/Admin";
 import AdminUserJourneyPage from "./pages/AdminUserJourneyPage";
 
+// Mobile-replica screens (rendered at < md breakpoint only — desktop UI is untouched)
+import MobileMatchesHomeScreen from "./mobile/screens/matches/MatchesHomeScreen";
+import MobileConversationScreen from "./mobile/screens/matches/ConversationScreen";
+import MobileMatchPhotosScreen from "./mobile/screens/matches/MatchPhotosScreen";
+import MobileAssessmentHomeScreen from "./mobile/screens/assessment/AssessmentHomeScreen";
+import MobileChatbotScreen from "./mobile/screens/assessment/ChatbotScreen";
+import MobileProfileHomeScreen from "./mobile/screens/profile/ProfileHomeScreen";
+import MobileInterestsScreen from "./mobile/screens/profile/InterestsScreen";
+import MobileGalleryScreen from "./mobile/screens/profile/GalleryScreen";
+import MobilePreferencesScreen from "./mobile/screens/profile/PreferencesScreen";
+import MobileVerificationScreen from "./mobile/screens/profile/VerificationScreen";
+import MobileDeleteAccountScreen from "./mobile/screens/profile/DeleteAccountScreen";
+import MobileOnboardingAgeGenderScreen from "./mobile/screens/onboarding/OnboardingAgeGenderScreen";
+import MobileOnboardingLocationScreen from "./mobile/screens/onboarding/OnboardingLocationScreen";
+import MobileOnboardingPreferencesScreen from "./mobile/screens/onboarding/OnboardingPreferencesScreen";
+
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { ThemeProvider } from "./theme/ThemeProvider";
@@ -57,9 +73,84 @@ function AuthedAppShell() {
 
         {/* PROTECTED ROUTES */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/chatbot" element={<ChatbotPage />} />
-          <Route path="/conversations" element={<ConversationsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          {/*
+            Shared routes — mobile replica renders at < md (via md:hidden on MobileAppShell),
+            existing desktop page wrapped in `hidden md:block` renders at md+. Desktop UI is
+            unchanged.
+          */}
+          <Route
+            path="/chatbot"
+            element={
+              <>
+                <MobileAssessmentHomeScreen />
+                <div className="hidden md:block">
+                  <ChatbotPage />
+                </div>
+              </>
+            }
+          />
+          <Route
+            path="/conversations"
+            element={
+              <>
+                <MobileMatchesHomeScreen />
+                <div className="hidden md:block">
+                  <ConversationsPage />
+                </div>
+              </>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <>
+                <MobileProfileHomeScreen />
+                <div className="hidden md:block">
+                  <ProfilePage />
+                </div>
+              </>
+            }
+          />
+
+          {/* Mobile-only sub-routes (no desktop equivalent) */}
+          <Route path="/chatbot/session" element={<MobileChatbotScreen />} />
+          <Route
+            path="/conversations/:conversationId"
+            element={<MobileConversationScreen />}
+          />
+          <Route
+            path="/conversations/:conversationId/photos"
+            element={<MobileMatchPhotosScreen />}
+          />
+          <Route
+            path="/profile/interests"
+            element={<MobileInterestsScreen />}
+          />
+          <Route path="/profile/gallery" element={<MobileGalleryScreen />} />
+          <Route
+            path="/profile/preferences"
+            element={<MobilePreferencesScreen />}
+          />
+          <Route
+            path="/profile/verification"
+            element={<MobileVerificationScreen />}
+          />
+          <Route
+            path="/profile/delete"
+            element={<MobileDeleteAccountScreen />}
+          />
+          <Route
+            path="/onboarding/age-gender"
+            element={<MobileOnboardingAgeGenderScreen />}
+          />
+          <Route
+            path="/onboarding/location"
+            element={<MobileOnboardingLocationScreen />}
+          />
+          <Route
+            path="/onboarding/preferences"
+            element={<MobileOnboardingPreferencesScreen />}
+          />
 
           {/* ADMIN */}
           <Route path="/admin" element={<AdminPage />} />

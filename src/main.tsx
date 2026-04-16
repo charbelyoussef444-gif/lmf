@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./mobile/theme.css";
 
 // React 18 entrypoint
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

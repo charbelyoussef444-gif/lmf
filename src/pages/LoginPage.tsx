@@ -20,6 +20,7 @@ import { api } from "../lib/api";
 
 import AppHeader from "../components/AppHeader";
 import AppFooter from "../components/AppFooter";
+import MobileLoginScreen from "../mobile/screens/auth/LoginScreen";
 
 type CityRow = { id: number; city: string; admin_name?: string | null };
 
@@ -723,7 +724,11 @@ export default function LoginPage() {
 
   // Auth + onboarding
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300">
+    <>
+      {/* Mobile replica of native Login/Register screens */}
+      <MobileLoginScreen />
+
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-50 transition-colors duration-300 hidden md:block">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -top-32 left-0 right-0 mx-auto h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,_rgba(129,140,248,0.25),_transparent_60%)] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,_rgba(244,114,182,0.18),_transparent_60%)] blur-3xl" />
@@ -1333,5 +1338,6 @@ export default function LoginPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

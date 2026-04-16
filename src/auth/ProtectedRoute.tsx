@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import Skeleton from "../components/Skeleton";
 import AppHeader from "../components/AppHeader";
-import MobileTabBar from "../components/MobileTabBar";
+import MobileTabBar from "../mobile/layouts/MobileTabBar";
 
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
