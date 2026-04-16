@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Mail } from "lucide-react";
+import { Mail, CheckCircle2 } from "lucide-react";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import MobileAppShell from "../../layouts/MobileAppShell";
 import MobileHeader from "../../layouts/MobileHeader";
@@ -19,7 +19,7 @@ import { api } from "../../../lib/api";
 const LOCKED_COUNTRY = "Lebanon";
 const ONBOARDING_FLAG_KEY = "lmf_onboarding_active_v1";
 
-type Phase = "form" | "verify";
+type Phase = "form" | "verify" | "verified";
 
 export default function MobileLoginScreen() {
   const navigate = useNavigate();
@@ -128,6 +128,37 @@ export default function MobileLoginScreen() {
 
   const onRegisterNext = async () => {
     if (!validateStep()) return;
+
+    // Step 1 → Step 2: pre-check that email isn't already registered.
+    // Mirrors native authService.checkEmail behavior; gracefully skips if the
+    // endpoint is unavailable and lets signup below catch duplicates.
+    if (step === 1) {
+      setLoading(true);
+      try {
+        const { exists, provider } = await api.checkEmail(email.trim());
+        if (exists) {
+          if (provider === "google") {
+            setErrors({
+              email:
+                'This email is linked to a Google account. Use "Sign in with Google" instead.',
+            });
+          } else {
+            setErrors({
+              email:
+                "This email is already registered. Try signing in instead.",
+            });
+          }
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Pre-check failed → allow user to proceed; signup will still catch
+        // duplicates via Supabase error.
+      } finally {
+        setLoading(false);
+      }
+    }
+
     if (step < totalSteps - 1) {
       setStep(step + 1);
       clearMsgs();
@@ -166,11 +197,16 @@ export default function MobileLoginScreen() {
         msg.includes("already been registered")
       ) {
         setErrors({
-          email: "This email is already registered. Try signing in.",
+          email: "This email is already registered. Try signing in instead.",
         });
         setStep(1);
+      } else if (
+        msg.includes("security purposes") ||
+        msg.includes("request this after")
+      ) {
+        alert("Too many attempts. Please wait a moment and try again.");
       } else {
-        alert(e?.message || "Sign up failed.");
+        alert(e?.message || "Could not create account. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -192,7 +228,11 @@ export default function MobileLoginScreen() {
         type: "signup",
       });
       if (error) throw error;
-      await postAuthRedirect();
+      // Show the "Email Verified!" celebratory state briefly, then route.
+      setPhase("verified");
+      setTimeout(() => {
+        postAuthRedirect();
+      }, 1200);
     } catch (e: any) {
       setErrors({ otp: e?.message || "Invalid code. Please try again." });
     } finally {
@@ -287,6 +327,39 @@ export default function MobileLoginScreen() {
     }
     navigate("/");
   };
+
+  // ── Verified success splash ────────────────────────────────────────
+  if (phase === "verified") {
+    return (
+      <MobileAppShell bare className="md:hidden">
+        <div className="flex flex-1 flex-col items-center justify-center px-6 pb-12 text-center">
+          <div style={{ marginBottom: 24 }}>
+            <CheckCircle2 size={72} color="var(--m-success)" />
+          </div>
+          <h1
+            className="m-title1"
+            style={{
+              color: "var(--m-text-primary)",
+              marginBottom: 8,
+              fontWeight: 700,
+            }}
+          >
+            Email Verified!
+          </h1>
+          <p
+            className="m-body"
+            style={{
+              color: "var(--m-text-secondary)",
+              lineHeight: "22px",
+              maxWidth: 320,
+            }}
+          >
+            Your account is ready. Setting up your profile...
+          </p>
+        </div>
+      </MobileAppShell>
+    );
+  }
 
   // ── Verify phase ───────────────────────────────────────────────────
   if (phase === "verify") {

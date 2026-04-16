@@ -384,6 +384,21 @@ export const api = {
   // Profile / weights / interests
   me: () => request<ProfileResponse>("/me"),
 
+  /**
+   * Check if an email exists in auth.users and which provider it uses.
+   * Uses a direct fetch (no auth token needed — user isn't logged in yet).
+   * Mirrors native authService.checkEmail.
+   */
+  checkEmail: async (
+    email: string
+  ): Promise<{ exists: boolean; provider: string | null }> => {
+    const base = API.endsWith("/") ? API.slice(0, -1) : API;
+    const url = `${base}/me/auth/check-email?email=${encodeURIComponent(email)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Check failed");
+    return res.json();
+  },
+
   // Soft-delete my account (7-day recovery window)
   deleteMe: () =>
     request<{ message: string; deleted_at: string; scheduled_purge_at: string }>("/me", { method: "DELETE" }),
