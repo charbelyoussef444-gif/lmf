@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, SendHorizontal } from "lucide-react";
+import { Sparkles, SendHorizontal, CheckCircle2, Trophy } from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
 import MobileHeader from "../../layouts/MobileHeader";
 import { ProgressBar, LoadingSpinner } from "../../components/Primitives";
@@ -262,25 +262,41 @@ export default function MobileChatbotScreen() {
       <MobileHeader title="Assessment" onBack={() => navigate(-1)} />
 
       <div className="px-4 py-2">
-        <div className="flex items-center justify-between mb-1">
-          <span
-            className="m-caption1"
-            style={{ color: "var(--m-text-secondary)" }}
+        {isDone ? (
+          <div
+            className="flex items-center justify-center"
+            style={{ gap: 8, paddingTop: 4, paddingBottom: 4 }}
           >
-            {phase === "pref"
-              ? "Preferences"
-              : phase === "done"
-              ? "Complete"
-              : "About You"}
-          </span>
-          <span
-            className="m-caption1"
-            style={{ color: "var(--m-text-secondary)" }}
-          >
-            {progressPct}%
-          </span>
-        </div>
-        <ProgressBar progress={progressPct / 100} height={6} />
+            <CheckCircle2 size={20} color="var(--m-success)" />
+            <span
+              className="m-headline"
+              style={{
+                color: "var(--m-text-primary)",
+                fontWeight: 700,
+              }}
+            >
+              Assessment Complete
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <span
+                className="m-caption1"
+                style={{ color: "var(--m-text-secondary)" }}
+              >
+                {phase === "pref" ? "Preferences" : "About You"}
+              </span>
+              <span
+                className="m-caption1"
+                style={{ color: "var(--m-text-secondary)" }}
+              >
+                {progressPct}%
+              </span>
+            </div>
+            <ProgressBar progress={progressPct / 100} height={6} />
+          </>
+        )}
       </div>
 
       <div
@@ -385,13 +401,38 @@ export default function MobileChatbotScreen() {
       ) : null}
 
       {isDone ? (
-        <div className="px-4 py-3">
+        <div
+          className="px-4 pt-3"
+          style={{
+            borderTop: "1px solid var(--m-separator-light)",
+            background: "var(--m-bg)",
+            paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0))",
+          }}
+        >
           <button
             type="button"
             onClick={() => navigate("/conversations")}
-            className="m-btn-gradient"
+            className="flex w-full items-center justify-center"
+            style={{
+              gap: 8,
+              height: 52,
+              borderRadius: 14,
+              border: "none",
+              background:
+                "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))",
+              boxShadow: "0 4px 12px rgba(255,107,138,0.30)",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+            aria-label="View your results"
           >
-            View Matches
+            <Trophy size={20} color="#fff" />
+            <span
+              className="m-headline"
+              style={{ color: "#fff", fontWeight: 700 }}
+            >
+              View Your Results
+            </span>
           </button>
         </div>
       ) : null}

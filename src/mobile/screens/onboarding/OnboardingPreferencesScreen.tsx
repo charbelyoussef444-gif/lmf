@@ -15,7 +15,46 @@ const GENDER_PREFS = [
 
 type PrefGender = (typeof GENDER_PREFS)[number]["value"];
 
-/** Dual range slider — layered inputs so both thumbs are draggable. */
+/** Floating value bubble (pink pill) positioned at percentage along the slider track. */
+function ValueBubble({
+  pct,
+  text,
+  wide,
+}: {
+  pct: number;
+  text: string;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: `${pct}%`,
+        transform: "translateX(-50%)",
+        background: "var(--m-primary)",
+        borderRadius: 10,
+        paddingLeft: 10,
+        paddingRight: 10,
+        paddingTop: 4,
+        paddingBottom: 4,
+        minWidth: wide ? 56 : 40,
+        textAlign: "center",
+        pointerEvents: "none",
+        boxShadow: "0 2px 6px rgba(255,107,138,0.30)",
+      }}
+    >
+      <span
+        className="m-caption1"
+        style={{ color: "#fff", fontWeight: 700 }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+/** Dual range slider — layered inputs so both thumbs are draggable, with floating value bubbles. */
 function DualRangeSlider({
   min,
   max,
@@ -32,45 +71,51 @@ function DualRangeSlider({
   const pctMin = ((minValue - min) / (max - min)) * 100;
   const pctMax = ((maxValue - min) / (max - min)) * 100;
   return (
-    <div className="relative h-7 w-full">
-      <div
-        className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full"
-        style={{ backgroundColor: "var(--m-separator-light)" }}
-      />
-      <div
-        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full"
-        style={{
-          backgroundColor: "var(--m-primary)",
-          left: `${pctMin}%`,
-          right: `${100 - pctMax}%`,
-        }}
-      />
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={1}
-        value={minValue}
-        onChange={(e) => {
-          const v = Math.min(Number(e.target.value), maxValue - 1);
-          onChange([v, maxValue]);
-        }}
-        className="m-range-input"
-        style={{ zIndex: 2 }}
-      />
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={1}
-        value={maxValue}
-        onChange={(e) => {
-          const v = Math.max(Number(e.target.value), minValue + 1);
-          onChange([minValue, v]);
-        }}
-        className="m-range-input"
-        style={{ zIndex: 3 }}
-      />
+    <div className="w-full">
+      <div className="relative" style={{ height: 28, marginBottom: 6 }}>
+        <ValueBubble pct={pctMin} text={String(minValue)} />
+        <ValueBubble pct={pctMax} text={String(maxValue)} />
+      </div>
+      <div className="relative h-7 w-full">
+        <div
+          className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full"
+          style={{ backgroundColor: "var(--m-separator-light)" }}
+        />
+        <div
+          className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full"
+          style={{
+            backgroundColor: "var(--m-primary)",
+            left: `${pctMin}%`,
+            right: `${100 - pctMax}%`,
+          }}
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={1}
+          value={minValue}
+          onChange={(e) => {
+            const v = Math.min(Number(e.target.value), maxValue - 1);
+            onChange([v, maxValue]);
+          }}
+          className="m-range-input"
+          style={{ zIndex: 2 }}
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={1}
+          value={maxValue}
+          onChange={(e) => {
+            const v = Math.max(Number(e.target.value), minValue + 1);
+            onChange([minValue, v]);
+          }}
+          className="m-range-input"
+          style={{ zIndex: 3 }}
+        />
+      </div>
     </div>
   );
 }
@@ -81,37 +126,48 @@ function SingleSlider({
   step,
   value,
   onChange,
+  unitSuffix,
 }: {
   min: number;
   max: number;
   step: number;
   value: number;
   onChange: (v: number) => void;
+  unitSuffix?: string;
 }) {
   const pct = ((value - min) / (max - min)) * 100;
   return (
-    <div className="relative h-7 w-full">
-      <div
-        className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full"
-        style={{ backgroundColor: "var(--m-separator-light)" }}
-      />
-      <div
-        className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full"
-        style={{
-          backgroundColor: "var(--m-primary)",
-          width: `${pct}%`,
-        }}
-      />
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="m-range-input"
-        style={{ zIndex: 2 }}
-      />
+    <div className="w-full">
+      <div className="relative" style={{ height: 28, marginBottom: 6 }}>
+        <ValueBubble
+          pct={pct}
+          text={unitSuffix ? `${value} ${unitSuffix}` : String(value)}
+          wide={!!unitSuffix}
+        />
+      </div>
+      <div className="relative h-7 w-full">
+        <div
+          className="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full"
+          style={{ backgroundColor: "var(--m-separator-light)" }}
+        />
+        <div
+          className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full"
+          style={{
+            backgroundColor: "var(--m-primary)",
+            width: `${pct}%`,
+          }}
+        />
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="m-range-input"
+          style={{ zIndex: 2 }}
+        />
+      </div>
     </div>
   );
 }
@@ -257,6 +313,7 @@ export default function MobileOnboardingPreferencesScreen() {
             step={5}
             value={distance}
             onChange={setDistance}
+            unitSuffix="km"
           />
           <div className="flex justify-between mt-1">
             <span

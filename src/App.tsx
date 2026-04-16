@@ -30,6 +30,7 @@ import MobileInterestsScreen from "./mobile/screens/profile/InterestsScreen";
 import MobileGalleryScreen from "./mobile/screens/profile/GalleryScreen";
 import MobilePreferencesScreen from "./mobile/screens/profile/PreferencesScreen";
 import MobileVerificationScreen from "./mobile/screens/profile/VerificationScreen";
+import MobileLocationScreen from "./mobile/screens/profile/LocationScreen";
 import MobileDeleteAccountScreen from "./mobile/screens/profile/DeleteAccountScreen";
 import MobileOnboardingAgeGenderScreen from "./mobile/screens/onboarding/OnboardingAgeGenderScreen";
 import MobileOnboardingLocationScreen from "./mobile/screens/onboarding/OnboardingLocationScreen";
@@ -134,6 +135,10 @@ function AuthedAppShell() {
           <Route
             path="/profile/verification"
             element={<MobileVerificationScreen />}
+          />
+          <Route
+            path="/profile/location"
+            element={<MobileLocationScreen />}
           />
           <Route
             path="/profile/delete"

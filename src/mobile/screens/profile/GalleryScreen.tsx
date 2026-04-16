@@ -2,14 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, X, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  X,
+  Lock,
+  ChevronRight,
+  RefreshCw,
+  Info,
+} from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
 import MobileHeader from "../../layouts/MobileHeader";
-import {
-  Badge,
-  GradientButton,
-  LoadingSpinner,
-} from "../../components/Primitives";
+import { GradientButton, LoadingSpinner } from "../../components/Primitives";
 import { api, type GalleryPhotoSlot } from "../../../lib/api";
 
 type LocalPick = { file: File; url: string };
@@ -74,6 +77,8 @@ export default function MobileGalleryScreen() {
     const url = URL.createObjectURL(f);
     setLocalPicks((prev) => {
       const next = [...prev];
+      const previous = next[position - 1];
+      if (previous) URL.revokeObjectURL(previous.url);
       next[position - 1] = { file: f, url };
       return next;
     });
@@ -91,7 +96,7 @@ export default function MobileGalleryScreen() {
   };
 
   const deleteServerPhoto = async (position: 1 | 2 | 3) => {
-    const ok = window.confirm("Remove this photo?");
+    const ok = window.confirm("Are you sure you want to remove this photo?");
     if (!ok) return;
     try {
       await api.deleteGalleryPhoto(position);
@@ -109,6 +114,8 @@ export default function MobileGalleryScreen() {
         if (p) jobs.push(api.uploadGalleryPhoto(p.file, (i + 1) as 1 | 2 | 3));
       });
       await Promise.all(jobs);
+      // Cleanup object URLs
+      localPicks.forEach((p) => p && URL.revokeObjectURL(p.url));
       setLocalPicks([null, null, null]);
       await refresh();
       alert(
@@ -125,85 +132,179 @@ export default function MobileGalleryScreen() {
     return (
       <MobileAppShell bare className="md:hidden">
         <MobileHeader title="Photos" onBack={() => navigate(-1)} />
-        <LoadingSpinner fullScreen />
+        <LoadingSpinner fullScreen message="Loading photos..." />
       </MobileAppShell>
     );
   }
 
+  const approvedCount = serverPhotos.filter(
+    (s) => s && s.status === "approved"
+  ).length;
+  const moreNeeded = Math.max(0, 3 - approvedCount);
   const hasLocal = localPicks.some((p) => p !== null);
+
+  // Status badge color helpers
+  const badgeStyles = (kind: "ready" | "pending" | "rejected") => {
+    if (kind === "ready") {
+      return {
+        background: "var(--m-text-tertiary)",
+        color: "#fff",
+      } as const;
+    }
+    if (kind === "pending") {
+      return {
+        background: "var(--m-warning)",
+        color: "#fff",
+      } as const;
+    }
+    return {
+      background: "var(--m-error)",
+      color: "#fff",
+    } as const;
+  };
+
+  const renderStatusBadge = (label: string, kind: "ready" | "pending" | "rejected") => (
+    <div
+      className="absolute m-caption2"
+      style={{
+        top: 8,
+        left: 8,
+        paddingLeft: 8,
+        paddingRight: 8,
+        paddingTop: 2,
+        paddingBottom: 2,
+        borderRadius: 6,
+        fontWeight: 700,
+        ...badgeStyles(kind),
+      }}
+    >
+      {label}
+    </div>
+  );
+
+  const renderDeleteButton = (onClick: () => void, label: string) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute flex items-center justify-center"
+      style={{
+        top: 8,
+        right: 8,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        background: "var(--m-error)",
+        border: "none",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+      }}
+      aria-label={label}
+    >
+      <X size={14} color="#fff" />
+    </button>
+  );
 
   return (
     <MobileAppShell bare className="md:hidden">
       <MobileHeader title="Photos" onBack={() => navigate(-1)} />
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <p
-          className="m-body mt-2 mb-4"
-          style={{ color: "var(--m-text-secondary)" }}
-        >
-          Upload 3 photos to start matching. Photos go through review.
-        </p>
-
-        {!isVerified ? (
+      <div className="flex-1 overflow-y-auto px-4 pb-6">
+        {/* Header info */}
+        <div className="mt-3 mb-4">
           <div
-            className="flex items-start gap-2 rounded-[12px] p-3 mb-4"
+            className="m-title3"
             style={{
-              backgroundColor: "var(--m-warning-light)",
-              border: "1px solid var(--m-warning-light)",
+              color: "var(--m-text-primary)",
+              marginBottom: 4,
+              fontWeight: 700,
             }}
           >
-            <AlertCircle
-              size={18}
-              color="var(--m-warning)"
-              className="flex-shrink-0 mt-0.5"
-            />
-            <div>
+            Add at least 3 photos
+          </div>
+          <div
+            className="m-subhead"
+            style={{ color: "var(--m-text-secondary)" }}
+          >
+            {approvedCount}/3 approved
+            {approvedCount < 3 ? (
+              <span style={{ color: "var(--m-warning)" }}>
+                {" \u2014 "}
+                {moreNeeded} more needed
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Verification gate banner */}
+        {!isVerified ? (
+          <div
+            className="rounded-[12px] mb-4"
+            style={{
+              background: "var(--m-fill, var(--m-surface-tertiary))",
+              borderLeft: "4px solid var(--m-warning)",
+              paddingLeft: 16,
+              paddingRight: 16,
+              paddingTop: 12,
+              paddingBottom: 12,
+            }}
+          >
+            <div className="flex items-center mb-1" style={{ gap: 6 }}>
+              <Lock size={18} color="var(--m-warning)" />
               <div
-                className="m-subhead"
-                style={{ color: "var(--m-warning)", fontWeight: 600 }}
+                className="m-headline"
+                style={{ color: "var(--m-text-primary)", fontWeight: 700 }}
               >
                 Verification required
               </div>
-              <p
-                className="m-footnote mt-1"
-                style={{ color: "var(--m-text-secondary)" }}
-              >
-                Complete identity verification before uploading photos.
-              </p>
+            </div>
+            <p
+              className="m-subhead"
+              style={{
+                color: "var(--m-text-secondary)",
+                lineHeight: "20px",
+                marginBottom: 8,
+              }}
+            >
+              {kycStatus === "pending"
+                ? "Your verification is being reviewed. You will be able to upload gallery photos as soon as you are verified."
+                : "You must complete identity verification before you can upload gallery photos."}
+            </p>
+            {kycStatus !== "pending" ? (
               <button
                 type="button"
                 onClick={() => navigate("/profile/verification")}
-                className="m-footnote mt-2"
+                className="flex items-center bg-transparent border-0"
                 style={{
-                  color: "var(--m-primary)",
-                  fontWeight: 600,
-                  background: "transparent",
-                  border: "none",
                   padding: 0,
+                  paddingTop: 4,
+                  paddingBottom: 4,
                 }}
+                aria-label="Go to verification"
               >
-                Verify now →
+                <span
+                  className="m-subhead"
+                  style={{
+                    color: "var(--m-primary)",
+                    fontWeight: 600,
+                    marginRight: 2,
+                  }}
+                >
+                  Verify identity
+                </span>
+                <ChevronRight size={14} color="var(--m-primary)" />
               </button>
-            </div>
+            ) : null}
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Photo Grid */}
+        <div className="grid grid-cols-2" style={{ gap: 16 }}>
           {[1, 2, 3].map((pos) => {
             const position = pos as 1 | 2 | 3;
             const local = localPicks[position - 1];
             const server = serverPhotos[position - 1];
-            const previewUrl = local?.url || server?.url || null;
+
             return (
-              <div
-                key={position}
-                className="relative rounded-[12px] overflow-hidden"
-                style={{
-                  background: "var(--m-surface)",
-                  border: "1px solid var(--m-border-glass)",
-                  aspectRatio: "3 / 4",
-                }}
-              >
+              <div key={position} style={{ width: "100%" }}>
                 <input
                   type="file"
                   accept="image/*"
@@ -213,89 +314,171 @@ export default function MobileGalleryScreen() {
                   onChange={(e) => onFileChange(position, e)}
                   style={{ display: "none" }}
                 />
-                {previewUrl ? (
-                  <>
+
+                {local ? (
+                  <div
+                    className="relative overflow-hidden"
+                    style={{
+                      width: "100%",
+                      aspectRatio: "3 / 4",
+                      borderRadius: 12,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.10)",
+                    }}
+                  >
                     <img
-                      src={previewUrl}
-                      alt={`Photo ${position}`}
+                      src={local.url}
+                      alt={`Photo ${position} ready to upload`}
                       className="h-full w-full object-cover"
                     />
-                    {server?.status === "pending" ? (
-                      <div className="absolute top-2 left-2">
-                        <Badge label="Pending" variant="warning" />
-                      </div>
-                    ) : server?.status === "rejected" ? (
-                      <div className="absolute top-2 left-2">
-                        <Badge label="Rejected" variant="error" />
-                      </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        local
-                          ? clearLocalPick(position)
-                          : deleteServerPhoto(position)
-                      }
-                      className="absolute top-2 right-2 flex items-center justify-center rounded-full"
+                    {renderStatusBadge("Ready", "ready")}
+                    {renderDeleteButton(
+                      () => clearLocalPick(position),
+                      `Remove local photo ${position}`
+                    )}
+                  </div>
+                ) : server && server.url ? (
+                  <>
+                    <div
+                      className="relative overflow-hidden"
                       style={{
-                        width: 28,
-                        height: 28,
-                        background: "rgba(0,0,0,0.6)",
-                        border: "none",
+                        width: "100%",
+                        aspectRatio: "3 / 4",
+                        borderRadius: 12,
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.10)",
+                        border:
+                          server.status === "rejected"
+                            ? "3px solid var(--m-error)"
+                            : "none",
                       }}
-                      aria-label="Remove photo"
                     >
-                      <X size={16} color="#fff" />
-                    </button>
-                    {server?.rejection_reason ? (
+                      <img
+                        src={server.url}
+                        alt={`Photo ${position}`}
+                        className="h-full w-full object-cover"
+                      />
+                      {server.status === "pending"
+                        ? renderStatusBadge("Pending", "pending")
+                        : null}
+                      {server.status === "rejected"
+                        ? renderStatusBadge("Rejected", "rejected")
+                        : null}
+                      {renderDeleteButton(
+                        () => deleteServerPhoto(position),
+                        `Delete photo ${position}`
+                      )}
+                    </div>
+                    {server.status === "rejected" && server.rejection_reason ? (
                       <div
-                        className="absolute bottom-0 left-0 right-0 px-2 py-1 m-caption2"
+                        className="m-caption1"
                         style={{
-                          background: "rgba(0,0,0,0.7)",
-                          color: "#fff",
+                          color: "var(--m-error)",
+                          marginTop: 4,
                         }}
                       >
                         {server.rejection_reason}
                       </div>
+                    ) : null}
+                    {server.status === "rejected" && isVerified ? (
+                      <button
+                        type="button"
+                        onClick={() => handlePick(position)}
+                        className="flex items-center bg-transparent border-0"
+                        style={{
+                          padding: 0,
+                          paddingTop: 4,
+                          paddingBottom: 4,
+                          marginTop: 4,
+                        }}
+                        aria-label={`Replace photo ${position}`}
+                      >
+                        <RefreshCw size={14} color="var(--m-primary)" />
+                        <span
+                          className="m-caption1"
+                          style={{
+                            color: "var(--m-primary)",
+                            fontWeight: 600,
+                            marginLeft: 4,
+                          }}
+                        >
+                          Replace
+                        </span>
+                      </button>
                     ) : null}
                   </>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handlePick(position)}
-                    className="flex h-full w-full flex-col items-center justify-center bg-transparent border-0"
-                    style={{ color: "var(--m-text-secondary)" }}
+                    disabled={!isVerified}
+                    className="flex w-full flex-col items-center justify-center bg-transparent"
+                    style={{
+                      aspectRatio: "3 / 4",
+                      background:
+                        "var(--m-fill, var(--m-surface-tertiary))",
+                      borderRadius: 12,
+                      border: "2px dashed var(--m-border-glass, var(--m-separator-light))",
+                      opacity: isVerified ? 1 : 0.45,
+                      cursor: isVerified ? "pointer" : "default",
+                    }}
+                    aria-label={
+                      isVerified
+                        ? "Add photo"
+                        : "Verification required to add photo"
+                    }
                   >
-                    <Camera size={32} color="var(--m-primary)" />
-                    <span
-                      className="m-footnote mt-2"
-                      style={{ color: "var(--m-text-secondary)" }}
-                    >
-                      Add photo {position}
-                    </span>
+                    {isVerified ? (
+                      <Plus size={32} color="var(--m-text-tertiary)" />
+                    ) : (
+                      <Lock size={24} color="var(--m-text-tertiary)" />
+                    )}
                   </button>
                 )}
               </div>
             );
           })}
         </div>
-      </div>
 
-      {hasLocal ? (
+        {/* Upload button */}
+        {hasLocal ? (
+          <div style={{ marginTop: 32 }}>
+            <GradientButton
+              title={saving ? "Uploading..." : "Upload for review"}
+              onClick={handleUpload}
+              loading={saving}
+              disabled={saving}
+            />
+          </div>
+        ) : null}
+
+        {/* Info footer */}
         <div
-          className="px-4 py-3"
+          className="flex"
           style={{
-            borderTop: "1px solid var(--m-separator-light)",
-            paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0))",
+            alignItems: "flex-start",
+            marginTop: 32,
+            paddingLeft: 4,
+            paddingRight: 4,
           }}
         >
-          <GradientButton
-            title="Submit for Review"
-            onClick={handleUpload}
-            loading={saving}
+          <Info
+            size={18}
+            color="var(--m-text-tertiary)"
+            style={{ marginRight: 8, marginTop: 1, flexShrink: 0 }}
           />
+          <p
+            className="m-footnote"
+            style={{
+              color: "var(--m-text-tertiary)",
+              flex: 1,
+              lineHeight: "18px",
+              margin: 0,
+            }}
+          >
+            Photos are reviewed by our team before they count toward matching.
+            Rejected photos will show a reason so you can upload a new one.
+          </p>
         </div>
-      ) : null}
+      </div>
     </MobileAppShell>
   );
 }
