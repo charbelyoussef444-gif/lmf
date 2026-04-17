@@ -6,6 +6,7 @@ import { Lightbulb, MessageCircle, Heart } from "lucide-react";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { supabase } from "../../../lib/supabaseClient";
 import { api } from "../../../lib/api";
+import { useAuth } from "../../../auth/AuthProvider";
 import MobileAppShell from "../../layouts/MobileAppShell";
 import logoMark from "../../../assets/likeminded-mark.png";
 
@@ -43,7 +44,48 @@ function FeatureItem({
 
 export default function MobileWelcomeScreen() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+
+  // Consider the user "signed in" only after Supabase auth has hydrated.
+  // Otherwise we'd flash the wrong button on first paint (authLoading=true,
+  // user=null) and then swap on mount.
+  const isSignedIn = !authLoading && !!user;
+
+  // Route by whether onboarding is complete — RootNavigator equivalent.
+  // Reused by both the Google flow and the "Continue to Matches" button
+  // shown when the user already has a valid session.
+  async function routeAfterAuth(replace = true) {
+    try {
+      const me = await api.me();
+      if (!me?.age || me.age < 18 || me.age > 99) {
+        navigate("/onboarding/age-gender", { replace });
+      } else {
+        navigate("/conversations", { replace });
+      }
+    } catch {
+      navigate("/conversations", { replace });
+    }
+  }
+
+  async function onContinueToApp() {
+    if (continuing) return;
+    setContinuing(true);
+    try {
+      await routeAfterAuth(false);
+    } finally {
+      setContinuing(false);
+    }
+  }
+
+  async function onSignOut() {
+    try {
+      await signOut();
+    } catch (e: any) {
+      alert(e?.message || "Could not sign out.");
+    }
+  }
 
   // Google Sign-In via GIS postMessage + signInWithIdToken — same flow as
   // LoginScreen. Avoids the redirect_uri_mismatch that the legacy
@@ -58,17 +100,7 @@ export default function MobileWelcomeScreen() {
         token: idToken,
       });
       if (error) throw error;
-      // Route by whether onboarding is complete — RootNavigator equivalent.
-      try {
-        const me = await api.me();
-        if (!me?.age || me.age < 18 || me.age > 99) {
-          navigate("/onboarding/age-gender", { replace: true });
-        } else {
-          navigate("/conversations", { replace: true });
-        }
-      } catch {
-        navigate("/conversations", { replace: true });
-      }
+      await routeAfterAuth(true);
     } catch (e: any) {
       alert(e?.message || "Could not sign in with Google.");
     } finally {
@@ -138,49 +170,110 @@ export default function MobileWelcomeScreen() {
 
         {/* Bottom buttons */}
         <div className="flex flex-col gap-3 pb-2">
-          <button
-            className="m-btn-solid"
-            onClick={() => navigate("/login?mode=register")}
-          >
-            Create Account
-          </button>
+          {isSignedIn ? (
+            <>
+              {/* Already signed in — skip the auth stack entirely. */}
+              <p
+                className="m-footnote text-center"
+                style={{ color: "var(--m-text-secondary)" }}
+              >
+                You're signed in
+                {user?.email ? (
+                  <>
+                    {" "}
+                    as{" "}
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--m-text-primary)",
+                      }}
+                    >
+                      {user.email}
+                    </span>
+                  </>
+                ) : null}
+              </p>
 
-          <div
-            className="flex justify-center"
-            style={{
-              opacity: googleLoading ? 0.6 : 1,
-              pointerEvents: googleLoading ? "none" : "auto",
-            }}
-          >
-            <GoogleLogin
-              onSuccess={onGoogleSuccess}
-              onError={() => alert("Could not sign in with Google.")}
-              useOneTap={false}
-              theme="outline"
-              size="large"
-              text="continue_with"
-              shape="pill"
-              width="320"
-            />
-          </div>
+              <button
+                type="button"
+                className="m-btn-solid"
+                onClick={onContinueToApp}
+                disabled={continuing}
+                style={{ opacity: continuing ? 0.7 : 1 }}
+              >
+                {continuing ? "Loading..." : "Continue to Matches"}
+              </button>
 
-          <button
-            className="m-header-btn min-h-[44px] w-full text-center bg-transparent border-0"
-            onClick={() => navigate("/login")}
-            style={{ color: "var(--m-text-tertiary)" }}
-          >
-            <span className="m-body">
-              Already have an account?{" "}
-              <span
+              <button
+                type="button"
+                className="m-header-btn min-h-[44px] w-full text-center bg-transparent border-0"
+                onClick={onSignOut}
+                style={{ color: "var(--m-text-tertiary)" }}
+              >
+                <span className="m-body">
+                  Not you?{" "}
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--m-text-secondary)",
+                    }}
+                  >
+                    Sign out
+                  </span>
+                </span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="m-btn-solid"
+                onClick={() => navigate("/login?mode=register")}
+                disabled={authLoading}
+                style={{ opacity: authLoading ? 0.7 : 1 }}
+              >
+                Create Account
+              </button>
+
+              <div
+                className="flex justify-center"
                 style={{
-                  fontWeight: 700,
-                  color: "var(--m-text-secondary)",
+                  opacity: googleLoading ? 0.6 : 1,
+                  pointerEvents: googleLoading ? "none" : "auto",
                 }}
               >
-                Sign In
-              </span>
-            </span>
-          </button>
+                <GoogleLogin
+                  onSuccess={onGoogleSuccess}
+                  onError={() => alert("Could not sign in with Google.")}
+                  useOneTap={false}
+                  theme="outline"
+                  size="large"
+                  text="continue_with"
+                  shape="pill"
+                  width="320"
+                />
+              </div>
+
+              <button
+                type="button"
+                className="m-header-btn min-h-[44px] w-full text-center bg-transparent border-0"
+                onClick={() => navigate("/login")}
+                style={{ color: "var(--m-text-tertiary)" }}
+              >
+                <span className="m-body">
+                  Already have an account?{" "}
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--m-text-secondary)",
+                    }}
+                  >
+                    Sign In
+                  </span>
+                </span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </MobileAppShell>
