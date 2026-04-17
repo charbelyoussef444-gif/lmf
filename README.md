@@ -1,4 +1,4 @@
-# LikeMind (React + TypeScript + Vite)
+# LikeMind (React + TypeScript + Vite).
 
 This project is currently a web app built with React, TypeScript, and Vite.
 
