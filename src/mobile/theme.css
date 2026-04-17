@@ -240,8 +240,15 @@ html.dark .mobile-app-scope {
  * Shared patterns
  * ============================================================ */
 .m-screen {
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* Fixed-height viewport container so internal `.flex-1 overflow-y-auto`
+     regions (chat messages, lists) scroll within a bounded parent, keeping
+     sticky inputs and bottom action buttons always visible. Screens without
+     an internal scroll region fall back to the outer `overflow-y: auto`. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--m-bg);
   color: var(--m-text-primary);
   padding-top: env(safe-area-inset-top, 0);

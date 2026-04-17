@@ -15,7 +15,6 @@ import {
   Loader2,
 } from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
-import MobileTabBar from "../../layouts/MobileTabBar";
 import { MobileLargeTitle } from "../../layouts/MobileHeader";
 import {
   GradientButton,
@@ -139,7 +138,6 @@ export default function MobileMatchesHomeScreen() {
     return (
       <MobileAppShell className="md:hidden">
         <LoadingSpinner fullScreen />
-        <MobileTabBar />
       </MobileAppShell>
     );
   }
@@ -279,7 +277,6 @@ export default function MobileMatchesHomeScreen() {
             })}
           </div>
         </div>
-        <MobileTabBar />
       </MobileAppShell>
     );
   }
@@ -463,8 +460,6 @@ export default function MobileMatchesHomeScreen() {
           </div>
         </div>
       ) : null}
-
-      <MobileTabBar />
     </MobileAppShell>
   );
 }

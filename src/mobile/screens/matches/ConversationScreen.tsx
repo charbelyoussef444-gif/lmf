@@ -23,6 +23,40 @@ const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+// Backend occasionally returns duplicate system "match intro" messages
+// and/or duplicate ids (e.g. race between initial GET and a subsequent
+// send). Normalize once so the intro never renders twice.
+function normalizeThread(raw: any[]): Msg[] {
+  if (!Array.isArray(raw)) return [];
+  const seenIds = new Set<string>();
+  const seenSystemTexts = new Set<string>();
+  let keptFirstSystem = false;
+  const out: Msg[] = [];
+  for (const m of raw) {
+    if (!m) continue;
+    const id = String((m as any).id ?? "");
+    const role = String((m as any).role ?? "");
+    const text = String((m as any).text ?? "");
+
+    // Dedup by id if provided
+    if (id && seenIds.has(id)) continue;
+    if (id) seenIds.add(id);
+
+    // Keep only the FIRST system message (the match intro) — drop any
+    // later duplicates, and also dedup identical system texts.
+    if (role === "system") {
+      const key = text.trim();
+      if (keptFirstSystem) continue;
+      if (key && seenSystemTexts.has(key)) continue;
+      if (key) seenSystemTexts.add(key);
+      keptFirstSystem = true;
+    }
+
+    out.push(m as Msg);
+  }
+  return out;
+}
+
 function formatMessageTime(ts: number) {
   const d = new Date(ts * 1000);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -82,7 +116,7 @@ export default function MobileConversationScreen() {
         api.matchFeedbackStatus(conversationId).catch(() => null),
         api.conversationPhotos(conversationId).catch(() => null),
       ]);
-      setMessages(msgs || []);
+      setMessages(normalizeThread(msgs || []));
       const me = convs.find((c) => c.id === conversationId);
       if (me) setPartnerName(me.partnerName || "Match");
       setFeedback(fb);
@@ -105,10 +139,11 @@ export default function MobileConversationScreen() {
       api
         .thread(conversationId)
         .then((m) => {
+          const next = normalizeThread(m);
           setMessages((prev) => {
-            if (m.length === prev.length) return prev;
+            if (next.length === prev.length) return prev;
             setTimeout(scrollToBottom, 0);
-            return m;
+            return next;
           });
         })
         .catch(() => {});
@@ -219,6 +254,24 @@ export default function MobileConversationScreen() {
         </div>
       );
       lastDay = day;
+    }
+    // System / match-intro messages render as a centered card, not a bubble.
+    if ((m as any).role === "system") {
+      rendered.push(
+        <div
+          key={m.id}
+          className="mx-auto my-2 px-4 py-2 rounded-[12px] text-center"
+          style={{
+            maxWidth: "90%",
+            background: "var(--m-primary-muted)",
+            border: "1px solid var(--m-border-glass)",
+            color: "var(--m-text-secondary)",
+          }}
+        >
+          <span className="m-footnote">{m.text}</span>
+        </div>
+      );
+      return;
     }
     rendered.push(
       <div

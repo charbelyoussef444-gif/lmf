@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ClipboardList, Activity, BarChart3 } from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
-import MobileTabBar from "../../layouts/MobileTabBar";
 import {
   GradientButton,
   Badge,
@@ -77,7 +76,6 @@ export default function MobileAssessmentHomeScreen() {
     return (
       <MobileAppShell className="md:hidden">
         <LoadingSpinner fullScreen />
-        <MobileTabBar />
       </MobileAppShell>
     );
   }
@@ -236,8 +234,6 @@ export default function MobileAssessmentHomeScreen() {
 
         <GradientButton title={ctaTitle} onClick={() => navigate("/chatbot/session")} />
       </div>
-
-      <MobileTabBar />
     </MobileAppShell>
   );
 }

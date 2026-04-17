@@ -3,7 +3,9 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Lightbulb, MessageCircle, Heart } from "lucide-react";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { supabase } from "../../../lib/supabaseClient";
+import { api } from "../../../lib/api";
 import MobileAppShell from "../../layouts/MobileAppShell";
 import logoMark from "../../../assets/likeminded-mark.png";
 
@@ -43,20 +45,32 @@ export default function MobileWelcomeScreen() {
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  async function handleGoogle() {
+  // Google Sign-In via GIS postMessage + signInWithIdToken — same flow as
+  // LoginScreen. Avoids the redirect_uri_mismatch that the legacy
+  // supabase.auth.signInWithOAuth flow produces in dev / preview.
+  async function onGoogleSuccess(resp: CredentialResponse) {
+    const idToken = resp.credential;
+    if (!idToken) return;
     setGoogleLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithIdToken({
         provider: "google",
-        options: { redirectTo: window.location.origin + "/auth/callback" },
+        token: idToken,
       });
-    } catch (e: any) {
-      const msg = String(e?.message || "");
-      const cancelled =
-        msg.includes("cancel") || e?.code === "SIGN_IN_CANCELLED";
-      if (!cancelled) {
-        alert("Sign in failed: " + (msg || "Try again"));
+      if (error) throw error;
+      // Route by whether onboarding is complete — RootNavigator equivalent.
+      try {
+        const me = await api.me();
+        if (!me?.age || me.age < 18 || me.age > 99) {
+          navigate("/onboarding/age-gender", { replace: true });
+        } else {
+          navigate("/conversations", { replace: true });
+        }
+      } catch {
+        navigate("/conversations", { replace: true });
       }
+    } catch (e: any) {
+      alert(e?.message || "Could not sign in with Google.");
     } finally {
       setGoogleLoading(false);
     }
@@ -131,19 +145,24 @@ export default function MobileWelcomeScreen() {
             Create Account
           </button>
 
-          <button
-            className="m-btn-ghost"
-            onClick={handleGoogle}
-            disabled={googleLoading}
+          <div
+            className="flex justify-center"
+            style={{
+              opacity: googleLoading ? 0.6 : 1,
+              pointerEvents: googleLoading ? "none" : "auto",
+            }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
-              <path
-                fill="#EA4335"
-                d="M12 10.2v3.9h5.5c-.2 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1S8.7 6 12 6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.9 3.5 14.7 2.6 12 2.6 6.8 2.6 2.6 6.8 2.6 12S6.8 21.4 12 21.4c6.9 0 9.5-4.8 9.5-7.4 0-.5-.1-.9-.1-1.3H12z"
-              />
-            </svg>
-            {googleLoading ? "Signing in..." : "Continue with Google"}
-          </button>
+            <GoogleLogin
+              onSuccess={onGoogleSuccess}
+              onError={() => alert("Could not sign in with Google.")}
+              useOneTap={false}
+              theme="outline"
+              size="large"
+              text="continue_with"
+              shape="pill"
+              width="320"
+            />
+          </div>
 
           <button
             className="m-header-btn min-h-[44px] w-full text-center bg-transparent border-0"

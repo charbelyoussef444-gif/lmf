@@ -322,7 +322,7 @@ export default function MobileChatbotScreen() {
         {isTyping ? <TypingDots /> : null}
       </div>
 
-      {!isDone && currentBot ? (
+      {!isDone ? (
         <div
           className="px-4 pb-3 pt-2"
           style={{
@@ -331,41 +331,15 @@ export default function MobileChatbotScreen() {
             paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0))",
           }}
         >
-          {currentBot.isFreeform || showCustomInput ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={customInput}
-                onChange={(e) => setCustomInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(customInput);
-                  }
-                }}
-                autoFocus
-                placeholder="Type your answer..."
-                className="m-input flex-1"
-              />
-              <button
-                type="button"
-                onClick={() => handleSend(customInput)}
-                disabled={!customInput.trim() || isTyping}
-                className="flex items-center justify-center rounded-full"
-                style={{
-                  width: 44,
-                  height: 44,
-                  background:
-                    "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))",
-                  border: "none",
-                  opacity: !customInput.trim() || isTyping ? 0.5 : 1,
-                }}
-                aria-label="Send"
-              >
-                <SendHorizontal size={20} color="#fff" />
-              </button>
-            </div>
-          ) : (currentBot.options?.length ?? 0) > 0 ? (
+          {/* Decide input UI:
+              1. If bot asked a freeform question OR user picked "Other" → text input
+              2. Else if bot sent MCQ options → option buttons
+              3. Fallback (no bot message yet, or unrecognized bot reply) → text input
+                 so the user is never stuck without a way to respond. */}
+          {currentBot &&
+          !currentBot.isFreeform &&
+          !showCustomInput &&
+          (currentBot.options?.length ?? 0) > 0 ? (
             <div className="flex flex-col gap-2">
               {currentBot.options!.map((opt) => (
                 <button
@@ -396,7 +370,41 @@ export default function MobileChatbotScreen() {
                 </button>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend(customInput);
+                  }
+                }}
+                autoFocus={currentBot?.isFreeform || showCustomInput}
+                placeholder="Type your answer..."
+                className="m-input flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => handleSend(customInput)}
+                disabled={!customInput.trim() || isTyping}
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 44,
+                  height: 44,
+                  background:
+                    "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))",
+                  border: "none",
+                  opacity: !customInput.trim() || isTyping ? 0.5 : 1,
+                }}
+                aria-label="Send"
+              >
+                <SendHorizontal size={20} color="#fff" />
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
 

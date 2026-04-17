@@ -365,7 +365,7 @@ export default function MobileLoginScreen() {
   if (phase === "verify") {
     return (
       <MobileAppShell bare className="md:hidden">
-        <MobileHeader title="" onBack={goBack} />
+        <MobileHeader title="Verify Email" onBack={goBack} />
         <div className="flex flex-1 flex-col px-5 pb-6">
           <div className="flex justify-center mt-2 mb-4">
             <div
@@ -472,7 +472,7 @@ export default function MobileLoginScreen() {
     const progress = (step + 1) / totalSteps;
     return (
       <MobileAppShell bare className="md:hidden">
-        <MobileHeader title="" onBack={goBack} />
+        <MobileHeader title="Create Account" onBack={goBack} />
         <div className="flex flex-1 flex-col px-5 pb-6">
           <div
             className="m-footnote mb-2"
@@ -586,7 +586,7 @@ export default function MobileLoginScreen() {
   // ── Login ──────────────────────────────────────────────────────────
   return (
     <MobileAppShell bare className="md:hidden">
-      <MobileHeader title="" onBack={() => navigate("/")} />
+      <MobileHeader title="Sign In" onBack={() => navigate("/")} />
       <div className="flex flex-1 flex-col px-5 pb-6">
         <h1
           className="m-large-title"

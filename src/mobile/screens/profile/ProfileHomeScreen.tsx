@@ -17,7 +17,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
-import MobileTabBar from "../../layouts/MobileTabBar";
 import { Avatar, Badge, LoadingSpinner } from "../../components/Primitives";
 import { api, type ProfileResponse } from "../../../lib/api";
 import { supabase } from "../../../lib/supabaseClient";
@@ -154,7 +153,6 @@ export default function MobileProfileHomeScreen() {
     return (
       <MobileAppShell className="md:hidden">
         <LoadingSpinner fullScreen />
-        <MobileTabBar />
       </MobileAppShell>
     );
   }
@@ -566,8 +564,6 @@ export default function MobileProfileHomeScreen() {
           </div>
         </div>
       </div>
-
-      <MobileTabBar />
     </MobileAppShell>
   );
 }
