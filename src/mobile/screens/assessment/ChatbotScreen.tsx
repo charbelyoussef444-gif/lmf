@@ -3,7 +3,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, SendHorizontal, CheckCircle2, Trophy } from "lucide-react";
+import {
+  Sparkles,
+  SendHorizontal,
+  CheckCircle2,
+  Trophy,
+  Pencil,
+  ChevronRight,
+} from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
 import MobileHeader from "../../layouts/MobileHeader";
 import { ProgressBar, LoadingSpinner } from "../../components/Primitives";
@@ -17,6 +24,7 @@ type ChatMessage = {
   content: string;
   options?: ParsedOption[];
   isFreeform?: boolean;
+  freeformKey?: string;
 };
 
 function stripTags(text: string) {
@@ -27,20 +35,26 @@ function stripTags(text: string) {
     .trim();
 }
 
+/**
+ * Parses the backend reply text which looks like:
+ * "Question text?\nA) Option A text\nB) Option B text\nC) Option C text\nD) Write your own answer\n\n[[mcq:S1]]"
+ */
 function parseReply(reply: string): {
   questionText: string;
   options: ParsedOption[];
   isFreeform: boolean;
+  freeformKey: string;
 } {
   if (!reply)
-    return { questionText: "", options: [], isFreeform: false };
+    return { questionText: "", options: [], isFreeform: false, freeformKey: "" };
 
   const freeformMatch = reply.match(/\[\[freeform:([^\]]*)\]\]/);
   const isFreeform = !!freeformMatch;
+  const freeformKey = freeformMatch ? freeformMatch[1] : "";
   const cleaned = stripTags(reply);
 
   if (isFreeform) {
-    return { questionText: cleaned, options: [], isFreeform };
+    return { questionText: cleaned, options: [], isFreeform, freeformKey };
   }
 
   const optionRegex = /^([A-D])\)\s*(.+)$/gm;
@@ -58,7 +72,7 @@ function parseReply(reply: string): {
     }
   }
 
-  return { questionText, options, isFreeform };
+  return { questionText, options, isFreeform: false, freeformKey: "" };
 }
 
 function BotAvatar() {
@@ -125,92 +139,26 @@ export default function MobileChatbotScreen() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const h = await api.chatbotHistory();
-        if (cancelled) return;
-        const loaded: ChatMessage[] = (h.messages || []).map((m, idx) => {
-          if (m.role === "assistant") {
-            const parsed = parseReply(m.content);
-            return {
-              id: `hist-${idx}`,
-              role: "assistant",
-              content: parsed.questionText,
-              options: parsed.options,
-              isFreeform: parsed.isFreeform,
-            };
-          }
-          return {
-            id: `hist-${idx}`,
-            role: "user",
-            content: m.content,
-          };
-        });
-        setMessages(loaded);
-        setPhase(h.phase || "self");
-        setIsDone(h.phase === "done");
-        const total =
-          (h.progress?.self_total ?? 0) + (h.progress?.pref_total ?? 0);
-        const filled =
-          (h.progress?.self_filled ?? 0) + (h.progress?.pref_filled ?? 0);
-        setProgressPct(total > 0 ? Math.round((filled / total) * 100) : 0);
-      } catch {
-        // Start a fresh session if no history
-        try {
-          await api.assessmentStart();
-          const first = await api.chatbotMessage("start");
-          if (cancelled) return;
-          const parsed = parseReply(first.reply || "");
-          setMessages([
-            {
-              id: `bot-${Date.now()}`,
-              role: "assistant",
-              content: parsed.questionText,
-              options: parsed.options,
-              isFreeform: parsed.isFreeform,
-            },
-          ]);
-          if (first.phase) setPhase(first.phase);
-        } catch (e) {
-          /* noop */
-        }
-      } finally {
-        if (!cancelled) setLoadingHistory(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Compute progress pct from the (possibly partial) progress object
+  const computeProgress = (p: {
+    self_filled?: number;
+    self_total?: number;
+    pref_filled?: number;
+    pref_total?: number;
+  } | null | undefined) => {
+    if (!p) return 0;
+    const total = (p.self_total ?? 0) + (p.pref_total ?? 0);
+    const filled = (p.self_filled ?? 0) + (p.pref_filled ?? 0);
+    return total > 0 ? Math.round((filled / total) * 100) : 0;
+  };
 
-  const handleSend = async (text: string) => {
-    if (!text.trim() || isDone) return;
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: text,
-    };
-    setMessages((prev) => [...prev, userMsg]);
+  // Send a message to the backend and append the reply.
+  const sendToBackend = async (text: string) => {
     setIsTyping(true);
-    setShowCustomInput(false);
-    setCustomInput("");
-
     try {
       const res = await api.chatbotMessage(text);
-      setIsTyping(false);
-
       if (res.phase) setPhase(res.phase);
-      if (res.progress) {
-        const total =
-          (res.progress.self_total ?? 0) + (res.progress.pref_total ?? 0);
-        const filled =
-          (res.progress.self_filled ?? 0) +
-          ((res.progress as any).pref_filled ?? 0);
-        setProgressPct(total > 0 ? Math.round((filled / total) * 100) : 0);
-      }
+      if (res.progress) setProgressPct(computeProgress(res.progress));
 
       const reply = res.reply || "";
       if (res.phase === "done") {
@@ -222,31 +170,174 @@ export default function MobileChatbotScreen() {
         {
           id: `bot-${Date.now()}`,
           role: "assistant",
-          content: parsed.questionText,
+          content: parsed.questionText || reply,
           options: parsed.options,
           isFreeform: parsed.isFreeform,
+          freeformKey: parsed.freeformKey,
         },
       ]);
     } catch (e: any) {
-      setIsTyping(false);
       alert(e?.message || "Failed to send message");
+    } finally {
+      setIsTyping(false);
     }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const h = await api.chatbotHistory();
+        if (cancelled) return;
+
+        const rawMessages = h.messages || [];
+        const phaseFromHistory = h.phase || "self";
+        const pctFromHistory = computeProgress(h.progress);
+
+        setPhase(phaseFromHistory);
+        setProgressPct(pctFromHistory);
+        setIsDone(phaseFromHistory === "done");
+
+        if (rawMessages.length > 0) {
+          // Find the index of the last bot message — only it gets options.
+          let lastBotIndex = -1;
+          for (let idx = rawMessages.length - 1; idx >= 0; idx--) {
+            if (rawMessages[idx].role === "assistant") {
+              lastBotIndex = idx;
+              break;
+            }
+          }
+
+          const loaded: ChatMessage[] = rawMessages.map((m, i) => {
+            if (m.role === "assistant") {
+              const isLast = i === lastBotIndex;
+              const parsed = parseReply(m.content);
+              return {
+                id: `hist-${i}`,
+                role: "assistant",
+                content: parsed.questionText || m.content,
+                // Only attach MCQ options to the last bot message, and only
+                // if we're not already done.
+                options:
+                  isLast && phaseFromHistory !== "done" ? parsed.options : [],
+                isFreeform:
+                  isLast && phaseFromHistory !== "done"
+                    ? parsed.isFreeform
+                    : false,
+                freeformKey: isLast ? parsed.freeformKey : "",
+              };
+            }
+            return {
+              id: `hist-${i}`,
+              role: "user",
+              content: m.content,
+            };
+          });
+          setMessages(loaded);
+
+          // If the last message is from the user (they answered but didn't
+          // receive the next question), ask the backend to continue. Mirrors
+          // the mobile app.
+          if (
+            lastBotIndex < rawMessages.length - 1 &&
+            phaseFromHistory !== "done"
+          ) {
+            await sendToBackend("continue");
+          }
+          setLoadingHistory(false);
+          return;
+        }
+
+        // No history — kick off the assessment.
+        try {
+          await api.assessmentStart();
+        } catch {
+          /* backend tolerates this failing if already started */
+        }
+        if (cancelled) return;
+        await sendToBackend("start");
+      } catch {
+        // History fetch failed entirely — try to start a fresh session.
+        try {
+          await api.assessmentStart();
+          if (cancelled) return;
+          await sendToBackend("start");
+        } catch {
+          /* noop */
+        }
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Send a user message (from MCQ click, freeform input, or custom input).
+  // Clears the last bot's options so the MCQ UI disappears immediately.
+  const handleSend = async (text: string, optimisticContent?: string) => {
+    if (!text.trim() || isDone) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: optimisticContent || text,
+    };
+    setMessages((prev) => {
+      // Clear options on the last bot message so MCQ UI disappears.
+      const updated = prev.map((m, i) =>
+        i === prev.length - 1 && m.role === "assistant"
+          ? { ...m, options: [], isFreeform: false }
+          : m
+      );
+      return [...updated, userMsg];
+    });
+    setShowCustomInput(false);
+    setCustomInput("");
+    await sendToBackend(text);
   };
 
   const handleOptionClick = (opt: ParsedOption) => {
-    // The convention used is that "D) Write your own answer" triggers freeform input
-    const isOther = /write your own|other/i.test(opt.text);
-    if (isOther) {
+    // "D) Write your own answer" — show custom input
+    if (opt.label === "D" && /write your own|other/i.test(opt.text)) {
       setShowCustomInput(true);
+      setCustomInput("");
       return;
     }
-    handleSend(opt.label);
+    // Send just the letter — show the option text as the optimistic content
+    handleSend(opt.label, opt.text);
   };
 
-  const currentBot =
-    messages.length > 0 && messages[messages.length - 1].role === "assistant"
-      ? messages[messages.length - 1]
-      : null;
+  const handleSendCustom = () => {
+    if (!customInput.trim()) return;
+    const text = customInput.trim();
+    // Send as "D: <custom text>" so backend knows this is the custom answer
+    handleSend(`D: ${text}`, text);
+  };
+
+  const handleSendFreeform = () => {
+    if (!customInput.trim()) return;
+    handleSend(customInput.trim());
+  };
+
+  const handleSkipFreeform = () => {
+    handleSend("skip", "Skip");
+  };
+
+  // Find the last bot message (even if a user message comes after) so MCQ
+  // options/freeform state survive optimistic user renders.
+  const lastBotMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  const currentOptions = lastBotMessage?.options || [];
+  const isFreeformQuestion = lastBotMessage?.isFreeform || false;
+
+  // Is the last message from the user? Then MCQ should not render (we're
+  // waiting on bot). Typing indicator covers the waiting state.
+  const lastIsUser =
+    messages.length > 0 && messages[messages.length - 1].role === "user";
 
   if (loadingHistory) {
     return (
@@ -322,6 +413,7 @@ export default function MobileChatbotScreen() {
         {isTyping ? <TypingDots /> : null}
       </div>
 
+      {/* Bottom input / MCQ region — rendered only when not done. */}
       {!isDone ? (
         <div
           className="px-4 pb-3 pt-2"
@@ -331,46 +423,155 @@ export default function MobileChatbotScreen() {
             paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0))",
           }}
         >
-          {/* Decide input UI:
-              1. If bot asked a freeform question OR user picked "Other" → text input
-              2. Else if bot sent MCQ options → option buttons
-              3. Fallback (no bot message yet, or unrecognized bot reply) → text input
-                 so the user is never stuck without a way to respond. */}
-          {currentBot &&
-          !currentBot.isFreeform &&
-          !showCustomInput &&
-          (currentBot.options?.length ?? 0) > 0 ? (
+          {/* Priority:
+              1. User picked "Other" / D → custom text input
+              2. Current bot asks a freeform question → freeform text input with Skip
+              3. Current bot has MCQ options (and we're not still waiting on a
+                 user→bot round-trip) → option buttons
+              4. Fallback (parsing failed / unexpected state) → plain text input
+                 so the user is never stuck. */}
+          {showCustomInput ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendCustom();
+                  }
+                }}
+                autoFocus
+                placeholder="Type your answer..."
+                className="m-input flex-1"
+              />
+              <button
+                type="button"
+                onClick={handleSendCustom}
+                disabled={!customInput.trim() || isTyping}
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 44,
+                  height: 44,
+                  background:
+                    "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))",
+                  border: "none",
+                  opacity: !customInput.trim() || isTyping ? 0.5 : 1,
+                }}
+                aria-label="Send"
+              >
+                <SendHorizontal size={20} color="#fff" />
+              </button>
+            </div>
+          ) : isFreeformQuestion && !lastIsUser ? (
             <div className="flex flex-col gap-2">
-              {currentBot.options!.map((opt) => (
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Type your answer..."
+                rows={3}
+                className="m-input"
+                style={{ resize: "none" }}
+              />
+              <div className="flex gap-3">
                 <button
-                  key={opt.label}
                   type="button"
-                  onClick={() => handleOptionClick(opt)}
+                  onClick={handleSkipFreeform}
                   disabled={isTyping}
-                  className="flex items-start gap-2 text-left rounded-[12px] px-4 py-3"
+                  className="flex-1 rounded-full text-center"
                   style={{
+                    minHeight: 44,
+                    border: "1px solid var(--m-separator-light)",
                     background: "var(--m-surface)",
-                    border: "1px solid var(--m-border-glass)",
-                    color: "var(--m-text-primary)",
+                    color: "var(--m-text-secondary)",
+                    fontWeight: 600,
                   }}
                 >
-                  <span
-                    className="flex-shrink-0 flex items-center justify-center rounded-full"
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendFreeform}
+                  disabled={!customInput.trim() || isTyping}
+                  className="flex-1 rounded-full text-center"
+                  style={{
+                    minHeight: 44,
+                    border: "none",
+                    background:
+                      customInput.trim() && !isTyping
+                        ? "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))"
+                        : "var(--m-disabled, #c7c7cc)",
+                    color: "#fff",
+                    fontWeight: 700,
+                    opacity: !customInput.trim() || isTyping ? 0.7 : 1,
+                  }}
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          ) : currentOptions.length > 0 && !lastIsUser ? (
+            <div className="flex flex-col gap-2">
+              {currentOptions.map((opt) => {
+                const isOther =
+                  opt.label === "D" && /write your own|other/i.test(opt.text);
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => handleOptionClick(opt)}
+                    disabled={isTyping}
+                    className="flex items-center gap-3 text-left rounded-[12px] px-3 py-3"
                     style={{
-                      width: 28,
-                      height: 28,
-                      background: "var(--m-primary-muted)",
-                      color: "var(--m-primary)",
-                      fontWeight: 700,
+                      background: isOther
+                        ? "var(--m-surface-secondary, var(--m-surface))"
+                        : "var(--m-surface)",
+                      border: isOther
+                        ? "1px dashed var(--m-text-tertiary)"
+                        : "1px solid var(--m-border-glass)",
+                      color: "var(--m-text-primary)",
+                      minHeight: 44,
+                      cursor: "pointer",
                     }}
                   >
-                    {opt.label}
-                  </span>
-                  <span className="m-body flex-1">{opt.text}</span>
-                </button>
-              ))}
+                    <span
+                      className="flex-shrink-0 flex items-center justify-center rounded-full"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        background: isOther
+                          ? "var(--m-surface-secondary, var(--m-surface))"
+                          : "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))",
+                        color: isOther ? "var(--m-text-tertiary)" : "#fff",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        border: isOther
+                          ? "1px solid var(--m-text-tertiary)"
+                          : "none",
+                      }}
+                    >
+                      {isOther ? <Pencil size={14} /> : opt.label}
+                    </span>
+                    <span
+                      className="m-body flex-1"
+                      style={{ lineHeight: 1.35 }}
+                    >
+                      {opt.text}
+                    </span>
+                    {isOther ? (
+                      <ChevronRight
+                        size={16}
+                        color="var(--m-text-tertiary)"
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           ) : (
+            // Fallback — covers the brief period while waiting for the next
+            // bot reply, or the rare case where parsing fails entirely.
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -382,14 +583,18 @@ export default function MobileChatbotScreen() {
                     handleSend(customInput);
                   }
                 }}
-                autoFocus={currentBot?.isFreeform || showCustomInput}
-                placeholder="Type your answer..."
+                placeholder={
+                  isTyping || lastIsUser
+                    ? "Waiting for next question..."
+                    : "Type your answer..."
+                }
                 className="m-input flex-1"
+                disabled={isTyping || lastIsUser}
               />
               <button
                 type="button"
                 onClick={() => handleSend(customInput)}
-                disabled={!customInput.trim() || isTyping}
+                disabled={!customInput.trim() || isTyping || lastIsUser}
                 className="flex items-center justify-center rounded-full"
                 style={{
                   width: 44,
@@ -397,7 +602,8 @@ export default function MobileChatbotScreen() {
                   background:
                     "linear-gradient(135deg, var(--m-gradient-start), var(--m-gradient-end))",
                   border: "none",
-                  opacity: !customInput.trim() || isTyping ? 0.5 : 1,
+                  opacity:
+                    !customInput.trim() || isTyping || lastIsUser ? 0.5 : 1,
                 }}
                 aria-label="Send"
               >
