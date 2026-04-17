@@ -517,6 +517,16 @@ html.dark .mobile-app-scope {
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--m-border-glass);
 }
+
+/* Desktop — hide the mobile tab bar entirely. The JSX already has
+ * `md:hidden`, but `.m-tab-bar { display: flex }` is declared later in the
+ * cascade than Tailwind's utilities, so at equal specificity the component
+ * rule wins. Force it hidden at md+ so the desktop layout is clean. */
+@media (min-width: 768px) {
+  .m-tab-bar {
+    display: none;
+  }
+}
 .m-tab-item {
   flex: 1;
   display: flex;
