@@ -1,6 +1,6 @@
 // Mobile replica of /likeminded/src/screens/matches/ConversationScreen.tsx
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MoreVertical, SendHorizontal, Images, X, Flag } from "lucide-react";
 import MobileAppShell from "../../layouts/MobileAppShell";
@@ -12,6 +12,11 @@ import {
   type MatchFeedbackStatus,
   type ReportReason,
 } from "../../../lib/api";
+import { supabase } from "../../../lib/supabaseClient";
+import {
+  useConversationWS,
+  type WsEvent,
+} from "../../../hooks/useConversationWS";
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: "spam", label: "Spam" },
@@ -98,6 +103,10 @@ export default function MobileConversationScreen() {
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("spam");
   const [reportDetails, setReportDetails] = useState("");
+  // Supabase user id + access token — needed to (a) classify incoming WS
+  // messages as mine vs theirs, and (b) open the authenticated WebSocket.
+  const [meId, setMeId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -106,6 +115,29 @@ export default function MobileConversationScreen() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   };
+
+  // Load supabase session (id + token) once on mount for WS auth.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [{ data: u }, { data: s }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
+        if (!alive) return;
+        setMeId(u.user?.id ?? null);
+        setToken(s.session?.access_token ?? null);
+      } catch {
+        if (!alive) return;
+        setMeId(null);
+        setToken(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const load = async () => {
     if (!conversationId) return;
@@ -128,14 +160,81 @@ export default function MobileConversationScreen() {
     }
   };
 
+  // Incoming WS event handler — mirrors the desktop ConversationsPage logic.
+  const onWsEvent = useCallback(
+    (evt: WsEvent) => {
+      if (evt.type !== "message-new") {
+        // photos-unlocked / ended / typing / read are not critical here;
+        // the 3s polling below will still pick up thread state changes.
+        return;
+      }
+      const d = evt.data;
+      if (!conversationId || d.conversation_id !== conversationId) return;
+      if (!meId) return;
+
+      const role: "me" | "them" = d.sender_user_id === meId ? "me" : "them";
+
+      setMessages((prev) => {
+        // Dedup if the server-assigned id is already present.
+        if (prev.some((m) => m.id === d.id)) return prev;
+
+        // If this is my own message coming back, replace the last optimistic
+        // temp message (matches desktop behavior so there's no duplicate).
+        if (role === "me") {
+          const lastTempIdx = [...prev]
+            .reverse()
+            .findIndex(
+              (m) => m.role === "me" && String(m.id).startsWith("temp-")
+            );
+          if (lastTempIdx !== -1) {
+            const realIdx = prev.length - 1 - lastTempIdx;
+            const clone = prev.slice();
+            clone[realIdx] = {
+              id: d.id,
+              role,
+              text: d.content_text ?? undefined,
+              ts: Math.floor(new Date(d.created_at).getTime() / 1000),
+            } as Msg;
+            return clone;
+          }
+        }
+
+        return [
+          ...prev,
+          {
+            id: d.id,
+            role,
+            text: d.content_text ?? undefined,
+            ts: Math.floor(new Date(d.created_at).getTime() / 1000),
+          } as Msg,
+        ];
+      });
+      setTimeout(scrollToBottom, 0);
+    },
+    [conversationId, meId]
+  );
+
+  const {
+    status: wsStatus,
+    sendText,
+    markRead: markReadWS,
+  } = useConversationWS({
+    apiBase: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000",
+    cid: conversationId ?? null,
+    token,
+    onEvent: onWsEvent,
+  });
+
   useEffect(() => {
     load();
     if (conversationId) {
       api.markRead(conversationId).catch(() => {});
     }
-    // Polling fallback (3s)
+    // Polling fallback — only every 10s and skipped while WS is connected,
+    // so it doesn't fight the live stream or thrash the server.
     pollRef.current = setInterval(() => {
       if (!conversationId) return;
+      if (wsStatus === "connected") return;
       api
         .thread(conversationId)
         .then((m) => {
@@ -147,18 +246,21 @@ export default function MobileConversationScreen() {
           });
         })
         .catch(() => {});
-    }, 3000);
+    }, 10000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+  }, [conversationId, wsStatus]);
 
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text || sending || !conversationId) return;
     setInputText("");
     setSending(true);
+
+    // Optimistic local message — replaced when the server echoes it back
+    // over the WS (see onWsEvent).
     const tempId = `temp-${Date.now()}`;
     const tempMsg: Msg = {
       id: tempId,
@@ -168,11 +270,25 @@ export default function MobileConversationScreen() {
     };
     setMessages((prev) => [...prev, tempMsg]);
     setTimeout(scrollToBottom, 0);
+
     try {
-      const real = await api.sendMessage(conversationId, text);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...real, role: "me" } : m))
-      );
+      // Prefer WebSocket — the REST POST /conversations/:id/messages endpoint
+      // is currently broken server-side (mixed :name / $1 param styles in
+      // the insert). The native mobile app uses the same WS-first pattern.
+      if (wsStatus === "connected" && sendText(text)) {
+        // Done — server will echo back via message-new which replaces temp.
+      } else {
+        const real = await api.sendMessage(conversationId, text);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...real, role: "me" } : m))
+        );
+      }
+      // mark-read piggy-backs on the same WS connection
+      try {
+        markReadWS();
+      } catch {
+        /* ignore */
+      }
     } catch (e: any) {
       alert(e?.message || "Failed to send message");
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
