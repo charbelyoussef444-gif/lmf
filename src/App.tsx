@@ -46,8 +46,7 @@ import { api } from "./lib/api";
 // Can be overridden via VITE_GOOGLE_WEB_CLIENT_ID env var.
 const GOOGLE_WEB_CLIENT_ID =
   (import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID as string | undefined) ||
-  "
-6780217929-luhf3mk3t9i5lkl18b70tm853i8rjlao.apps.googleusercontent.com";
+  "6780217929-luhf3mk3t9i5lkl18b70tm853i8rjlao.apps.googleusercontent.com";
 
 function AuthedAppShell() {
   const { user, loading } = useAuth();
