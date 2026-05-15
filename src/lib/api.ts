@@ -133,6 +133,10 @@ export type MatchStatus = {
     interests_count?: number;
   };
   next_eligible_ts_utc?: string | null;
+  // Backend sets this true when matching is globally held until the launch
+  // instant. Distinct from per-user cooldown so the UI can render a dated
+  // launch banner instead of a HH:MM:SS countdown.
+  launch_pending?: boolean;
 };
 
 export type MatchResponse = MatchIneligible | MatchNoMatch | MatchSuccess;

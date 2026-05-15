@@ -16,6 +16,7 @@ import {
   Plus,
   MoreVertical,
   ChevronDown,
+  Rocket,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -275,6 +276,75 @@ function MatchFindingModal({
   );
 }
 
+// Global pre-launch banner. Rendered IN PLACE of the per-user blockers list
+// when the backend signals launch_pending — the global hold supersedes the
+// per-user "you haven't finished onboarding" reasons (which are still
+// useful, but we surface them through the existing /profile flow rather
+// than rebuilding the checklist inside this banner).
+function LaunchBanner({
+  status,
+  align = "left",
+}: {
+  status: MatchStatus | null;
+  align?: "left" | "center";
+}) {
+  const now = useNow(1000);
+  const launchAtMs = (() => {
+    const iso = (status as any)?.next_eligible_ts_utc;
+    if (!iso) return null;
+    const ms = Date.parse(iso);
+    return Number.isNaN(ms) ? null : ms;
+  })();
+  const remaining = launchAtMs ? Math.max(0, launchAtMs - now) : 0;
+  const countdown = launchAtMs ? msToLaunchClock(remaining) : null;
+  const alignWrap = align === "center" ? "items-center text-center" : "items-start text-left";
+  return (
+    <div
+      className={`mt-1 flex flex-col gap-2 rounded-2xl p-3 text-[12px] ${alignWrap}`}
+      style={{
+        background:
+          "linear-gradient(135deg, rgba(99,102,241,0.10), rgba(244,63,94,0.10))",
+        border: "1px solid rgba(99,102,241,0.25)",
+        color: "rgb(67,56,202)",
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-rose-500 text-white shadow-sm">
+          <Rocket className="h-3.5 w-3.5" />
+        </span>
+        <div className="flex flex-col">
+          <span className="text-[10px] font-semibold tracking-widest text-indigo-500 dark:text-indigo-300">
+            LAUNCHING
+          </span>
+          <span className="text-[13px] font-bold text-slate-900 dark:text-slate-50">
+            June 1, 2026
+          </span>
+        </div>
+      </div>
+      <p className="text-[12px] text-slate-700 dark:text-slate-200">
+        Matching opens June 1, 2026. You can set up your profile now and
+        you'll be matchable the moment we go live.
+      </p>
+      {countdown ? (
+        <div className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-slate-900/60 dark:text-indigo-200">
+          <Clock className="h-3 w-3" />
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{countdown}</span>
+        </div>
+      ) : null}
+      <Link
+        to="/profile"
+        className={`inline-flex w-fit items-center gap-1 rounded-full border border-indigo-300 bg-white/80 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-500/60 dark:bg-slate-900/60 dark:text-indigo-100 ${
+          align === "center" ? "mx-auto" : ""
+        }`}
+        title="Set up your profile"
+      >
+        <ShieldCheck className="h-3 w-3" />
+        <span>Set up your profile</span>
+      </Link>
+    </div>
+  );
+}
+
 function MatchBlockers({
   status,
   align = "left",
@@ -283,6 +353,13 @@ function MatchBlockers({
   align?: "left" | "center";
 }) {
   if (!status) return null;
+
+  // Pre-launch hold supersedes all per-user blockers. Even fully-onboarded
+  // users land here so we can communicate the launch date instead of the
+  // confusing default "Matching is currently unavailable."
+  if ((status as any).launch_pending) {
+    return <LaunchBanner status={status} align={align} />;
+  }
 
   const checks = (status as any).checks as
     | {
@@ -430,6 +507,19 @@ function msToClock(ms: number) {
   const s = total % 60;
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+// Long-form clock for the pre-launch hold (weeks/months). Plain HH:MM:SS
+// would overflow into thousands of hours and read as garbage; this returns
+// "Xd Yh Zm Ws" which stays legible across the entire pre-launch window.
+function msToLaunchClock(ms: number) {
+  if (ms <= 0) return "0d 0h 0m 0s";
+  const total = Math.floor(ms / 1000);
+  const d = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${d}d ${h}h ${m}m ${s}s`;
 }
 
 // ✅ admin-style timestamp display
@@ -1470,6 +1560,8 @@ export default function ConversationsPage() {
                         </span>
                       ) : canMatch ? (
                         <span>You’re eligible for a new match now.</span>
+                      ) : (matchStatus as any)?.launch_pending ? (
+                        <span>Matching opens June 1, 2026.</span>
                       ) : nextEligibleAt ? (
                         <span>Next curated match in {countdown}.</span>
                       ) : (
@@ -1706,6 +1798,8 @@ export default function ConversationsPage() {
                                 </span>
                               ) : canMatch ? (
                                 <span>You can request a new match now.</span>
+                              ) : (matchStatus as any)?.launch_pending ? (
+                                <span>Matching opens June 1, 2026.</span>
                               ) : nextEligibleAt ? (
                                 <span>Next curated match in {countdown}.</span>
                               ) : (
